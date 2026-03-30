@@ -1746,7 +1746,7 @@ function drawEnemy3(e) {
   // ── ARMS (slab-like fists) ──
   const armBob = Math.sin(t*0.05);
   // Left arm
-  const armG = ctx.createLinearGradient(-68,-60,−50,-30);
+  const armG = ctx.createLinearGradient(-68,-60,-50,-30);
   ctx.fillStyle='#888';
   ctx.beginPath(); ctx.roundRect(-64,-62+bob+armBob*6,20,38,[4,4,8,8]); ctx.fill();
   ctx.strokeStyle='#444'; ctx.lineWidth=1.5; ctx.stroke();
