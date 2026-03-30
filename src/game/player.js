@@ -12,8 +12,8 @@ export function createPlayer() {
     // facing is now an angle in radians
     facing: 0,
 
-    health: 300,
-    maxHealth: 300,
+    health: 120,
+    maxHealth: 120,
 
     // 4-shot mechanic
     bullets: 4,

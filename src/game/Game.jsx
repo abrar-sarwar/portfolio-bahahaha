@@ -19,7 +19,7 @@ import {
   setAudioEnabled, isAudioEnabled,
 } from './audio.js';
 
-export default function Game({ onEnemyDead, onVictory, onDeath, gameState }) {
+export default function Game({ onEnemyDead, onVictory, onDeath, gameState, paused }) {
   const canvasRef = useRef(null);
   const rafRef = useRef(null);
 
@@ -31,6 +31,7 @@ export default function Game({ onEnemyDead, onVictory, onDeath, gameState }) {
   const psRef = useRef(createParticleSystem());
   const keysRef = useRef({});
   const gameStateRef = useRef(gameState);
+  const pausedRef = useRef(paused);
   const killFeedRef = useRef([]);
   const magicianRef = useRef({ visible: false, x: LOGICAL_W + 100, slideTarget: 900, timer: 0 });
   const autoFireTimerRef = useRef(0);
@@ -39,10 +40,9 @@ export default function Game({ onEnemyDead, onVictory, onDeath, gameState }) {
   const isMutedRef = useRef(false);
   const rChargeSoundedRef = useRef(false);
 
-  // Keep gameState ref in sync
-  useEffect(() => {
-    gameStateRef.current = gameState;
-  }, [gameState]);
+  // Keep gameState + paused refs in sync
+  useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+  useEffect(() => { pausedRef.current = paused; }, [paused]);
 
   // Convert canvas event coords to map coords
   const getMapCoords = useCallback((e) => {
@@ -237,6 +237,21 @@ export default function Game({ onEnemyDead, onVictory, onDeath, gameState }) {
       rafRef.current = requestAnimationFrame(loop);
       const state = gameStateRef.current;
       if (state === STATES.VICTORY) return;
+      if (pausedRef.current) {
+        // Still draw the world while paused, just skip updates
+        const player = playerRef.current;
+        const enemy = currentEnemyRef.current;
+        const ps = psRef.current;
+        const cam = cameraRef.current;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, LOGICAL_W, LOGICAL_H);
+        drawMap(ctx, frameRef.current, cam);
+        if (enemy && !enemy.dead) drawEnemy(ctx, enemy, frameRef.current, cam);
+        drawVirtuoso(ctx, player, frameRef.current, cam);
+        return;
+      }
 
       frameRef.current++;
       const frame = frameRef.current;
@@ -328,9 +343,9 @@ export default function Game({ onEnemyDead, onVictory, onDeath, gameState }) {
             const dist = Math.hypot(ep.x - player.x, ep.y - player.y);
             if (dist < player.radius + (ep.r || 8)) {
               if (player.iFrames <= 0) {
-                player.health = Math.max(1, player.health - ep.dmg);
+                player.health = Math.max(0, player.health - ep.dmg);
                 player.hitFlash = 10;
-                player.iFrames = 45;
+                player.iFrames = 18;
                 spawnDamageNumber(ps, player.x - cam.x, player.y - cam.y - 30, ep.dmg, 'player');
                 spawnHitSparks(ps, player.x - cam.x, player.y - cam.y, '#FF4444');
                 try { soundPlayerHit(); } catch (err) { /* ignore */ }

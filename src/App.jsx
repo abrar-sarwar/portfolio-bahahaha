@@ -4,6 +4,7 @@ import TutorialScreen from './screens/TutorialScreen.jsx';
 import ResumePopup from './screens/ResumePopup.jsx';
 import VictoryScreen from './screens/VictoryScreen.jsx';
 import DeathScreen from './screens/DeathScreen.jsx';
+import GameTutorial from './screens/GameTutorial.jsx';
 import Game from './game/Game.jsx';
 
 export default function App() {
@@ -12,10 +13,12 @@ export default function App() {
   const [revealData, setRevealData] = useState(null);
   const [victoryStats, setVictoryStats] = useState(null);
   const [deathStats, setDeathStats] = useState(null);
+  const [showGameTutorial, setShowGameTutorial] = useState(false);
 
   const handleStart = useCallback(() => {
     setScreen('game');
     setGameState(STATES.PLAYING);
+    setShowGameTutorial(true);
   }, []);
 
   const handleEnemyDead = useCallback((enemyIndex, continueCallback) => {
@@ -47,6 +50,7 @@ export default function App() {
     setRevealData(null);
     setVictoryStats(null);
     setDeathStats(null);
+    setShowGameTutorial(false);
   }, []);
 
   return (
@@ -57,11 +61,15 @@ export default function App() {
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
           <Game
             gameState={gameState}
+            paused={showGameTutorial}
             onEnemyDead={handleEnemyDead}
             onVictory={handleVictory}
             onDeath={handleDeath}
           />
-          {revealData && (
+          {showGameTutorial && (
+            <GameTutorial onDismiss={() => setShowGameTutorial(false)} />
+          )}
+          {!showGameTutorial && revealData && (
             <ResumePopup
               enemyIndex={revealData.enemyIndex}
               onContinue={handlePopupContinue}
