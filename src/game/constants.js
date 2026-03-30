@@ -1,6 +1,10 @@
 export const LOGICAL_W = 1280;
 export const LOGICAL_H = 720;
-export const GROUND_Y = 560;
+export const GROUND_Y = 560; // kept for backward compat
+
+// The actual map is larger than the viewport
+export const MAP_W = 2800;
+export const MAP_H = 2800;
 
 export const COLORS = {
   bg: '#020710',

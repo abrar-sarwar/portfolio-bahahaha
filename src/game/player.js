@@ -1,14 +1,16 @@
-import { LOGICAL_W, GROUND_Y } from './constants.js';
-import { spawnDamageNumber, spawnTrapExplosion } from './particles.js';
+import { MAP_W, MAP_H } from './constants.js';
+import { spawnTrapExplosion } from './particles.js';
 
 export function createPlayer() {
   return {
-    x: 200,
-    y: GROUND_Y,
+    x: MAP_W * 0.2,
+    y: MAP_H * 0.5,
     vx: 0,
     vy: 0,
     speed: 3.5,
-    facing: 1, // 1 = right, -1 = left
+
+    // facing is now an angle in radians
+    facing: 0,
 
     health: 300,
     maxHealth: 300,
@@ -31,6 +33,7 @@ export function createPlayer() {
     // R charge state
     rCharging: false,
     rChargeTimer: 0,
+    rMaxCharge: 120,
 
     // W stun beam active
     wBeamActive: false,
@@ -43,13 +46,13 @@ export function createPlayer() {
     // Walk animation
     walkFrame: 0,
 
-    // Traps on ground
+    // Traps on map
     traps: [],
 
     // Active projectiles
     projectiles: [],
 
-    // Beam targets enemy x/y
+    // Beam target
     beamTarget: null,
 
     // Speed buff from magician
@@ -66,70 +69,81 @@ export function createPlayer() {
 
     // Flash when hit
     hitFlash: 0,
+
+    // Radius for top-down collision
+    radius: 22,
+
+    // Muzzle flash timer
+    lastShotFlash: 0,
   };
 }
 
 export function updatePlayer(player, keys, currentEnemy, ps, onMuzzleFlash, onHitSparks) {
   // Speed buff
-  if (player.speedBuffTimer > 0) {
-    player.speedBuffTimer--;
-    if (player.speedBuffTimer === 0) player.speedBuff = 0;
-  }
-  const effectiveSpeed = player.speed + player.speedBuff;
+  const spd = player.speed * (1 + player.speedBuff);
 
-  // Walk animation
-  if (Math.abs(player.vx) > 0.1) {
-    player.walkFrame += 0.15;
-  } else {
-    player.walkFrame *= 0.85;
-  }
+  // Keyboard movement (8-directional WASD)
+  let kx = 0, ky = 0;
+  if (keys['a'] || keys['A'] || keys['ArrowLeft']) kx -= 1;
+  if (keys['d'] || keys['D'] || keys['ArrowRight']) kx += 1;
+  if (keys['w'] || keys['W'] || keys['ArrowUp']) ky -= 1;
+  if (keys['s'] || keys['S'] || keys['ArrowDown']) ky += 1;
 
-  // Keyboard movement (overrides click-to-move)
-  let keyMoving = false;
-  if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
-    player.vx = -effectiveSpeed;
-    player.facing = -1;
+  if (kx !== 0 || ky !== 0) {
+    // Keyboard overrides click target
     player.moveTarget = null;
-    keyMoving = true;
-  } else if (keys['ArrowRight'] || keys['d'] || keys['D']) {
-    player.vx = effectiveSpeed;
-    player.facing = 1;
-    player.moveTarget = null;
-    keyMoving = true;
-  } else if (!keyMoving && player.moveTarget === null) {
-    player.vx *= 0.7;
-  }
-
-  // Click-to-move
-  if (player.moveTarget !== null) {
-    const dx = player.moveTarget - player.x;
-    if (Math.abs(dx) > 5) {
-      player.vx = Math.sign(dx) * effectiveSpeed;
-      player.facing = Math.sign(dx);
+    const mag = Math.sqrt(kx * kx + ky * ky);
+    player.vx = (kx / mag) * spd;
+    player.vy = (ky / mag) * spd;
+    player.facing = Math.atan2(ky, kx);
+  } else if (player.moveTarget) {
+    const dx = player.moveTarget.x - player.x;
+    const dy = player.moveTarget.y - player.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 6) {
+      player.vx = (dx / dist) * spd;
+      player.vy = (dy / dist) * spd;
+      player.facing = Math.atan2(dy, dx);
     } else {
       player.vx = 0;
+      player.vy = 0;
       player.moveTarget = null;
     }
+  } else {
+    player.vx *= 0.8;
+    player.vy *= 0.8;
   }
 
+  // Apply velocity
   player.x += player.vx;
-  player.x = Math.max(30, Math.min(LOGICAL_W - 30, player.x));
-  player.y = GROUND_Y;
+  player.y += player.vy;
 
-  // Reload
-  if (player.reloading) {
-    player.reloadTimer++;
-    if (player.reloadTimer >= player.reloadDuration) {
-      player.bullets = player.maxBullets;
-      player.reloading = false;
-      player.reloadTimer = 0;
-    }
+  // Keep in map bounds
+  player.x = Math.max(player.radius, Math.min(MAP_W - player.radius, player.x));
+  player.y = Math.max(player.radius, Math.min(MAP_H - player.radius, player.y));
+
+  // Walk frame animation
+  const moving = Math.abs(player.vx) > 0.3 || Math.abs(player.vy) > 0.3;
+  if (moving) player.walkFrame += 0.12;
+
+  // Face enemy when idle
+  if (!moving && currentEnemy && !currentEnemy.dead) {
+    const dx = currentEnemy.x - player.x;
+    const dy = currentEnemy.y - player.y;
+    player.facing = Math.atan2(dy, dx);
   }
 
   // Cooldowns
   if (player.wCooldown > 0) player.wCooldown--;
   if (player.eCooldown > 0) player.eCooldown--;
   if (player.rCooldown > 0) player.rCooldown--;
+  if (player.speedBuffTimer > 0) {
+    player.speedBuffTimer--;
+    if (!player.speedBuffTimer) player.speedBuff = 0;
+  }
+  if (player.hitFlash > 0) player.hitFlash--;
+  if (player.iFrames > 0) player.iFrames--;
+  if (player.lastShotFlash > 0) player.lastShotFlash--;
 
   // W beam duration
   if (player.wBeamActive) {
@@ -140,38 +154,25 @@ export function updatePlayer(player, keys, currentEnemy, ps, onMuzzleFlash, onHi
     }
   }
 
-  // Iframes
-  if (player.iFrames > 0) player.iFrames--;
-  if (player.hitFlash > 0) player.hitFlash--;
-
-  // Update player projectiles
-  for (let i = player.projectiles.length - 1; i >= 0; i--) {
-    const proj = player.projectiles[i];
-    proj.x += proj.vx;
-    proj.y += proj.vy;
-    proj.life--;
-
-    // Hit enemy
-    if (currentEnemy && !currentEnemy.dead) {
-      const dx = proj.x - currentEnemy.x;
-      const dy = proj.y - (currentEnemy.y - 80);
-      if (Math.abs(dx) < 50 && Math.abs(dy) < 80) {
-        const dmg = proj.isCrit ? 55 : 25;
-        applyDamageToEnemy(currentEnemy, dmg, ps, proj.x, proj.y, proj.isCrit ? 'crit' : 'normal');
-        onHitSparks(proj.x, proj.y, proj.isCrit ? '#C89B3C' : '#AAFFAA');
-        player.totalDamageDealt += dmg;
-        if (proj.isCrit) player.critHits++;
-        player.projectiles.splice(i, 1);
-        continue;
-      }
-    }
-
-    if (proj.life <= 0 || proj.x > LOGICAL_W + 50 || proj.x < -50) {
-      player.projectiles.splice(i, 1);
+  // Reload
+  if (player.reloading) {
+    player.reloadTimer++;
+    if (player.reloadTimer >= player.reloadDuration) {
+      player.reloading = false;
+      player.reloadTimer = 0;
+      player.bullets = player.maxBullets;
     }
   }
 
-  // Update traps
+  // Update projectiles
+  for (const p of player.projectiles) {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life--;
+  }
+  player.projectiles = player.projectiles.filter(p => p.life > 0);
+
+  // Update traps — check for enemy proximity
   for (let i = player.traps.length - 1; i >= 0; i--) {
     const trap = player.traps[i];
     trap.life--;
@@ -179,61 +180,52 @@ export function updatePlayer(player, keys, currentEnemy, ps, onMuzzleFlash, onHi
     if (currentEnemy && !currentEnemy.dead) {
       const dx = trap.x - currentEnemy.x;
       const dy = trap.y - currentEnemy.y;
-      if (Math.abs(dx) < 60 && Math.abs(dy) < 40) {
-        applyDamageToEnemy(currentEnemy, 45, ps, trap.x, trap.y - 30, 'normal');
-        player.totalDamageDealt += 45;
+      if (Math.sqrt(dx * dx + dy * dy) < trap.r + currentEnemy.radius) {
+        const dmg = 45;
+        currentEnemy.hp = Math.max(0, currentEnemy.hp - dmg);
+        player.totalDamageDealt += dmg;
         spawnTrapExplosion(ps, trap.x, trap.y);
+        if (currentEnemy.hp <= 0 && !currentEnemy.dead) {
+          currentEnemy.dead = true;
+          currentEnemy.deathTimer = 0;
+        }
         player.traps.splice(i, 1);
         continue;
       }
     }
 
-    if (trap.life <= 0) player.traps.splice(i, 1);
-  }
-}
-
-export function applyDamageToEnemy(enemy, dmg, ps, x, y, type) {
-  if (enemy.dead) return;
-
-  // Shield check for enemy 5
-  if (enemy.id === 5 && enemy.shieldActive && enemy.shieldHp > 0) {
-    enemy.shieldHp -= dmg;
-    if (enemy.shieldHp <= 0) {
-      enemy.shieldActive = false;
+    if (trap.life <= 0) {
+      player.traps.splice(i, 1);
     }
-    spawnDamageNumber(ps, x, y - 20, 'BLOCKED', 'beam');
-    return;
-  }
-
-  enemy.hp = Math.max(0, enemy.hp - dmg);
-  spawnDamageNumber(ps, x, y - 20, dmg, type);
-
-  if (enemy.hp <= 0) {
-    enemy.dead = true;
-    enemy.deathTimer = 0;
   }
 }
 
 export function fireQAbility(player) {
   if (player.reloading || player.bullets <= 0) return false;
-
-  const isCrit = player.bullets === 1; // 4th shot (last bullet) = crit
-
-  const angle = -0.05 + (Math.random() - 0.5) * 0.04;
-  const speed = 12;
-
+  const isCrit = player.bullets === 1; // last bullet crits
+  const dmg = isCrit ? 55 : 25;
+  const speed = 9;
   player.projectiles.push({
-    x: player.x + player.facing * 40,
-    y: player.y - 80,
-    vx: player.facing * speed * Math.cos(angle),
-    vy: speed * Math.sin(angle),
+    x: player.x,
+    y: player.y,
+    vx: Math.cos(player.facing) * speed,
+    vy: Math.sin(player.facing) * speed,
+    dmg,
     isCrit,
-    life: 80,
+    isR: false,
+    life: 55,
+    w: 10,
+    h: 10,
   });
-
-  player.shots++;
   player.bullets--;
-  if (player.bullets <= 0) {
+  player.shots++;
+  player.lastShotFlash = 5;
+  if (isCrit) {
+    player.critHits++;
+    player.reloading = true;
+    player.reloadTimer = 0;
+  }
+  if (player.bullets <= 0 && !player.reloading) {
     player.reloading = true;
     player.reloadTimer = 0;
   }
@@ -242,25 +234,26 @@ export function fireQAbility(player) {
 
 export function fireWAbility(player, enemy) {
   if (player.wCooldown > 0 || !enemy || enemy.dead) return false;
-  player.wCooldown = player.wMaxCooldown;
   player.wBeamActive = true;
-  player.wBeamTimer = 30;
-  player.beamTarget = { x: enemy.x, y: enemy.y - 80 };
+  player.wBeamTimer = 15;
+  player.beamTarget = { x: enemy.x, y: enemy.y };
+  player.wCooldown = player.wMaxCooldown;
+  const dmg = 40;
+  enemy.hp = Math.max(0, enemy.hp - dmg);
   enemy.stunned = true;
-  enemy.stunTimer = 150; // 2.5s at 60fps
+  enemy.stunTimer = 150;
+  player.totalDamageDealt += dmg;
+  if (enemy.hp <= 0 && !enemy.dead) {
+    enemy.dead = true;
+    enemy.deathTimer = 0;
+  }
   return true;
 }
 
 export function fireEAbility(player) {
   if (player.eCooldown > 0) return false;
+  player.traps.push({ x: player.x, y: player.y, r: 30, triggered: false, life: 600 });
   player.eCooldown = player.eMaxCooldown;
-  // Place trap near player (slightly ahead)
-  player.traps.push({
-    x: player.x + player.facing * 80,
-    y: GROUND_Y,
-    life: 600, // 10 seconds
-    armTimer: 30,
-  });
   return true;
 }
 
@@ -272,29 +265,36 @@ export function startRCharge(player) {
 }
 
 export function releaseRAbility(player, enemy, ps) {
-  if (!player.rCharging) return false;
+  if (!player.rCharging) return 0;
   player.rCharging = false;
-  const chargeRatio = Math.min(1, player.rChargeTimer / 120);
-  const damage = Math.floor(100 + chargeRatio * 100);
-  player.rCooldown = player.rMaxCooldown;
-
-  if (enemy && !enemy.dead) {
-    applyDamageToEnemy(enemy, damage, ps, enemy.x, enemy.y - 80, 'crit');
-    player.totalDamageDealt += damage;
-    enemy.stunned = true;
-    enemy.stunTimer = 60;
-  }
-
-  // Spawn ultimate beam effect
+  if (player.rCooldown > 0) return 0;
+  const chargeRatio = Math.min(1, player.rChargeTimer / player.rMaxCharge);
+  const dmg = Math.floor(100 + chargeRatio * 150);
+  const speed = 14;
   player.projectiles.push({
-    x: player.x + player.facing * 40,
-    y: player.y - 80,
-    vx: player.facing * 18,
-    vy: 0,
-    isCrit: true,
-    isUltimate: true,
-    life: 60,
+    x: player.x,
+    y: player.y,
+    vx: Math.cos(player.facing) * speed,
+    vy: Math.sin(player.facing) * speed,
+    dmg,
+    isCrit: false,
+    isR: true,
+    life: 80,
+    w: 16,
+    h: 16,
   });
+  player.rCooldown = player.rMaxCooldown;
+  player.rChargeTimer = 0;
+  player.lastShotFlash = 8;
+  return dmg;
+}
 
-  return damage;
+// Keep for backward compat
+export function applyDamageToEnemy(enemy, dmg, ps, x, y, type) {
+  if (enemy.dead) return;
+  enemy.hp = Math.max(0, enemy.hp - dmg);
+  if (enemy.hp <= 0) {
+    enemy.dead = true;
+    enemy.deathTimer = 0;
+  }
 }

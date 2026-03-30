@@ -1,8 +1,11 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { LOGICAL_W, LOGICAL_H, GROUND_Y, STATES } from './constants.js';
+import { LOGICAL_W, LOGICAL_H, MAP_W, MAP_H, STATES } from './constants.js';
 import { createPlayer, updatePlayer, fireQAbility, fireWAbility, fireEAbility, startRCharge, releaseRAbility } from './player.js';
 import { createEnemy, updateEnemy } from './enemies.js';
-import { drawBackground, drawJhin, drawPlayerProjectiles, drawWBeam, drawTraps, drawEnemyProjectiles, drawEnemy, drawMagician as _drawMagician } from './draw.js';
+import {
+  drawMap, drawJhin, drawPlayerProjectiles, drawWBeam,
+  drawTraps, drawEnemyProjectiles, drawEnemy, drawMagician as _drawMagician,
+} from './draw.js';
 import { drawHUD } from './ui.js';
 import {
   createParticleSystem, updateParticles, drawParticles,
@@ -24,16 +27,28 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
   const gameStateRef = useRef(gameState);
   const killFeedRef = useRef([]);
   const magicianRef = useRef({ visible: false, x: LOGICAL_W + 100, slideTarget: 900, timer: 0 });
-  const pendingAbilityRef = useRef(null);
   const autoFireTimerRef = useRef(0);
+  const cameraRef = useRef({ x: 0, y: 0 });
 
   // Keep gameState ref in sync
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
 
-  const isInEnemy = useCallback((ex, ey, mx, my) => {
-    return Math.abs(mx - ex) < 60 && Math.abs(my - (ey - 80)) < 100;
+  // Convert canvas event coords to map coords
+  const getMapCoords = useCallback((e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { mx: 0, my: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = LOGICAL_W / rect.width;
+    const scaleY = LOGICAL_H / rect.height;
+    const screenX = (e.clientX - rect.left) * scaleX;
+    const screenY = (e.clientY - rect.top) * scaleY;
+    const cam = cameraRef.current;
+    return {
+      mx: screenX + cam.x,
+      my: screenY + cam.y,
+    };
   }, []);
 
   // ── Input handlers ──────────────────────────────────────────────────────────
@@ -51,15 +66,23 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
           e.preventDefault();
           if (!player.reloading && player.bullets > 0) {
             if (fireQAbility(player)) {
-              spawnMuzzleFlash(ps, player.x + player.facing * 80, player.y - 108);
+              const mfx = player.x + Math.cos(player.facing) * 44;
+              const mfy = player.y + Math.sin(player.facing) * 44;
+              const cam = cameraRef.current;
+              spawnMuzzleFlash(ps, mfx - cam.x, mfy - cam.y);
             }
           }
           break;
         case 'W':
           e.preventDefault();
           if (fireWAbility(player, enemy)) {
-            spawnBeamParticles(ps, player.x + player.facing * 50, player.y - 108, enemy.x, enemy.y - 80);
-            spawnDamageNumber(ps, enemy.x, enemy.y - 120, 'STUN!', 'beam');
+            const cam = cameraRef.current;
+            spawnBeamParticles(
+              ps,
+              player.x - cam.x, player.y - cam.y,
+              enemy.x - cam.x, enemy.y - cam.y
+            );
+            spawnDamageNumber(ps, enemy.x - cam.x, enemy.y - cam.y - 40, 'STUN!', 'beam');
           }
           break;
         case 'E':
@@ -82,10 +105,13 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
         const player = playerRef.current;
         const enemy = currentEnemyRef.current;
         const ps = psRef.current;
+        const cam = cameraRef.current;
         const dmg = releaseRAbility(player, enemy, ps);
         if (dmg) {
-          spawnMuzzleFlash(ps, player.x + player.facing * 60, player.y - 108);
-          spawnHitSparks(ps, enemy.x, enemy.y - 80, '#CC2222');
+          spawnMuzzleFlash(ps, player.x - cam.x, player.y - cam.y);
+          if (enemy && !enemy.dead) {
+            spawnHitSparks(ps, enemy.x - cam.x, enemy.y - cam.y, '#CC2222');
+          }
         }
       }
     };
@@ -103,62 +129,60 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const getLogicalCoords = (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = LOGICAL_W / rect.width;
-      const scaleY = LOGICAL_H / rect.height;
-      return {
-        lx: (e.clientX - rect.left) * scaleX,
-        ly: (e.clientY - rect.top) * scaleY,
-      };
-    };
-
     const handleMouseDown = (e) => {
       if (gameStateRef.current !== STATES.PLAYING) return;
       e.preventDefault();
 
-      const { lx, ly } = getLogicalCoords(e);
+      const { mx, my } = getMapCoords(e);
       const player = playerRef.current;
       const enemy = currentEnemyRef.current;
       const ps = psRef.current;
+      const cam = cameraRef.current;
 
-      if (e.button === 2) {
-        // Right click — attack or target enemy
-        if (enemy && !enemy.dead && isInEnemy(enemy.x, enemy.y, lx, ly)) {
-          player.moveTarget = enemy.x - 80;
+      const isOnEnemy = enemy && !enemy.dead &&
+        Math.hypot(mx - enemy.x, my - enemy.y) < enemy.radius + 20;
+
+      if (e.button === 0 || e.button === 2) {
+        if (isOnEnemy) {
+          // Move toward enemy
+          player.moveTarget = {
+            x: enemy.x - Math.cos(player.facing) * 80,
+            y: enemy.y - Math.sin(player.facing) * 80,
+          };
           player.attackTarget = true;
-          spawnClickRipple(ps, lx, ly, '#FF4444');
+          player.facing = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+          spawnClickRipple(ps, mx - cam.x, my - cam.y, '#FF4444');
         } else {
-          // Right click on ground — also move
-          player.moveTarget = lx;
+          player.moveTarget = { x: mx, y: my };
           player.attackTarget = false;
-          spawnClickRipple(ps, lx, GROUND_Y + 40, '#22FF55');
+          spawnClickRipple(ps, mx - cam.x, my - cam.y, '#22FF55');
         }
-      } else if (e.button === 0) {
-        // Left click
-        if (enemy && !enemy.dead && isInEnemy(enemy.x, enemy.y, lx, ly)) {
-          // Click on enemy — move toward it and auto-attack
-          player.moveTarget = enemy.x - 80;
-          player.attackTarget = true;
-          spawnClickRipple(ps, lx, ly, '#FF4444');
-        } else if (ly > GROUND_Y - 60) {
-          // Click on ground — move
-          player.moveTarget = lx;
-          player.attackTarget = false;
-          spawnClickRipple(ps, lx, GROUND_Y + 40, '#22FF55');
-        }
+      }
+    };
+
+    // Track mouse for facing direction
+    const handleMouseMove = (e) => {
+      if (gameStateRef.current !== STATES.PLAYING) return;
+      const { mx, my } = getMapCoords(e);
+      const player = playerRef.current;
+      // Update facing toward mouse when not moving
+      const moving = Math.abs(player.vx) > 0.3 || Math.abs(player.vy) > 0.3;
+      if (!moving) {
+        player.facing = Math.atan2(my - player.y, mx - player.x);
       }
     };
 
     const handleContextMenu = (e) => e.preventDefault();
 
     canvas.addEventListener('mousedown', handleMouseDown);
+    canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('contextmenu', handleContextMenu);
     return () => {
       canvas.removeEventListener('mousedown', handleMouseDown);
+      canvas.removeEventListener('mousemove', handleMouseMove);
       canvas.removeEventListener('contextmenu', handleContextMenu);
     };
-  }, [isInEnemy]);
+  }, [getMapCoords]);
 
   // ── Game loop ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -166,6 +190,10 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
+
+    const addKillFeed = (msg) => {
+      killFeedRef.current.unshift({ name: msg, age: 0 });
+    };
 
     const loop = () => {
       rafRef.current = requestAnimationFrame(loop);
@@ -177,6 +205,7 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
       const player = playerRef.current;
       const enemy = currentEnemyRef.current;
       const ps = psRef.current;
+      const cam = cameraRef.current;
 
       // ── Update ──────────────────────────────────────────────────────────────
       if (state === STATES.PLAYING) {
@@ -185,15 +214,17 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
           player.rChargeTimer++;
         }
 
-        // Auto-attack when reached target
+        // Auto-attack when reached attack target
         autoFireTimerRef.current++;
         if (player.attackTarget && player.moveTarget === null && autoFireTimerRef.current > 15) {
           autoFireTimerRef.current = 0;
           if (!player.reloading && player.bullets > 0 && enemy && !enemy.dead) {
-            const dx = Math.abs(player.x - enemy.x);
-            if (dx < 500) {
+            const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+            if (dist < 500) {
               if (fireQAbility(player)) {
-                spawnMuzzleFlash(ps, player.x + player.facing * 80, player.y - 108);
+                const mfx = player.x + Math.cos(player.facing) * 44;
+                const mfy = player.y + Math.sin(player.facing) * 44;
+                spawnMuzzleFlash(ps, mfx - cam.x, mfy - cam.y);
               }
             }
           }
@@ -204,21 +235,63 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
           keysRef.current,
           enemy,
           ps,
-          (x, y) => spawnMuzzleFlash(ps, x, y),
-          (x, y, color) => spawnHitSparks(ps, x, y, color)
+          (x, y) => spawnMuzzleFlash(ps, x - cam.x, y - cam.y),
+          (x, y, color) => spawnHitSparks(ps, x - cam.x, y - cam.y, color)
         );
-
-        // Keep player facing enemy
-        if (enemy && !enemy.dead) {
-          const dx = enemy.x - player.x;
-          if (Math.abs(dx) > 20 && player.moveTarget === null && !keysRef.current['ArrowLeft'] && !keysRef.current['ArrowRight'] && !keysRef.current['a'] && !keysRef.current['d']) {
-            player.facing = Math.sign(dx);
-          }
-        }
 
         updateEnemy(enemy, player, ps, frame);
 
-        // Magician NPC
+        // ── Collision: player projectiles vs enemy ───────────────────────────
+        if (enemy && !enemy.dead) {
+          for (const p of player.projectiles) {
+            if (p.life <= 0) continue;
+            const dist = Math.hypot(p.x - enemy.x, p.y - enemy.y);
+            if (dist < enemy.radius + 8) {
+              const shieldBlocked = enemy.index === 4 && enemy.shieldActive;
+              if (shieldBlocked) {
+                enemy.shieldHits++;
+                if (enemy.shieldHits >= 4) {
+                  enemy.shieldActive = false;
+                  addKillFeed('SHIELD BROKEN!');
+                }
+                spawnDamageNumber(ps, p.x - cam.x, p.y - cam.y - 20, 'BLOCKED', 'beam');
+              } else {
+                enemy.hp = Math.max(0, enemy.hp - p.dmg);
+                player.totalDamageDealt += p.dmg;
+                if (p.isCrit) player.critHits++;
+                spawnHitSparks(ps, p.x - cam.x, p.y - cam.y, p.isCrit ? '#FFD700' : '#C89B3C');
+                spawnDamageNumber(ps, p.x - cam.x, p.y - cam.y - 20, p.dmg, p.isCrit ? 'crit' : 'normal');
+              }
+              p.life = 0;
+              if (enemy.hp <= 0 && !enemy.dead) {
+                enemy.dead = true;
+                enemy.deathTimer = 0;
+              }
+            }
+          }
+        }
+
+        // ── Collision: enemy projectiles vs player ───────────────────────────
+        if (enemy) {
+          for (const ep of enemy.projectiles) {
+            if (ep.life <= 0) continue;
+            const dist = Math.hypot(ep.x - player.x, ep.y - player.y);
+            if (dist < player.radius + (ep.r || 8)) {
+              if (player.iFrames <= 0) {
+                player.health = Math.max(1, player.health - ep.dmg);
+                player.hitFlash = 10;
+                player.iFrames = 45;
+                spawnDamageNumber(ps, player.x - cam.x, player.y - cam.y - 30, ep.dmg, 'player');
+                spawnHitSparks(ps, player.x - cam.x, player.y - cam.y, '#FF4444');
+              }
+              ep.life = 0;
+            }
+          }
+        }
+
+        // ── Trap vs enemy collision (handled inside updatePlayer) ────────────
+
+        // ── Magician NPC ─────────────────────────────────────────────────────
         const mag = magicianRef.current;
         if (mag.visible) {
           mag.timer++;
@@ -226,7 +299,6 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
             mag.x -= 5;
           }
           if (mag.timer > 300) {
-            // Slide out
             mag.x += 6;
             if (mag.x > LOGICAL_W + 100) {
               mag.visible = false;
@@ -244,7 +316,6 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
         if (enemy.dead && enemy.deathTimer === 1) {
           const idx = enemyIndexRef.current;
 
-          // Add to kill feed
           killFeedRef.current.unshift({ name: enemy.name, age: 0 });
 
           // Trigger magician after enemy 2
@@ -255,17 +326,14 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
               slideTarget: 900,
               timer: 0,
             };
-            // Speed buff
             player.speedBuff = 1.5;
             player.speedBuffTimer = 600;
           }
 
-          // Notify React (shows resume popup or victory)
           if (idx >= 4) {
             onVictory({ player, killFeed: killFeedRef.current });
           } else {
             onEnemyDead(idx, () => {
-              // Called when player clicks "CONTINUE" on popup
               const nextIdx = idx + 1;
               enemyIndexRef.current = nextIdx;
               currentEnemyRef.current = createEnemy(nextIdx);
@@ -273,10 +341,18 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
           }
         }
 
-        // Player death — reset health for now (just cap at 1)
+        // Player death — cap at 1
         if (player.health <= 0) {
           player.health = 1;
         }
+
+        // ── Camera follows player ────────────────────────────────────────────
+        const targetCamX = player.x - LOGICAL_W / 2;
+        const targetCamY = player.y - LOGICAL_H / 2;
+        cam.x += (targetCamX - cam.x) * 0.1;
+        cam.y += (targetCamY - cam.y) * 0.1;
+        cam.x = Math.max(0, Math.min(MAP_W - LOGICAL_W, cam.x));
+        cam.y = Math.max(0, Math.min(MAP_H - LOGICAL_H, cam.y));
       }
 
       // Always update particles
@@ -285,27 +361,32 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
       // ── Draw ────────────────────────────────────────────────────────────────
       ctx.clearRect(0, 0, LOGICAL_W, LOGICAL_H);
 
-      drawBackground(ctx, frame);
+      // Top-down map
+      drawMap(ctx, frame, cam);
+
+      // Particles (screen space)
       drawParticles(ctx, ps);
-      drawTraps(ctx, player, frame);
+
+      // Traps (map space -> screen via camera)
+      drawTraps(ctx, player, frame, cam);
 
       // Enemy
       if (enemy) {
-        drawEnemyProjectiles(ctx, enemy);
-        drawEnemy(ctx, enemy, frame);
+        drawEnemyProjectiles(ctx, enemy, cam);
+        drawEnemy(ctx, enemy, frame, cam);
       }
 
-      // Magician
+      // Magician (screen space NPC)
       if (magicianRef.current.visible) {
         drawMagicianWithDialogue(ctx, magicianRef.current, frame);
       }
 
       // Player
-      drawPlayerProjectiles(ctx, player, frame);
-      drawWBeam(ctx, player);
-      drawJhin(ctx, player, frame);
+      drawPlayerProjectiles(ctx, player, frame, cam);
+      drawWBeam(ctx, player, cam);
+      drawJhin(ctx, player, frame, cam);
 
-      // HUD
+      // HUD (always screen space)
       drawHUD(ctx, player, enemy && !enemy.dead ? enemy : null, killFeedRef.current, frame);
 
       // Speed buff indicator
@@ -314,7 +395,7 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
         ctx.globalAlpha = 0.7;
         ctx.font = '11px "Share Tech Mono"';
         ctx.textAlign = 'center';
-        ctx.fillText('✦ HASTE ✦', LOGICAL_W / 2, LOGICAL_H - 20);
+        ctx.fillText('HASTE', LOGICAL_W / 2, LOGICAL_H - 20);
         ctx.textAlign = 'left';
         ctx.globalAlpha = 1;
       }
@@ -371,7 +452,7 @@ function drawMagicianWithDialogue(ctx, magician, frame) {
 
   if (magician.x <= 950) {
     const bx = magician.x - 200;
-    const by = GROUND_Y - 300;
+    const by = 180;
     ctx.fillStyle = 'rgba(2,4,12,0.92)';
     ctx.fillRect(bx, by, 260, 75);
     ctx.strokeStyle = '#C89B3C';

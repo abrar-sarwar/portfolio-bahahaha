@@ -1,4 +1,4 @@
-import { LOGICAL_W, LOGICAL_H, GROUND_Y, COLORS } from './constants.js';
+import { LOGICAL_W, LOGICAL_H, GROUND_Y, COLORS, MAP_W, MAP_H } from './constants.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FULL HUD
@@ -520,8 +520,8 @@ function drawMinimap(ctx, player, currentEnemy) {
   ctx.stroke();
 
   // Player dot (gold)
-  const px = mx + (player.x / LOGICAL_W) * mw;
-  const py = my + 12 + ((player.y - 100) / (GROUND_Y - 100)) * (mh - 22);
+  const px = mx + (player.x / MAP_W) * mw;
+  const py = my + 12 + (player.y / MAP_H) * (mh - 22);
   ctx.fillStyle = '#F0E6A0';
   ctx.shadowColor = '#C89B3C';
   ctx.shadowBlur = 5;
@@ -532,8 +532,8 @@ function drawMinimap(ctx, player, currentEnemy) {
 
   // Enemy dot (red)
   if (currentEnemy && !currentEnemy.dead) {
-    const ex = mx + (currentEnemy.x / LOGICAL_W) * mw;
-    const ey = my + 12 + ((currentEnemy.y - 100) / (GROUND_Y - 100)) * (mh - 22);
+    const ex = mx + (currentEnemy.x / MAP_W) * mw;
+    const ey = my + 12 + (currentEnemy.y / MAP_H) * (mh - 22);
     ctx.fillStyle = '#CC2222';
     ctx.shadowColor = '#CC2222';
     ctx.shadowBlur = 5;

@@ -1,4 +1,4 @@
-import { GROUND_Y } from './constants.js';
+import { LOGICAL_W, LOGICAL_H } from './constants.js';
 
 // ── Particle pool ─────────────────────────────────────────────────────────────
 export function createParticleSystem() {
@@ -12,8 +12,8 @@ export function createParticleSystem() {
 
 function createRiftParticle() {
   return {
-    x: Math.random() * 1280,
-    y: GROUND_Y + Math.random() * 100,
+    x: Math.random() * LOGICAL_W,
+    y: Math.random() * LOGICAL_H,
     vx: (Math.random() - 0.5) * 0.5,
     vy: -(Math.random() * 0.8 + 0.2),
     size: Math.random() * 3 + 1,
@@ -121,7 +121,7 @@ export function updateParticles(ps) {
     p.x += p.vx;
     p.y += p.vy;
     p.life++;
-    if (p.life >= p.maxLife || p.y < GROUND_Y - 200) {
+    if (p.life >= p.maxLife || p.y < -50) {
       ps.riftParticles[i] = createRiftParticle();
     }
   }
