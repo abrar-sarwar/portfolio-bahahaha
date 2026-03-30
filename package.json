@@ -1,0 +1,9 @@
+{
+  "name": "abrar-portfolio-game",
+  "version": "1.0.0",
+  "description": "Abrar Sarwar's interactive cybersecurity portfolio game",
+  "scripts": {
+    "dev": "npx serve . --listen 3000 --no-clipboard",
+    "start": "npx serve . --listen 3000"
+  }
+}
