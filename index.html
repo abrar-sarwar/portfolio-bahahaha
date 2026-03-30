@@ -1,0 +1,2198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ABRAR.EXE — RESTRICTED DOMAIN</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#000;overflow:hidden;font-family:'Share Tech Mono',monospace;color:#00ff88;}
+#gameContainer{position:relative;width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;}
+#gameCanvas{display:block;image-rendering:pixelated;}
+#scanlines{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);}
+#scanlines::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,0.4) 100%);pointer-events:none;}
+
+/* TUTORIAL SCREEN */
+#tutorialScreen{position:fixed;top:0;left:0;width:100%;height:100%;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.92);}
+#tutorialScreen h1{font-family:'Orbitron',sans-serif;font-size:2.8em;font-weight:900;color:#c8aa6e;text-shadow:0 0 30px #c8aa6e,0 0 60px rgba(200,170,110,0.5);animation:glitch 3s infinite;letter-spacing:4px;margin-bottom:8px;}
+#tutorialScreen .subtitle{font-family:'Share Tech Mono',monospace;color:#00ff88;font-size:1.1em;margin-bottom:30px;opacity:0.8;letter-spacing:2px;}
+@keyframes glitch{0%,90%,100%{transform:none;text-shadow:0 0 30px #c8aa6e,0 0 60px rgba(200,170,110,0.5);}92%{transform:translateX(-3px);text-shadow:-3px 0 #ff0044,3px 0 #00ffff;}94%{transform:translateX(3px);text-shadow:3px 0 #ff0044,-3px 0 #00ffff;}96%{transform:none;}}
+.tutorialContent{display:flex;gap:30px;max-width:1100px;width:90%;}
+.controlsPanel{background:rgba(0,20,10,0.9);border:1px solid #00ff88;border-radius:4px;padding:20px;flex:1;box-shadow:0 0 20px rgba(0,255,136,0.2);}
+.controlsPanel h3{font-family:'Orbitron',sans-serif;color:#c8aa6e;margin-bottom:15px;font-size:0.9em;letter-spacing:2px;border-bottom:1px solid #333;padding-bottom:8px;}
+.controlRow{display:flex;align-items:flex-start;gap:12px;margin-bottom:10px;}
+.keyBadge{background:#111;border:1px solid #c8aa6e;color:#c8aa6e;font-family:'Orbitron',sans-serif;font-size:0.7em;padding:3px 8px;border-radius:3px;white-space:nowrap;min-width:60px;text-align:center;}
+.controlDesc{color:#aaa;font-size:0.78em;line-height:1.4;}
+.jhinnote{color:#c8aa6e;font-size:0.72em;font-style:italic;margin-top:12px;padding:8px;border:1px solid rgba(200,170,110,0.3);border-radius:3px;background:rgba(200,170,110,0.05);}
+.enemyPreview{background:rgba(0,20,10,0.9);border:1px solid #00ff88;border-radius:4px;padding:20px;width:220px;box-shadow:0 0 20px rgba(0,255,136,0.2);}
+.enemyPreview h3{font-family:'Orbitron',sans-serif;color:#c8aa6e;margin-bottom:15px;font-size:0.9em;letter-spacing:2px;border-bottom:1px solid #333;padding-bottom:8px;}
+.enemyItem{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:6px;border-radius:3px;background:rgba(255,255,255,0.03);}
+.enemyDot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+.enemyName{color:#aaa;font-size:0.72em;}
+.enemyHP{color:#666;font-size:0.65em;margin-left:auto;}
+#startBtn{margin-top:25px;background:linear-gradient(135deg,#1a0a00,#3d2200);border:2px solid #c8aa6e;color:#c8aa6e;font-family:'Orbitron',sans-serif;font-size:1.1em;font-weight:700;padding:14px 50px;cursor:pointer;letter-spacing:3px;border-radius:3px;transition:all 0.3s;box-shadow:0 0 20px rgba(200,170,110,0.3);}
+#startBtn:hover{background:linear-gradient(135deg,#3d2200,#6b3d00);box-shadow:0 0 40px rgba(200,170,110,0.6);transform:scale(1.05);}
+
+/* RESUME POPUP */
+#resumePopup{position:fixed;top:0;right:-100%;width:420px;height:100%;z-index:200;background:rgba(0,5,0,0.97);border-left:2px solid #00ff88;box-shadow:-10px 0 40px rgba(0,255,136,0.3);transition:right 0.5s cubic-bezier(0.25,0.46,0.45,0.94);display:flex;flex-direction:column;padding:30px 25px;overflow-y:auto;}
+#resumePopup.show{right:0;}
+#resumePopup h2{font-family:'Orbitron',sans-serif;color:#c8aa6e;font-size:1em;letter-spacing:3px;margin-bottom:5px;text-shadow:0 0 10px rgba(200,170,110,0.5);}
+#resumePopup .killQuote{color:#9b59b6;font-size:0.8em;font-style:italic;margin-bottom:20px;padding:10px;border-left:3px solid #9b59b6;background:rgba(155,89,182,0.1);}
+#resumePopup .resumeContent{color:#00ff88;font-size:0.82em;line-height:1.8;flex:1;}
+#resumePopup .resumeContent strong{color:#c8aa6e;}
+#continueBtn{margin-top:20px;background:linear-gradient(135deg,#001a00,#003d00);border:2px solid #00ff88;color:#00ff88;font-family:'Orbitron',sans-serif;font-size:0.85em;font-weight:700;padding:12px 30px;cursor:pointer;letter-spacing:2px;border-radius:3px;transition:all 0.3s;box-shadow:0 0 15px rgba(0,255,136,0.2);}
+#continueBtn:hover{box-shadow:0 0 30px rgba(0,255,136,0.5);background:linear-gradient(135deg,#003d00,#007700);}
+#resumeUnlock{color:#c8aa6e;font-size:0.75em;letter-spacing:2px;margin-bottom:15px;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
+
+/* VICTORY SCREEN */
+#victoryScreen{position:fixed;top:0;left:0;width:100%;height:100%;z-index:300;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.95);overflow-y:auto;}
+#victoryScreen.show{display:flex;}
+.pentakill{font-family:'Orbitron',sans-serif;font-size:4em;font-weight:900;color:#c8aa6e;text-shadow:0 0 40px #c8aa6e,0 0 80px rgba(200,170,110,0.8);animation:pentaFlash 0.5s ease-out;letter-spacing:6px;margin-bottom:10px;}
+@keyframes pentaFlash{0%{transform:scale(3);opacity:0;}100%{transform:scale(1);opacity:1;}}
+.victoryTitle{font-family:'Orbitron',sans-serif;font-size:1.1em;color:#00ff88;letter-spacing:3px;margin-bottom:5px;}
+.magicianMsg{color:#9b59b6;font-size:0.85em;font-style:italic;margin-bottom:25px;text-align:center;max-width:500px;}
+.scoreBoard{font-family:'Share Tech Mono',monospace;font-size:0.8em;color:#00ff88;background:rgba(0,20,0,0.8);border:1px solid #c8aa6e;border-radius:4px;padding:20px 30px;max-width:500px;width:90%;box-shadow:0 0 40px rgba(200,170,110,0.3);line-height:1.7;animation:shimmer 3s infinite;}
+@keyframes shimmer{0%,100%{box-shadow:0 0 40px rgba(200,170,110,0.3);}50%{box-shadow:0 0 60px rgba(200,170,110,0.6),0 0 100px rgba(200,170,110,0.2);}}
+.scoreBoard .gold{color:#c8aa6e;}
+.victoryBtns{display:flex;gap:15px;margin-top:25px;flex-wrap:wrap;justify-content:center;}
+.victoryBtns button{background:linear-gradient(135deg,#001a00,#003d00);border:2px solid #00ff88;color:#00ff88;font-family:'Orbitron',sans-serif;font-size:0.78em;padding:12px 22px;cursor:pointer;letter-spacing:2px;border-radius:3px;transition:all 0.3s;}
+.victoryBtns button:hover{box-shadow:0 0 20px rgba(0,255,136,0.5);}
+.victoryBtns button.gold{border-color:#c8aa6e;color:#c8aa6e;background:linear-gradient(135deg,#1a0a00,#3d2200);}
+.victoryBtns button.gold:hover{box-shadow:0 0 20px rgba(200,170,110,0.5);}
+#confettiCanvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:299;}
+</style>
+</head>
+<body>
+<div id="gameContainer">
+  <canvas id="gameCanvas"></canvas>
+  <div id="scanlines"></div>
+</div>
+
+<!-- TUTORIAL SCREEN -->
+<div id="tutorialScreen">
+  <h1>ABRAR.EXE</h1>
+  <div class="subtitle">— RESTRICTED DOMAIN — The only way out is through. —</div>
+  <div class="tutorialContent">
+    <div class="controlsPanel">
+      <h3>CONTROLS — AGENT: JHIN</h3>
+      <div class="controlRow"><span class="keyBadge">A / D</span><span class="controlDesc">Move left / right</span></div>
+      <div class="controlRow"><span class="keyBadge">↑ / SPACE</span><span class="controlDesc">Jump</span></div>
+      <div class="controlRow"><span class="keyBadge">Q</span><span class="controlDesc"><strong style="color:#c8aa6e">Whisper Shot</strong> — 4-shot magazine. The <strong style="color:#ff4444">4th shot CRITS</strong> for 2× damage, then auto-reloads.</span></div>
+      <div class="controlRow"><span class="keyBadge">W</span><span class="controlDesc"><strong style="color:#c8aa6e">Deadly Flourish</strong> — Fire a gold beam that <strong style="color:#ffdd00">STUNS</strong> the enemy for 2 seconds. (8s cooldown)</span></div>
+      <div class="controlRow"><span class="keyBadge">E</span><span class="controlDesc"><strong style="color:#c8aa6e">Captive Audience</strong> — Place a trap on the ground. Enemy steps on it → <strong style="color:#ff8800">big explosion</strong>. (10s cooldown)</span></div>
+      <div class="controlRow"><span class="keyBadge">R</span><span class="controlDesc"><strong style="color:#c8aa6e">Curtain Call</strong> — <strong style="color:#ff6600">Hold</strong> to charge up, then <strong style="color:#ff6600">release</strong> for massive damage. (20s cooldown)</span></div>
+      <div class="jhinnote">"Jhin always fires exactly 4 shots. The 4th always crits. W stuns. This is non-negotiable."</div>
+    </div>
+    <div class="enemyPreview">
+      <h3>THREAT ROSTER</h3>
+      <div class="enemyItem"><div class="enemyDot" style="background:#00aaff;"></div><span class="enemyName">The Script Kiddie</span><span class="enemyHP">80HP</span></div>
+      <div class="enemyItem"><div class="enemyDot" style="background:#9b59b6;"></div><span class="enemyName">The Phantom Threat</span><span class="enemyHP">130HP</span></div>
+      <div class="enemyItem"><div class="enemyDot" style="background:#888;"></div><span class="enemyName">The Risk Golem</span><span class="enemyHP">170HP</span></div>
+      <div class="enemyItem"><div class="enemyDot" style="background:#ff6600;"></div><span class="enemyName">The Firewall Hydra</span><span class="enemyHP">220HP</span></div>
+      <div class="enemyItem"><div class="enemyDot" style="background:#c8aa6e;border:1px solid #fff;"></div><span class="enemyName">The Final Audit</span><span class="enemyHP">280HP</span></div>
+    </div>
+  </div>
+  <button id="startBtn" onclick="startGame()">[ ENTER THE RIFT ]</button>
+</div>
+
+<!-- RESUME POPUP -->
+<div id="resumePopup">
+  <div id="resumeUnlock">// INTEL UNLOCKED //</div>
+  <h2 id="resumeTitle">SKILLS UNLOCKED</h2>
+  <div class="killQuote" id="killQuote"></div>
+  <div class="resumeContent" id="resumeContent"></div>
+  <button id="continueBtn" onclick="continueGame()">[ CONTINUE ]</button>
+</div>
+
+<!-- VICTORY SCREEN -->
+<div id="victoryScreen">
+  <canvas id="confettiCanvas"></canvas>
+  <div class="pentakill">PENTAKILL</div>
+  <div class="victoryTitle">ABRAR SARWAR HAS ACHIEVED: THE PORTFOLIO</div>
+  <div class="magicianMsg">"And now... you know everything. The question is — will you call him?"<br><em style="color:#c8aa6e">— The Magician</em></div>
+  <div class="scoreBoard">
+<span class="gold">╔══════════════════════════════════════╗</span>
+<span class="gold">║</span>     ABRAR SARWAR — FINAL STATS      <span class="gold">║</span>
+<span class="gold">║</span>  KDA: Infinite / 0 / Counterstack   <span class="gold">║</span>
+<span class="gold">╠══════════════════════════════════════╣</span>
+<span class="gold">║</span> 🎓 Georgia State University         <span class="gold">║</span>
+<span class="gold">║</span>    B.B.A Computer Information Sys   <span class="gold">║</span>
+<span class="gold">║</span>    GPA: 4.04 | Expected May 2027    <span class="gold">║</span>
+<span class="gold">║</span>                                     <span class="gold">║</span>
+<span class="gold">║</span> 🏆 Hacklanta Hackathon WINNER       <span class="gold">║</span>
+<span class="gold">║</span> 🔐 CompTIA Security+ Certified      <span class="gold">║</span>
+<span class="gold">║</span> ☁️  Pursuing AWS + AZ-900           <span class="gold">║</span>
+<span class="gold">║</span>                                     <span class="gold">║</span>
+<span class="gold">║</span> 💼 AI Security Intern @ Handshake   <span class="gold">║</span>
+<span class="gold">║</span> 🛡️  Retail Systems Specialist       <span class="gold">║</span>
+<span class="gold">║</span> 🎯 GSU Cybersecurity Club Director  <span class="gold">║</span>
+<span class="gold">║</span> 📣 VP Marketing @ ProGSU            <span class="gold">║</span>
+<span class="gold">╠══════════════════════════════════════╣</span>
+<span class="gold">║</span> 📧 abrartsarwar@gmail.com           <span class="gold">║</span>
+<span class="gold">║</span> 📞 (470)-399-2597                   <span class="gold">║</span>
+<span class="gold">║</span> 🔗 linkedin.com/in/abrar-sarwar     <span class="gold">║</span>
+<span class="gold">╠══════════════════════════════════════╣</span>
+<span class="gold">║</span>   >> HIRE ME PLEASE >.< <<          <span class="gold">║</span>
+<span class="gold">║</span>   [ I promise I won't miss ]        <span class="gold">║</span>
+<span class="gold">║</span>         — Jhin, probably Abrar      <span class="gold">║</span>
+<span class="gold">╚══════════════════════════════════════╝</span>
+  </div>
+  <div class="victoryBtns">
+    <button onclick="location.reload()">[ Play Again ]</button>
+    <button class="gold" onclick="window.open('mailto:abrartsarwar@gmail.com')">[ Contact Abrar ]</button>
+    <button class="gold" onclick="window.open('https://linkedin.com/in/abrar-sarwar','_blank')">[ LinkedIn ]</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// MAGICIAN SPRITE: Replace with custom image by setting:
+// window.MAGICIAN_SPRITE = new Image();
+// window.MAGICIAN_SPRITE.src = 'magician_sprite.png';
+// ============================================================
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const LOGICAL_W = 1280, LOGICAL_H = 640;
+const GROUND_Y = 520;
+const GRAVITY = 0.6;
+const JUMP_FORCE = -13;
+
+let scale = 1, offsetX = 0, offsetY = 0;
+let gameRunning = false;
+let paused = false;
+let lastTime = 0;
+
+function resizeCanvas() {
+  const ww = window.innerWidth, wh = window.innerHeight;
+  scale = Math.min(ww / LOGICAL_W, wh / LOGICAL_H);
+  canvas.width = LOGICAL_W * scale;
+  canvas.height = LOGICAL_H * scale;
+  offsetX = 0; offsetY = 0;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// INPUT
+const keys = {};
+window.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  const blocked = ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','KeyR'];
+  if (gameRunning && blocked.includes(e.code)) e.preventDefault();
+  if (gameRunning && !paused) handleKeyDown(e.code);
+});
+window.addEventListener('keyup', e => {
+  keys[e.code] = false;
+  if (gameRunning && !paused) handleKeyUp(e.code);
+});
+
+// ============================================================
+// MATRIX RAIN
+// ============================================================
+const matrixChars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ<>{}[]|/\\;:';
+const matrixColumns = [];
+const COL_W = 18;
+const NUM_COLS = Math.ceil(LOGICAL_W / COL_W);
+for (let i = 0; i < NUM_COLS; i++) {
+  matrixColumns.push({ x: i * COL_W, y: Math.random() * LOGICAL_H, speed: 1.5 + Math.random() * 2.5 });
+}
+function drawMatrix() {
+  ctx.fillStyle = 'rgba(0,0,0,0.1)';
+  ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  ctx.font = '14px Share Tech Mono';
+  for (const col of matrixColumns) {
+    ctx.fillStyle = 'rgba(0,80,30,0.6)';
+    const ch = matrixChars[Math.floor(Math.random() * matrixChars.length)];
+    ctx.fillText(ch, col.x, col.y);
+    col.y += col.speed;
+    if (col.y > LOGICAL_H + 20) col.y = -20;
+  }
+}
+
+// ============================================================
+// PLAYER — JHIN
+// ============================================================
+const player = {
+  x: 150, y: GROUND_Y, w: 48, h: 80,
+  vx: 0, vy: 0, onGround: false,
+  health: 300, maxHealth: 300,
+  speed: 4.5, facing: 1,
+  // Whisper Shot (Q)
+  bullets: 4, maxBullets: 4, reloading: false, reloadTimer: 0, reloadDuration: 120,
+  shotsFired: 0,
+  // Deadly Flourish (W)
+  wCooldown: 0, wMaxCooldown: 480, wBeam: null,
+  // Captive Audience (E)
+  eCooldown: 0, eMaxCooldown: 600, traps: [],
+  // Curtain Call (R)
+  rCooldown: 0, rMaxCooldown: 1200, rCharging: false, rCharge: 0, rMaxCharge: 90,
+  // Visual
+  goldGlow: 0,
+  speedBuff: 1,
+  // Flavor text
+  flavorTexts: [],
+  invincible: 0,
+  dead: false
+};
+
+function addFlavor(text, color='#c8aa6e', duration=120) {
+  player.flavorTexts.push({ text, color, x: player.x + player.w/2, y: player.y - 20, life: duration, maxLife: duration });
+}
+
+const playerBullets = [];
+const playerBeams = [];
+
+function handleKeyDown(code) {
+  if (code === 'KeyQ') fireWhisperShot();
+  if (code === 'KeyW') fireDeadlyFlourish();
+  if (code === 'KeyE') placeTrap();
+  if (code === 'KeyR') { player.rCharging = true; }
+}
+function handleKeyUp(code) {
+  if (code === 'KeyR' && player.rCharging) {
+    releaseCurtainCall();
+    player.rCharging = false;
+  }
+}
+
+function fireWhisperShot() {
+  if (player.reloading || player.bullets <= 0) return;
+  player.bullets--;
+  player.shotsFired++;
+  const isCrit = (player.bullets === 0); // 4th shot (bullets goes 4->3->2->1->0, crit when last)
+  const dmg = isCrit ? 55 : 25;
+  const bx = player.facing > 0 ? player.x + player.w : player.x;
+  playerBullets.push({ x: bx, y: player.y + player.h/2 - 4, w: 10, h: 4, vx: 16 * player.facing, vy: 0, dmg, crit: isCrit, life: 80 });
+  if (isCrit) addFlavor('CRIT! ×2', '#ff4444', 80);
+  if (player.bullets <= 0) startReload();
+}
+
+function startReload() {
+  player.reloading = true;
+  player.reloadTimer = 0;
+  addFlavor('Four... is the only perfection.', '#c8aa6e', 140);
+}
+
+function fireDeadlyFlourish() {
+  if (player.wCooldown > 0) return;
+  player.wCooldown = player.wMaxCooldown;
+  const bx = player.facing > 0 ? player.x + player.w : 0;
+  const bw = player.facing > 0 ? LOGICAL_W - bx : player.x;
+  playerBeams.push({ x: bx, y: player.y - player.h*0.7, w: bw * player.facing, h: 22, life: 22, dmg: 35, stun: true, facing: player.facing });
+}
+
+function placeTrap() {
+  if (player.eCooldown > 0 || player.traps.length >= 2) return;
+  player.eCooldown = player.eMaxCooldown;
+  player.traps.push({ x: player.x + player.w/2 - 16, y: GROUND_Y + 2, w: 32, h: 16, triggered: false, life: 600 });
+}
+
+function releaseCurtainCall() {
+  if (player.rCooldown > 0 || player.rCharge < 30) { player.rCharge = 0; return; }
+  const chargeRatio = Math.min(player.rCharge / player.rMaxCharge, 1);
+  const dmg = Math.floor(60 + chargeRatio * 90);
+  player.rCooldown = player.rMaxCooldown;
+  player.rCharge = 0;
+  playerBullets.push({ x: player.facing > 0 ? player.x + player.w : player.x, y: player.y + player.h/2 - 12, w: 24, h: 24, vx: 14 * player.facing, vy: 0, dmg, crit: false, life: 200, isR: true, chargeRatio });
+}
+
+function updatePlayer(dt) {
+  if (player.dead) return;
+  const spd = player.speed * player.speedBuff;
+  if ((keys['ArrowLeft'] || keys['KeyA']) && player.x > 0) { player.vx = -spd; player.facing = -1; }
+  else if ((keys['ArrowRight'] || keys['KeyD']) && player.x < LOGICAL_W - player.w) { player.vx = spd; player.facing = 1; }
+  else player.vx = 0;
+  if ((keys['ArrowUp'] || keys['Space']) && player.onGround) {
+    player.vy = JUMP_FORCE;
+    player.onGround = false;
+  }
+  // R charge
+  if (keys['KeyR'] && player.rCharging && player.rCooldown <= 0) {
+    player.rCharge = Math.min(player.rCharge + 1, player.rMaxCharge);
+  }
+  player.vy += GRAVITY;
+  player.x += player.vx;
+  player.y += player.vy;
+  if (player.y >= GROUND_Y) { player.y = GROUND_Y; player.vy = 0; player.onGround = true; }
+  player.x = Math.max(0, Math.min(LOGICAL_W - player.w, player.x));
+  // Cooldowns
+  if (player.wCooldown > 0) player.wCooldown--;
+  if (player.eCooldown > 0) player.eCooldown--;
+  if (player.rCooldown > 0) player.rCooldown--;
+  if (player.goldGlow > 0) player.goldGlow--;
+  if (player.goldGlow <= 0) player.speedBuff = 1;
+  if (player.invincible > 0) player.invincible--;
+  // Reload
+  if (player.reloading) {
+    player.reloadTimer++;
+    if (player.reloadTimer >= player.reloadDuration) {
+      player.reloading = false;
+      player.reloadTimer = 0;
+      player.bullets = player.maxBullets;
+      player.shotsFired = 0;
+    }
+  }
+  // Traps life
+  player.traps = player.traps.filter(t => { t.life--; return t.life > 0 && !t.triggered; });
+  // Flavor texts
+  player.flavorTexts = player.flavorTexts.filter(f => { f.life--; f.y -= 0.4; return f.life > 0; });
+}
+
+// ============================================================
+// ENEMIES
+// ============================================================
+const ENEMY_DATA = [
+  {
+    name: 'THE SCRIPT KIDDIE', hp: 80, phase: 1,
+    deathQuote: '"How predictable. Four shots. Four lessons."',
+    resumeTitle: 'SKILLS UNLOCKED',
+    resumeContent: `<strong>Technical Arsenal:</strong><br>
+Python • SQL • Linux • PowerShell • TypeScript<br>
+Splunk • Wireshark • Nmap • Nessus<br>
+Burp Suite • OWASP ZAP<br><br>
+<strong>Core competencies across offensive and defensive security tooling. Built from the ground up — no bootcamp shortcuts.</strong>`
+  },
+  {
+    name: 'THE PHANTOM THREAT', hp: 130, phase: 2,
+    deathQuote: '"You hid behind your aliases. I counted your steps."',
+    resumeTitle: 'COUNTERSTACK — HACKATHON WINNER',
+    resumeContent: `<strong>🏆 Hacklanta / CounterStack — 1st Place</strong><br><br>
+Built real-time threat detection pipeline processing <strong>10,000+ daily events</strong>.<br><br>
+• MITRE ATT&CK framework mapping<br>
+• 45% SIEM noise reduction<br>
+• Live dashboard for SOC analysts<br>
+• Threat correlation engine<br><br>
+<em style="color:#9b59b6">AT A HACKATHON. Under 24 hours.</em>`
+  },
+  {
+    name: 'THE RISK GOLEM', hp: 170, phase: 3,
+    deathQuote: '"Even golems of data... fall to four."',
+    resumeTitle: 'GRC RESEARCH PROJECT',
+    resumeContent: `<strong>World Bank IDA Portfolio Analysis</strong><br><br>
+• Analyzed <strong>11,038 projects</strong> across 50+ years<br>
+• Power BI • Advanced Excel • Statistical modeling<br>
+• Discovered <strong>64.1% cancellation rate</strong> in South Asia region<br>
+• Identified root causes: governance gaps, geopolitical risk<br><br>
+<em style="color:#9b59b6">Quantified risk at a global scale. Not bad for an undergrad.</em>`
+  },
+  {
+    name: 'THE FIREWALL HYDRA', hp: 220, phase: 4,
+    deathQuote: '"Infrastructure... such a fragile art."',
+    resumeTitle: 'HOMELAB & CLOUD SKILLS',
+    resumeContent: `<strong>Self-Built Security Lab + Cloud Practice</strong><br><br>
+• Splunk SIEM — <strong>5,000+ daily log events</strong><br>
+• Metasploit — offensive testing & pen-testing<br>
+• pfSense firewall with custom rule sets<br>
+• Snort IDS — intrusion detection tuning<br>
+• AWS CloudTrail + GuardDuty monitoring<br>
+• Terraform infrastructure-as-code<br>
+• Azure fundamentals (AZ-900 in progress)<br><br>
+<em style="color:#9b59b6">CompTIA Security+ Certified.</em>`
+  },
+  {
+    name: 'THE FINAL AUDIT', hp: 280, phase: 5,
+    deathQuote: '"The art... is not yet complete. But it will be."',
+    resumeTitle: 'FULL PROFILE — ABRAR SARWAR',
+    resumeContent: `<strong>Georgia State University</strong> — B.B.A. CIS<br>
+GPA: 4.04 | Expected May 2027<br><br>
+<strong>Experience:</strong><br>
+• AI Security Intern @ Handshake<br>
+• Retail Systems Specialist<br><br>
+<strong>Leadership:</strong><br>
+• GSU Cybersecurity Club Director<br>
+• VP Marketing @ ProGSU<br><br>
+<strong>Certifications:</strong><br>
+• CompTIA Security+<br>
+• AWS + AZ-900 (in progress)<br><br>
+<em style="color:#c8aa6e">📧 abrartsarwar@gmail.com | (470)-399-2597</em>`
+  }
+];
+
+let currentEnemyIndex = 0;
+let currentEnemy = null;
+let gamePhase = 'idle'; // idle, fighting, popup, magician, victory
+let magicianState = null;
+let killFeed = [];
+let screenShake = 0;
+let levelCardTimer = 0;
+let levelCardText = '';
+
+// ============================================================
+// ENEMY CLASS
+// ============================================================
+class Enemy {
+  constructor(data) {
+    Object.assign(this, data);
+    this.x = 950;
+    this.y = GROUND_Y;
+    this.maxHp = this.hp;
+    this.dead = false;
+    this.vx = 0; this.vy = 0; this.onGround = true;
+    this.stunTimer = 0;
+    this.attackTimer = 0;
+    this.projectiles = [];
+    this.clones = [];
+    this.shieldHits = 0;
+    this.shieldActive = false;
+    this.phaseTwo = false;
+    this.attackType = 0;
+    this.attackCycle = 0;
+    this.heading = -1;
+    this.animTick = 0;
+    this.windup = 0;
+    this.headBobs = [0,0,0];
+    this.interns = [];
+    this.iamSlowTimer = 0;
+    this.groundObstacles = [];
+    // Phase 5 setup
+    if (this.phase === 5) {
+      this.shieldActive = true;
+      this.shieldHits = 0;
+      this.hp = this.maxHp;
+    }
+  }
+
+  takeDamage(dmg, isBeam) {
+    if (this.dead) return;
+    if (this.phase === 5 && this.shieldActive) {
+      if (isBeam || true) {
+        this.shieldHits++;
+        screenShake = 6;
+        if (this.shieldHits >= 4) { this.shieldActive = false; this.phaseTwo = true; addKillFeed('Shield BROKEN'); }
+      }
+      return;
+    }
+    this.hp = Math.max(0, this.hp - dmg);
+    screenShake = 4;
+    if (this.hp <= 0 && !this.dead) this.die();
+  }
+
+  die() {
+    this.dead = true;
+    this.projectiles = [];
+    this.interns = [];
+    this.groundObstacles = [];
+    addKillFeed(`⚔ Jhin destroyed ${this.name}`);
+    screenShake = 15;
+  }
+
+  update() {
+    if (this.dead) return;
+    this.animTick++;
+    if (this.stunTimer > 0) { this.stunTimer--; return; }
+    if (this.iamSlowTimer > 0) this.iamSlowTimer--;
+
+    // Movement
+    const spd = this.phase === 3 ? 0.55 : (this.phase === 4 ? 0.45 : 0.85);
+    const dx = player.x - this.x;
+    this.heading = dx < 0 ? -1 : 1;
+    if (Math.abs(dx) > 180) this.x += spd * this.heading;
+    // Gravity (unused for ghost)
+    if (this.phase !== 2) {
+      this.vy += GRAVITY;
+      this.y += this.vy;
+      if (this.y >= GROUND_Y) { this.y = GROUND_Y; this.vy = 0; this.onGround = true; }
+    } else {
+      // Ghost floats
+      this.y = GROUND_Y - 60 + Math.sin(this.animTick * 0.03) * 20;
+    }
+
+    this.attackTimer++;
+    this.updateAttacks();
+    this.updateProjectiles();
+    if (this.phase === 5 && this.phaseTwo) this.updateInterns();
+    if (this.phase === 4) {
+      for (let i = 0; i < 3; i++) this.headBobs[i] = Math.sin(this.animTick * 0.05 + i * 1.2) * 12;
+    }
+  }
+
+  updateAttacks() {
+    const interval = this.phase === 5 ? 200 : (this.phase === 4 ? 180 : 260);
+    if (this.attackTimer < interval) return;
+    this.attackTimer = 0;
+    switch (this.phase) {
+      case 1: this.spawnMalwareBlob(); break;
+      case 2: this.phantomAttack(); break;
+      case 3: this.golemAttack(); break;
+      case 4: this.hydraAttack(); break;
+      case 5: if (this.phaseTwo) this.auditAttack(); break;
+    }
+  }
+
+  spawnMalwareBlob() {
+    const dx = player.x - this.x;
+    const dy = (GROUND_Y - 30) - (this.y - 40);
+    const dist = Math.sqrt(dx*dx+dy*dy);
+    this.projectiles.push({ x: this.x, y: this.y - 40, vx: dx/dist*2.2, vy: dy/dist*1.8 - 0.5, r: 12, type:'blob', life:200, dmg:7 });
+  }
+
+  phantomAttack() {
+    this.attackCycle = (this.attackCycle+1)%3;
+    if (this.attackCycle === 2) {
+      // Spawn clones
+      this.clones = [
+        { x: this.x - 120, fake: true, alpha: 0.35 },
+        { x: this.x + 120, fake: true, alpha: 0.35 }
+      ];
+      setTimeout(() => { this.clones = []; }, 3000);
+    } else {
+      // Credential beam
+      this.projectiles.push({ x: this.x, y: this.y - 30, vx: -6 * this.heading, vy: 0, w: 30, h: 10, type:'beam', life:80, dmg:10 });
+    }
+  }
+
+  golemAttack() {
+    this.attackCycle = (this.attackCycle+1)%2;
+    if (this.attackCycle === 0) {
+      // Shockwave
+      this.projectiles.push({ x: this.x, y: GROUND_Y + 8, vx: -2.8 * this.heading, vy: 0, w: 40, h: 20, type:'shockwave', life:100, dmg:9 });
+    } else {
+      // Pie chart
+      const dx = player.x - this.x, dy = (player.y) - this.y;
+      const dist = Math.sqrt(dx*dx+dy*dy)||1;
+      this.projectiles.push({ x: this.x, y: this.y - 30, vx: dx/dist*3.5, vy: dy/dist*2.8, r: 18, type:'pie', life:120, dmg:12 });
+    }
+  }
+
+  hydraAttack() {
+    this.attackCycle = (this.attackCycle+1)%3;
+    switch(this.attackCycle) {
+      case 0: // CloudTrail spread
+        for(let i=-1;i<=1;i++) this.projectiles.push({ x:this.x, y:this.y-60, vx:-5+i*1.5, vy:i*1.2, r:8, type:'cloud', life:100, dmg:8 });
+        break;
+      case 1: // IAM slow
+        if(Math.abs(player.x-this.x)<500) { this.iamSlowTimer=90; player.speedBuff=0.55; addFlavor('ACCESS DENIED!','#ff4444',80); }
+        break;
+      case 2: // Snort IDS obstacles
+        this.groundObstacles.push({ x: player.x - 20 + Math.random()*80-40, y: GROUND_Y, w:30, h:20, life:300 });
+        break;
+    }
+  }
+
+  auditAttack() {
+    this.attackCycle = (this.attackCycle+1)%3;
+    switch(this.attackCycle) {
+      case 0: // Laser
+        this.projectiles.push({ x:this.x, y:this.y-60, vx:-9*this.heading, vy:0, w:60, h:14, type:'laser', life:60, dmg:14 });
+        break;
+      case 1: // Ghost interns
+        for(let i=0;i<2;i++) this.interns.push({ x:this.x+i*30, y:GROUND_Y, vx:-2-i*0.5, vy:0, w:20, h:30, hp:15, dead:false });
+        break;
+      case 2: // AOE yell
+        screenShake=14;
+        if(Math.abs(player.x-this.x)<300) dealDamageToPlayer(12);
+        break;
+    }
+  }
+
+  updateProjectiles() {
+    for (const p of this.projectiles) {
+      p.x += p.vx; p.y += p.vy; p.life--;
+      if (p.type === 'blob' || p.type === 'pie') p.vy += 0.08;
+      // Check hit player
+      if (p.life > 0 && !p.hit) {
+        const pr = p.r||0, pw=p.w||0, ph=p.h||0;
+        const ex = pr ? p.x-pr : p.x, ey = pr ? p.y-pr : p.y;
+        const ew = pr ? pr*2 : pw, eh = pr ? pr*2 : ph;
+        if (aabb(player.x,player.y,player.w,player.h, ex,ey,ew,eh)) {
+          dealDamageToPlayer(p.dmg);
+          p.hit = true; p.life = 0;
+        }
+      }
+    }
+    this.projectiles = this.projectiles.filter(p => p.life > 0 && !p.hit);
+    this.groundObstacles = this.groundObstacles.filter(o => {
+      o.life--;
+      if (aabb(player.x,player.y,player.w,player.h, o.x,o.y,o.w,o.h)) { dealDamageToPlayer(8); return false; }
+      return o.life > 0;
+    });
+  }
+
+  updateInterns() {
+    for (const intern of this.interns) {
+      if (intern.dead) continue;
+      const dx = player.x - intern.x;
+      intern.x += intern.vx * (dx < 0 ? -1 : 1) * 0.8;
+      intern.vy += GRAVITY;
+      intern.y += intern.vy;
+      if (intern.y >= GROUND_Y) { intern.y = GROUND_Y; intern.vy = 0; }
+      if (aabb(player.x,player.y,player.w,player.h, intern.x,intern.y,intern.w,intern.h)) {
+        dealDamageToPlayer(10);
+        intern.dead = true;
+      }
+    }
+    this.interns = this.interns.filter(i => !i.dead);
+  }
+}
+
+function dealDamageToPlayer(dmg) {
+  if (player.invincible > 0 || player.dead) return;
+  player.health -= dmg;
+  player.invincible = 40;
+  screenShake = 8;
+  if (player.health <= player.maxHealth * 0.25) addFlavor('The art... is not yet complete.','#ff6666',100);
+  else addFlavor('A flaw in my performance!','#ff4444',80);
+  if (player.health <= 0) { player.dead = true; player.health = 0; setTimeout(()=>{ location.reload(); }, 3000); }
+}
+
+function aabb(ax,ay,aw,ah, bx,by,bw,bh) {
+  return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by;
+}
+
+function addKillFeed(text) {
+  killFeed.unshift({ text, life: 240 });
+  if (killFeed.length > 5) killFeed.pop();
+}
+
+// ============================================================
+// MAGICIAN NPC
+// ============================================================
+function spawnMagician() {
+  gamePhase = 'magician';
+  paused = false;
+  magicianState = { x: -120, y: GROUND_Y, targetX: 280, phase: 'entering', timer: 0, alpha: 1, scaleX: 1, done: false };
+}
+
+function updateMagician() {
+  if (!magicianState || magicianState.done) return;
+  const m = magicianState;
+  m.timer++;
+  if (m.phase === 'entering') {
+    m.x += 6;
+    if (m.x >= m.targetX) { m.x = m.targetX; m.phase = 'talking'; m.timer = 0; }
+  } else if (m.phase === 'talking') {
+    if (m.timer === 80) {
+      // Grant buff
+      player.goldGlow = 600;
+      player.speedBuff = 1.2;
+    }
+    if (m.timer > 260) { m.phase = 'leaving'; m.timer = 0; }
+  } else if (m.phase === 'leaving') {
+    if (m.timer < 20) { m.scaleX = 1 - m.timer/20; }
+    else if (m.timer < 30) { m.scaleX = (m.timer-20)/10; }
+    else { m.alpha = Math.max(0, 1 - (m.timer-30)/30); }
+    if (m.timer > 60) { m.done = true; gamePhase = 'fighting'; spawnEnemy(2); }
+  }
+}
+
+// ============================================================
+// GAME STATE MANAGEMENT
+// ============================================================
+function spawnEnemy(index) {
+  currentEnemyIndex = index;
+  currentEnemy = new Enemy(ENEMY_DATA[index]);
+  gamePhase = 'fighting';
+  levelCardText = `LEVEL ${index+1}: ${ENEMY_DATA[index].name}`;
+  levelCardTimer = 150;
+}
+
+function startGame() {
+  document.getElementById('tutorialScreen').style.display = 'none';
+  gameRunning = true;
+  paused = false;
+  spawnEnemy(0);
+  requestAnimationFrame(gameLoop);
+}
+
+function continueGame() {
+  document.getElementById('resumePopup').classList.remove('show');
+  paused = false;
+  const next = currentEnemyIndex + 1;
+  if (next >= ENEMY_DATA.length) {
+    showVictory();
+    return;
+  }
+  if (next === 2) {
+    gamePhase = 'magician';
+    spawnMagician();
+  } else {
+    spawnEnemy(next);
+  }
+}
+
+function showResumePopup(enemyData) {
+  paused = true;
+  gamePhase = 'popup';
+  document.getElementById('resumeTitle').textContent = enemyData.resumeTitle;
+  document.getElementById('killQuote').textContent = enemyData.deathQuote;
+  const contentEl = document.getElementById('resumeContent');
+  contentEl.innerHTML = '';
+  const popup = document.getElementById('resumePopup');
+  popup.classList.add('show');
+  // Typewriter effect via innerHTML reveal
+  let full = enemyData.resumeContent;
+  contentEl.innerHTML = full;
+  contentEl.style.opacity = 0;
+  setTimeout(() => { contentEl.style.transition='opacity 0.5s'; contentEl.style.opacity=1; }, 100);
+}
+
+function showVictory() {
+  document.getElementById('victoryScreen').classList.add('show');
+  gameRunning = false;
+  startConfetti();
+}
+
+// ============================================================
+// CONFETTI
+// ============================================================
+function startConfetti() {
+  const cc = document.getElementById('confettiCanvas');
+  cc.width = window.innerWidth; cc.height = window.innerHeight;
+  const cctx = cc.getContext('2d');
+  const particles = [];
+  const colors = ['#c8aa6e','#00ff88','#9b59b6','#ff4444','#ffffff','#ffaa00'];
+  for (let i=0;i<150;i++) particles.push({ x:Math.random()*cc.width, y:-20-Math.random()*200, vx:(Math.random()-0.5)*4, vy:2+Math.random()*4, color:colors[Math.floor(Math.random()*colors.length)], w:8+Math.random()*8, h:4+Math.random()*4, rot:Math.random()*Math.PI*2, vrot:(Math.random()-0.5)*0.2 });
+  function animConf() {
+    cctx.clearRect(0,0,cc.width,cc.height);
+    for (const p of particles) {
+      p.x+=p.vx; p.y+=p.vy; p.rot+=p.vrot;
+      if (p.y > cc.height+20) { p.y=-20; p.x=Math.random()*cc.width; }
+      cctx.save();
+      cctx.translate(p.x,p.y);
+      cctx.rotate(p.rot);
+      cctx.fillStyle=p.color;
+      cctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
+      cctx.restore();
+    }
+    if (document.getElementById('victoryScreen').classList.contains('show')) requestAnimationFrame(animConf);
+  }
+  animConf();
+}
+
+// ============================================================
+// DRAWING FUNCTIONS
+// ============================================================
+
+function drawBackground() {
+  ctx.fillStyle = '#000d06';
+  ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  drawMatrix();
+  // Ground
+  const gGrad = ctx.createLinearGradient(0, GROUND_Y+80, 0, LOGICAL_H);
+  gGrad.addColorStop(0, '#0a1a0a');
+  gGrad.addColorStop(1, '#000500');
+  ctx.fillStyle = gGrad;
+  ctx.fillRect(0, GROUND_Y+80, LOGICAL_W, LOGICAL_H - GROUND_Y - 80);
+  // Ground line
+  ctx.strokeStyle = '#00ff88';
+  ctx.lineWidth = 2;
+  ctx.shadowBlur = 8; ctx.shadowColor = '#00ff88';
+  ctx.beginPath(); ctx.moveTo(0, GROUND_Y+80); ctx.lineTo(LOGICAL_W, GROUND_Y+80); ctx.stroke();
+  ctx.shadowBlur = 0;
+  // Grid lines
+  ctx.strokeStyle = 'rgba(0,255,136,0.05)';
+  ctx.lineWidth = 1;
+  for (let x=0;x<LOGICAL_W;x+=80) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,LOGICAL_H); ctx.stroke(); }
+  for (let y=0;y<LOGICAL_H;y+=80) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(LOGICAL_W,y); ctx.stroke(); }
+}
+
+function drawJhin() {
+  const p = player;
+  if (p.dead) return;
+  const cx = p.x + p.w/2, cy = p.y;
+  const fl = p.facing;
+  // Invincibility flicker
+  if (p.invincible > 0 && Math.floor(p.invincible/4)%2===0) { return; }
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(fl, 1);
+
+  // ── AMBIENT SHADOW / GROUND BLOOM ──
+  const shadowGrad = ctx.createRadialGradient(0, 4, 2, 0, 4, 42);
+  shadowGrad.addColorStop(0, 'rgba(0,0,0,0.45)');
+  shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = shadowGrad;
+  ctx.beginPath(); ctx.ellipse(0, 6, 38, 10, 0, 0, Math.PI*2); ctx.fill();
+
+  // ── GOLD GLOW HALO ──
+  if (p.goldGlow > 0) {
+    ctx.shadowBlur = 38; ctx.shadowColor = '#c8aa6e';
+    const halo = ctx.createRadialGradient(0,-60,10, 0,-60,55);
+    halo.addColorStop(0,'rgba(200,170,110,0.15)');
+    halo.addColorStop(1,'rgba(200,170,110,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.ellipse(0,-60,55,75,0,0,Math.PI*2); ctx.fill();
+  }
+
+  // ── FLOWING CAPE (behind body) ──
+  const walkCycle = Math.sin(Date.now()*0.007) * 3;
+  const capeGrad = ctx.createLinearGradient(-5,-70, -40, 10);
+  capeGrad.addColorStop(0,'#2a0a00');
+  capeGrad.addColorStop(0.5,'#1a0500');
+  capeGrad.addColorStop(1,'rgba(15,3,0,0)');
+  ctx.fillStyle = capeGrad;
+  ctx.beginPath();
+  ctx.moveTo(-10,-68);
+  ctx.quadraticCurveTo(-28,-40, -34+walkCycle, -8);
+  ctx.quadraticCurveTo(-40+walkCycle*0.5, 12, -26, 18);
+  ctx.quadraticCurveTo(-18, 10, -12, 0);
+  ctx.closePath();
+  ctx.fill();
+  // Cape crimson lining edge
+  ctx.strokeStyle = 'rgba(140,0,0,0.6)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-10,-68);
+  ctx.quadraticCurveTo(-28,-40, -34+walkCycle, -8);
+  ctx.quadraticCurveTo(-40+walkCycle*0.5, 12, -26, 18);
+  ctx.stroke();
+
+  // ── LEGS ──
+  const legSwing = Math.sin(Date.now()*0.012) * 5;
+  // back leg
+  ctx.fillStyle = '#1c0e05';
+  ctx.beginPath();
+  ctx.roundRect(-12+legSwing*0.3, -2, 11, 30, [0,0,4,4]);
+  ctx.fill();
+  // front leg
+  ctx.fillStyle = '#261208';
+  ctx.beginPath();
+  ctx.roundRect(1-legSwing*0.3, -2, 11, 30, [0,0,4,4]);
+  ctx.fill();
+  // Boots
+  const bootGrad = ctx.createLinearGradient(-14,24,14,34);
+  bootGrad.addColorStop(0,'#5a3010'); bootGrad.addColorStop(1,'#2a1408');
+  ctx.fillStyle = bootGrad;
+  ctx.beginPath(); ctx.roundRect(-15, 24, 15, 9, [2,2,4,4]); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(0, 24, 15, 9, [2,2,4,4]); ctx.fill();
+  // Boot gold buckle
+  ctx.fillStyle='#c8aa6e'; ctx.fillRect(-10,26,6,3); ctx.fillRect(3,26,6,3);
+
+  // ── TRENCHCOAT BODY ──
+  const coatGrad = ctx.createLinearGradient(-20,-68,20,5);
+  coatGrad.addColorStop(0,'#b8940a');
+  coatGrad.addColorStop(0.3,'#d4aa30');
+  coatGrad.addColorStop(0.65,'#9a7a18');
+  coatGrad.addColorStop(1,'#4a2a04');
+  ctx.fillStyle = coatGrad;
+  ctx.beginPath();
+  ctx.moveTo(-16,-66);
+  ctx.lineTo(16,-66);
+  ctx.bezierCurveTo(20,-40, 22,-20, 24, 2);
+  ctx.lineTo(-24, 2);
+  ctx.bezierCurveTo(-22,-20, -20,-40, -16,-66);
+  ctx.closePath();
+  ctx.fill();
+
+  // Coat outline
+  ctx.strokeStyle = '#6a4a0a';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // ── COAT DETAILS ── (center seam + buttons)
+  // Center seam
+  ctx.strokeStyle = '#8b0000';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0,-66); ctx.lineTo(0,-20); ctx.stroke();
+  // Buttons
+  for(let i=0;i<3;i++){
+    ctx.fillStyle='#c8aa6e';
+    ctx.beginPath(); ctx.arc(0,-55+i*12,2.5,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#8b0000'; ctx.lineWidth=0.8; ctx.stroke();
+  }
+
+  // ── LAPELS ──
+  ctx.fillStyle='#8b0000';
+  ctx.beginPath();
+  ctx.moveTo(0,-66); ctx.lineTo(9,-56); ctx.lineTo(5,-44); ctx.lineTo(0,-50);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(0,-66); ctx.lineTo(-9,-56); ctx.lineTo(-5,-44); ctx.lineTo(0,-50);
+  ctx.closePath(); ctx.fill();
+
+  // ── SHOULDER PAULDRONS (gold trim) ──
+  ctx.strokeStyle='#c8aa6e'; ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.moveTo(-16,-66); ctx.quadraticCurveTo(-22,-62,-24,-52); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(16,-66); ctx.quadraticCurveTo(22,-62,24,-52); ctx.stroke();
+
+  // ── RIFLE ARM ──
+  ctx.fillStyle='#3a3a3a';
+  ctx.beginPath(); ctx.ellipse(22,-46,10,7,0.4,0,Math.PI*2); ctx.fill();
+  // Rifle stock
+  const rifleGrad = ctx.createLinearGradient(14,-55,56,-48);
+  rifleGrad.addColorStop(0,'#c8aa6e'); rifleGrad.addColorStop(0.2,'#2a2a2a'); rifleGrad.addColorStop(1,'#1a1a1a');
+  ctx.fillStyle=rifleGrad;
+  ctx.beginPath(); ctx.roundRect(14,-56,48,8,2); ctx.fill();
+  ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.stroke();
+  // Scope
+  ctx.fillStyle='#222';
+  ctx.beginPath(); ctx.roundRect(26,-60,14,5,2); ctx.fill();
+  ctx.fillStyle='rgba(0,200,255,0.5)';
+  ctx.beginPath(); ctx.ellipse(31,-58,3,2,0,0,Math.PI*2); ctx.fill();
+  // Muzzle flash effect (subtle always-on)
+  ctx.fillStyle='rgba(255,200,80,0.15)';
+  ctx.beginPath(); ctx.arc(62,-52,5,0,Math.PI*2); ctx.fill();
+  // Muzzle tip
+  ctx.fillStyle='#888';
+  ctx.beginPath(); ctx.roundRect(60,-54,6,4,1); ctx.fill();
+
+  // ── NECK ──
+  ctx.fillStyle='#c8956a';
+  ctx.beginPath(); ctx.roundRect(-5,-82,10,18,3); ctx.fill();
+
+  // ── JHIN MASK (detailed) ──
+  // Mask base — porcelain white with slight warm tint
+  const maskGrad = ctx.createRadialGradient(-3,-93,2,-3,-93,16);
+  maskGrad.addColorStop(0,'#faf7f0');
+  maskGrad.addColorStop(0.6,'#ede8e0');
+  maskGrad.addColorStop(1,'#d8d0c5');
+  ctx.fillStyle = maskGrad;
+  ctx.beginPath();
+  ctx.ellipse(0,-92,15,19,0.05,0,Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle='#8b0000'; ctx.lineWidth=1.5; ctx.stroke();
+
+  // Mask painted eye — LEFT (dark almond shape)
+  ctx.fillStyle='#111';
+  ctx.beginPath(); ctx.ellipse(-6,-95,4,5,-0.3,0,Math.PI*2); ctx.fill();
+  // Mask painted eye — RIGHT (small, sharp)
+  ctx.fillStyle='#111';
+  ctx.beginPath(); ctx.ellipse(6,-95,3.5,4.5,0.3,0,Math.PI*2); ctx.fill();
+  // Eye glint (gold)
+  ctx.fillStyle='#c8aa6e';
+  ctx.shadowBlur=6; ctx.shadowColor='#c8aa6e';
+  ctx.beginPath(); ctx.arc(-7,-97,1.5,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0;
+
+  // Crimson diamond brow marks
+  ctx.fillStyle='#8b0000';
+  ctx.beginPath(); ctx.moveTo(-6,-100); ctx.lineTo(-4,-97); ctx.lineTo(-6,-94); ctx.lineTo(-8,-97); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(6,-100); ctx.lineTo(8,-97); ctx.lineTo(6,-94); ctx.lineTo(4,-97); ctx.closePath(); ctx.fill();
+
+  // Curved mouth — upward smile painted on
+  ctx.strokeStyle='#5a0000'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.arc(0,-83,7,0.35,Math.PI-0.35); ctx.stroke();
+  // Cheek flourish lines
+  ctx.strokeStyle='rgba(139,0,0,0.5)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(-14,-90); ctx.quadraticCurveTo(-10,-87,-7,-90); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(14,-90); ctx.quadraticCurveTo(10,-87,7,-90); ctx.stroke();
+
+  // ── TOP HAT ──
+  // Brim
+  const brimGrad = ctx.createLinearGradient(-20,-100,20,-96);
+  brimGrad.addColorStop(0,'#9a7a18'); brimGrad.addColorStop(0.5,'#c8aa6e'); brimGrad.addColorStop(1,'#7a5e10');
+  ctx.fillStyle=brimGrad;
+  ctx.beginPath(); ctx.roundRect(-20,-102,40,7,2); ctx.fill();
+  ctx.strokeStyle='#6a4a08'; ctx.lineWidth=1; ctx.stroke();
+  // Crown
+  const crownGrad = ctx.createLinearGradient(-13,-128,13,-102);
+  crownGrad.addColorStop(0,'#c8aa6e'); crownGrad.addColorStop(0.4,'#a08828'); crownGrad.addColorStop(1,'#6a4a08');
+  ctx.fillStyle=crownGrad;
+  ctx.beginPath(); ctx.roundRect(-13,-130,26,30,2); ctx.fill();
+  ctx.strokeStyle='#8b0000'; ctx.lineWidth=1.8; ctx.strokeRect(-13,-130,26,30);
+  // Hat band crimson
+  ctx.fillStyle='#8b0000';
+  ctx.fillRect(-13,-107,26,5);
+  // Hat gold pin/rose
+  ctx.fillStyle='#c8aa6e';
+  ctx.beginPath(); ctx.arc(6,-113,3,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#8b0000';
+  ctx.beginPath(); ctx.arc(6,-113,1.5,0,Math.PI*2); ctx.fill();
+
+  // ── R CHARGE RING ──
+  if (p.rCharging && p.rCooldown <= 0) {
+    const ratio = p.rCharge / p.rMaxCharge;
+    ctx.strokeStyle = `rgba(255,${Math.floor(ratio*220)},0,0.85)`;
+    ctx.lineWidth = 3.5;
+    ctx.shadowBlur=18; ctx.shadowColor='#ff6600';
+    ctx.beginPath(); ctx.arc(0,-88, 26+ratio*14, -Math.PI/2, -Math.PI/2+Math.PI*2*ratio); ctx.stroke();
+    ctx.shadowBlur=0;
+  }
+
+  ctx.restore();
+
+  // Flavor texts
+  for (const ft of p.flavorTexts) {
+    const a = ft.life / ft.maxLife;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.font = 'bold 13px Share Tech Mono';
+    ctx.fillStyle = ft.color;
+    ctx.textAlign = 'center';
+    ctx.shadowBlur = 8; ctx.shadowColor = ft.color;
+    ctx.fillText(ft.text, ft.x, ft.y);
+    ctx.restore();
+  }
+}
+
+function drawEnemy1(e) {
+  const cx = e.x + 30, cy = e.y;
+  ctx.save(); ctx.translate(cx, cy);
+  const t = e.animTick;
+
+  // Shadow
+  const shd = ctx.createRadialGradient(0,4,2,0,4,32);
+  shd.addColorStop(0,'rgba(0,0,0,0.4)'); shd.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=shd; ctx.beginPath(); ctx.ellipse(0,6,32,9,0,0,Math.PI*2); ctx.fill();
+
+  // Legs (dark jeans)
+  const legBob = Math.sin(t*0.08)*3;
+  ctx.fillStyle='#0d1a2e';
+  ctx.beginPath(); ctx.roundRect(-20,0,16,32,[0,0,4,4]); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(4,0,16,32,[0,0,4,4]); ctx.fill();
+  // Sneakers
+  ctx.fillStyle='#e0e0e0';
+  ctx.beginPath(); ctx.roundRect(-22,28,18,8,[2,2,5,5]); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(3,28,18,8,[2,2,5,5]); ctx.fill();
+  ctx.fillStyle='#00aaff'; ctx.fillRect(-22,28,18,3); ctx.fillRect(3,28,18,3);
+
+  // Hoodie body (with kangaroo pocket)
+  const hGrad = ctx.createLinearGradient(-28,-80,28,0);
+  hGrad.addColorStop(0,'#1e2245'); hGrad.addColorStop(0.5,'#16213e'); hGrad.addColorStop(1,'#0d1530');
+  ctx.fillStyle=hGrad;
+  ctx.beginPath();
+  ctx.moveTo(-26,-78);
+  ctx.bezierCurveTo(-32,-50,-32,-25,-28,2);
+  ctx.lineTo(28,2);
+  ctx.bezierCurveTo(32,-25,32,-50,26,-78);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle='#2a3a6e'; ctx.lineWidth=1.5; ctx.stroke();
+  // Pocket
+  ctx.fillStyle='rgba(0,0,0,0.25)';
+  ctx.beginPath(); ctx.roundRect(-14,-18,28,16,4); ctx.fill();
+  ctx.strokeStyle='#2a3a6e'; ctx.lineWidth=1; ctx.stroke();
+  // Hoodie drawstrings
+  ctx.strokeStyle='#888'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(-4,-78); ctx.quadraticCurveTo(-6,-65,-8,-55); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(4,-78); ctx.quadraticCurveTo(6,-65,8,-55); ctx.stroke();
+  // String tips
+  ctx.fillStyle='#aaa'; ctx.beginPath(); ctx.arc(-8,-55,2.5,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(8,-55,2.5,0,Math.PI*2); ctx.fill();
+
+  // Arms holding laptop
+  ctx.fillStyle='#16213e';
+  ctx.beginPath(); ctx.ellipse(-36,-28,10,8,0.5,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(36,-28,10,8,-0.5,0,Math.PI*2); ctx.fill();
+  // Hands
+  ctx.fillStyle='#c8a882';
+  ctx.beginPath(); ctx.ellipse(-40,-18,7,5,0.8,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(40,-18,7,5,-0.8,0,Math.PI*2); ctx.fill();
+
+  // Laptop
+  const glow = 0.55 + 0.45*Math.sin(t*0.1);
+  const lapGrad = ctx.createLinearGradient(-22,-52,22,-22);
+  lapGrad.addColorStop(0,'#1a1a1a'); lapGrad.addColorStop(1,'#2a2a2a');
+  ctx.fillStyle=lapGrad;
+  ctx.beginPath(); ctx.roundRect(-22,-52,44,32,3); ctx.fill();
+  ctx.strokeStyle='#444'; ctx.lineWidth=1.5; ctx.stroke();
+  // Screen glow
+  ctx.fillStyle=`rgba(0,${Math.floor(180+glow*75)},${Math.floor(220+glow*35)},0.92)`;
+  ctx.shadowBlur=22*glow; ctx.shadowColor='#00ccff';
+  ctx.beginPath(); ctx.roundRect(-19,-50,38,24,2); ctx.fill();
+  // Screen text
+  ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(-19,-50,38,24,2); ctx.fill();
+  ctx.fillStyle='#00ffcc'; ctx.font='bold 7px Share Tech Mono'; ctx.textAlign='center';
+  ctx.fillText('> sudo rm -rf /', 0, -40);
+  ctx.fillStyle=`rgba(0,255,170,${0.5+glow*0.5})`;
+  ctx.fillText('> RUNNING...', 0, -31);
+  ctx.shadowBlur=0;
+  // Trackpad
+  ctx.fillStyle='#333'; ctx.beginPath(); ctx.roundRect(-10,-18,20,8,2); ctx.fill();
+
+  // Hood
+  const hoodGrad = ctx.createRadialGradient(0,-88,5,0,-88,26);
+  hoodGrad.addColorStop(0,'#22285a'); hoodGrad.addColorStop(1,'#10152e');
+  ctx.fillStyle=hoodGrad;
+  ctx.beginPath(); ctx.ellipse(0,-83,24,20,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#2a3a6e'; ctx.lineWidth=1.5; ctx.stroke();
+  // Hood shadow detail
+  ctx.fillStyle='rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(0,-86,12,10,0,0,Math.PI); ctx.fill();
+
+  // ── GUY FAWKES MASK ──
+  // Base
+  const maskG = ctx.createRadialGradient(0,-78,2,0,-78,18);
+  maskG.addColorStop(0,'#f8f4ea'); maskG.addColorStop(1,'#e0dbd0');
+  ctx.fillStyle=maskG;
+  ctx.beginPath(); ctx.ellipse(0,-78,15,20,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#555'; ctx.lineWidth=1.2; ctx.stroke();
+  // Arched eyebrows (painted black)
+  ctx.fillStyle='#222';
+  ctx.beginPath(); ctx.ellipse(-6,-87,5,3.5,-0.25,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(6,-87,5,3.5,0.25,0,Math.PI*2); ctx.fill();
+  // Eye holes
+  ctx.fillStyle='#111';
+  ctx.beginPath(); ctx.ellipse(-6,-82,4,5,-0.15,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(6,-82,4,5,0.15,0,Math.PI*2); ctx.fill();
+  // Eye glow (hacker cyan)
+  ctx.fillStyle='rgba(0,200,255,0.7)';
+  ctx.shadowBlur=8; ctx.shadowColor='#00ccff';
+  ctx.beginPath(); ctx.ellipse(-6,-82,2,2.5,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(6,-82,2,2.5,0,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0;
+  // Nose triangle (rosy)
+  ctx.fillStyle='#cc8888';
+  ctx.beginPath(); ctx.moveTo(0,-73); ctx.lineTo(-3,-68); ctx.lineTo(3,-68); ctx.closePath(); ctx.fill();
+  // Mustache (classic Fawkes)
+  ctx.fillStyle='#222';
+  ctx.beginPath(); ctx.ellipse(-5,-64,5,2.5,-0.1,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(5,-64,5,2.5,0.1,0,Math.PI*2); ctx.fill();
+  // Chin beard point
+  ctx.beginPath(); ctx.moveTo(-5,-60); ctx.lineTo(0,-55); ctx.lineTo(5,-60); ctx.closePath(); ctx.fill();
+  // Cheek flush lines
+  ctx.strokeStyle='rgba(200,80,80,0.35)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(-14,-79); ctx.quadraticCurveTo(-10,-76,-7,-79); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(14,-79); ctx.quadraticCurveTo(10,-76,7,-79); ctx.stroke();
+
+  // Stun indicator
+  if(e.stunTimer>0){
+    ctx.fillStyle='rgba(255,220,0,0.9)'; ctx.font='bold 13px Share Tech Mono'; ctx.textAlign='center';
+    ctx.shadowBlur=10; ctx.shadowColor='#ffdd00';
+    ctx.fillText('★ STUNNED ★',0,-120);
+    ctx.shadowBlur=0;
+  }
+  ctx.restore();
+}
+
+function drawEnemy2(e) {
+  const cx = e.x + 30, cy = e.y - 55;
+  const t = e.animTick;
+  ctx.save(); ctx.translate(cx, cy);
+
+  // Ground mist
+  const mist = ctx.createRadialGradient(0,60,4,0,60,45);
+  mist.addColorStop(0,'rgba(120,0,200,0.25)'); mist.addColorStop(1,'rgba(80,0,150,0)');
+  ctx.fillStyle=mist; ctx.beginPath(); ctx.ellipse(0,62,42,14,0,0,Math.PI*2); ctx.fill();
+
+  // Tendrils (wispy bottom)
+  const tendrilBase = 28 + Math.sin(t*0.04)*4;
+  for(let i=0;i<5;i++){
+    const tx2 = -30 + i*15, sway = Math.sin(t*0.05+i*1.1)*6;
+    const tendG = ctx.createLinearGradient(tx2,tendrilBase,tx2+sway,tendrilBase+25);
+    tendG.addColorStop(0,'rgba(140,60,255,0.5)'); tendG.addColorStop(1,'rgba(80,0,150,0)');
+    ctx.strokeStyle=tendG; ctx.lineWidth=4+Math.sin(i)*2;
+    ctx.beginPath(); ctx.moveTo(tx2,tendrilBase); ctx.quadraticCurveTo(tx2+sway,tendrilBase+15,tx2+sway*1.3,tendrilBase+28); ctx.stroke();
+  }
+
+  // Main ghost body
+  const bodyAlpha = 0.82 + 0.18*Math.sin(t*0.04);
+  ctx.globalAlpha = bodyAlpha;
+  const gGrad = ctx.createRadialGradient(0,-20,5, 0,-20,55);
+  gGrad.addColorStop(0, 'rgba(200,130,255,0.95)');
+  gGrad.addColorStop(0.4, 'rgba(130,60,230,0.75)');
+  gGrad.addColorStop(0.8, 'rgba(70,10,150,0.4)');
+  gGrad.addColorStop(1, 'rgba(40,0,80,0)');
+  ctx.fillStyle = gGrad;
+  ctx.beginPath();
+  ctx.moveTo(-28, 22);
+  ctx.quadraticCurveTo(-42, -15, -28, -48);
+  ctx.quadraticCurveTo(-12, -72, 0, -74);
+  ctx.quadraticCurveTo(12, -72, 28, -48);
+  ctx.quadraticCurveTo(42, -15, 28, 22);
+  ctx.quadraticCurveTo(18, 38, 10, 22);
+  ctx.quadraticCurveTo(3, 40, -3, 22);
+  ctx.quadraticCurveTo(-10, 38, -18, 22);
+  ctx.quadraticCurveTo(-24, 38, -28, 22);
+  ctx.fill();
+
+  // Inner glow core
+  ctx.globalAlpha = 0.4*bodyAlpha;
+  const innerG = ctx.createRadialGradient(0,-35,2,0,-35,28);
+  innerG.addColorStop(0,'rgba(255,200,255,0.8)'); innerG.addColorStop(1,'rgba(180,80,255,0)');
+  ctx.fillStyle=innerG;
+  ctx.beginPath(); ctx.ellipse(0,-35,28,35,0,0,Math.PI*2); ctx.fill();
+  ctx.globalAlpha=1;
+
+  // Glitch scanlines on body (ephemeral)
+  if(Math.floor(t/4)%7===0){
+    ctx.fillStyle='rgba(200,255,255,0.15)';
+    ctx.fillRect(-28,-55,56,4);
+    ctx.fillRect(-28,-38,56,3);
+  }
+
+  // ── EYES ──
+  ctx.shadowBlur=20; ctx.shadowColor='#ff00ff';
+  // Left eye — almond
+  const eyeG1 = ctx.createRadialGradient(-10,-46,1,-10,-46,7);
+  eyeG1.addColorStop(0,'#ffffff'); eyeG1.addColorStop(0.3,'#ff66ff'); eyeG1.addColorStop(1,'#aa00cc');
+  ctx.fillStyle=eyeG1;
+  ctx.beginPath(); ctx.ellipse(-10,-46,7,9,0,0,Math.PI*2); ctx.fill();
+  // Right eye
+  const eyeG2 = ctx.createRadialGradient(10,-46,1,10,-46,7);
+  eyeG2.addColorStop(0,'#ffffff'); eyeG2.addColorStop(0.3,'#ff66ff'); eyeG2.addColorStop(1,'#aa00cc');
+  ctx.fillStyle=eyeG2;
+  ctx.beginPath(); ctx.ellipse(10,-46,7,9,0,0,Math.PI*2); ctx.fill();
+  // Pupils
+  ctx.fillStyle='#220033';
+  ctx.beginPath(); ctx.ellipse(-10,-46,2.5,3.5,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(10,-46,2.5,3.5,0,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0;
+
+  // Ghostly mouth (jagged)
+  ctx.strokeStyle='rgba(255,100,255,0.6)'; ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.moveTo(-10,-30); ctx.lineTo(-6,-33); ctx.lineTo(-2,-28); ctx.lineTo(2,-33); ctx.lineTo(6,-28); ctx.lineTo(10,-30);
+  ctx.stroke();
+
+  // ── ORBITING MITRE ATT&CK IDs ──
+  const ids = ['T1059','T1078','T1190','T1566'];
+  for (let i=0;i<4;i++) {
+    const angle = t*0.025 + i*(Math.PI*2/4);
+    const ox = Math.cos(angle)*78, oy = Math.sin(angle)*32;
+    const a = 0.6 + 0.4*Math.abs(Math.sin(angle));
+    ctx.save();
+    ctx.globalAlpha=a;
+    ctx.fillStyle=`rgba(190,120,255,${a})`;
+    ctx.font='bold 9px Share Tech Mono';
+    ctx.textAlign='center';
+    ctx.shadowBlur=6; ctx.shadowColor='#aa66ff';
+    ctx.fillText(ids[i], ox, oy-20);
+    // Orbit trail dot
+    ctx.fillStyle=`rgba(200,150,255,${a*0.5})`;
+    ctx.beginPath(); ctx.arc(ox,oy-24,2,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.restore();
+  }
+
+  // ── CLONES ──
+  for (const clone of e.clones) {
+    ctx.save();
+    ctx.globalAlpha=0.28;
+    ctx.translate(clone.x - cx, 0);
+    const cg=ctx.createRadialGradient(0,-30,4,0,-30,35);
+    cg.addColorStop(0,'rgba(180,100,255,0.7)'); cg.addColorStop(1,'rgba(100,50,200,0)');
+    ctx.fillStyle=cg;
+    ctx.beginPath(); ctx.ellipse(0,-28,22,42,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='rgba(255,150,255,0.5)';
+    ctx.beginPath(); ctx.ellipse(-8,-44,4,5,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(8,-44,4,5,0,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  // Stun
+  if(e.stunTimer>0){
+    ctx.globalAlpha=1;
+    ctx.fillStyle='rgba(255,220,0,0.9)'; ctx.font='bold 12px Share Tech Mono'; ctx.textAlign='center';
+    ctx.shadowBlur=10; ctx.shadowColor='#ffdd00';
+    ctx.fillText('★ STUNNED ★',0,-100);
+    ctx.shadowBlur=0;
+  }
+  ctx.restore();
+}
+
+function drawEnemy3(e) {
+  const cx = e.x + 38, cy = e.y;
+  const t = e.animTick;
+  ctx.save(); ctx.translate(cx, cy);
+
+  // Ground shadow
+  const gshd = ctx.createRadialGradient(0,4,4,0,4,50);
+  gshd.addColorStop(0,'rgba(0,0,0,0.5)'); gshd.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=gshd; ctx.beginPath(); ctx.ellipse(0,6,50,12,0,0,Math.PI*2); ctx.fill();
+
+  // Rumble stomp bob
+  const bob = Math.sin(t*0.06)*2;
+
+  // ── LEGS (stone columns) ──
+  const legGrad = ctx.createLinearGradient(-48,-4,48,4);
+  legGrad.addColorStop(0,'#555'); legGrad.addColorStop(0.5,'#888'); legGrad.addColorStop(1,'#444');
+  ctx.fillStyle=legGrad;
+  ctx.beginPath(); ctx.roundRect(-38,bob,28,28,[0,0,6,6]); ctx.fill();
+  ctx.strokeStyle='#333'; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(10,bob,28,28,[0,0,6,6]); ctx.fill(); ctx.stroke();
+  // Cracks on legs
+  ctx.strokeStyle='rgba(0,0,0,0.35)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(-28,bob+4); ctx.lineTo(-22,bob+16); ctx.lineTo(-26,bob+22); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(20,bob+5); ctx.lineTo(26,bob+18); ctx.lineTo(22,bob+24); ctx.stroke();
+
+  // ── BODY (stacked reports) ──
+  // Main torso gradient — stone-gray with paper striations
+  const torsoG = ctx.createLinearGradient(-46,-112+bob, 46, bob);
+  torsoG.addColorStop(0,'#9a9a9a');
+  torsoG.addColorStop(0.25,'#b8b8b8');
+  torsoG.addColorStop(0.55,'#8a8a8a');
+  torsoG.addColorStop(0.8,'#767676');
+  torsoG.addColorStop(1,'#555');
+  ctx.fillStyle=torsoG;
+  ctx.beginPath();
+  ctx.moveTo(-40,-110+bob);
+  ctx.bezierCurveTo(-46,-80+bob,-48,-40+bob,-44,bob);
+  ctx.lineTo(44,bob);
+  ctx.bezierCurveTo(48,-40+bob,46,-80+bob,40,-110+bob);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle='#3a3a3a'; ctx.lineWidth=2; ctx.stroke();
+
+  // Paper stack layers (horizontal lines with slight color variation)
+  for(let i=0;i<8;i++){
+    const ly = -100+bob + i*13;
+    const brightness = 160 + Math.sin(i*0.7)*30;
+    ctx.strokeStyle=`rgba(${brightness},${brightness},${brightness},0.2)`;
+    ctx.lineWidth = i%3===0 ? 1.5 : 0.8;
+    ctx.beginPath(); ctx.moveTo(-38,ly); ctx.lineTo(38,ly); ctx.stroke();
+    // Sheet paper edge (alternating)
+    if(i%2===0){
+      ctx.fillStyle=`rgba(240,235,220,0.07)`;
+      ctx.fillRect(-37,ly-1,74,2);
+    }
+  }
+  // Spreadsheet data faint (very subtle)
+  ctx.fillStyle='rgba(0,200,100,0.06)';
+  for(let r=0;r<5;r++) for(let c=0;c<6;c++) ctx.fillRect(-36+c*12,-100+bob+r*14,10,12);
+
+  // ── CRACK DETAILS on body ──
+  ctx.strokeStyle='rgba(0,0,0,0.3)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(-15,-85+bob); ctx.lineTo(-8,-68+bob); ctx.lineTo(-14,-55+bob); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(18,-92+bob); ctx.lineTo(25,-75+bob); ctx.lineTo(18,-62+bob); ctx.stroke();
+
+  // ── TIE (corporate) ──
+  ctx.fillStyle='#8b0000';
+  ctx.beginPath(); ctx.moveTo(-7,-108+bob); ctx.lineTo(7,-108+bob); ctx.lineTo(12,-70+bob); ctx.lineTo(0,-62+bob); ctx.lineTo(-12,-70+bob); ctx.closePath(); ctx.fill();
+  // Tie knot
+  const knotG = ctx.createRadialGradient(0,-108+bob,1,0,-108+bob,8);
+  knotG.addColorStop(0,'#dd2222'); knotG.addColorStop(1,'#660000');
+  ctx.fillStyle=knotG;
+  ctx.beginPath(); ctx.moveTo(-5,-108+bob); ctx.lineTo(5,-108+bob); ctx.lineTo(3,-100+bob); ctx.lineTo(0,-98+bob); ctx.lineTo(-3,-100+bob); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle='rgba(200,0,0,0.4)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,-108+bob); ctx.lineTo(0,-65+bob); ctx.stroke();
+
+  // ── SHOULDERS / COLLAR ──
+  ctx.fillStyle='#6a6a6a';
+  ctx.beginPath(); ctx.ellipse(-42,-85+bob,14,10,0.4,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(42,-85+bob,14,10,-0.4,0,Math.PI*2); ctx.fill();
+
+  // ── ARMS (slab-like fists) ──
+  const armBob = Math.sin(t*0.05);
+  // Left arm
+  const armG = ctx.createLinearGradient(-68,-60,−50,-30);
+  ctx.fillStyle='#888';
+  ctx.beginPath(); ctx.roundRect(-64,-62+bob+armBob*6,20,38,[4,4,8,8]); ctx.fill();
+  ctx.strokeStyle='#444'; ctx.lineWidth=1.5; ctx.stroke();
+  // Right arm
+  ctx.beginPath(); ctx.roundRect(44,-62+bob-armBob*6,20,38,[4,4,8,8]); ctx.fill(); ctx.stroke();
+  // Fist knuckles
+  ctx.fillStyle='#777';
+  ctx.beginPath(); ctx.roundRect(-66,-32+bob+armBob*6,24,14,[4]); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(42,-32+bob-armBob*6,24,14,[4]); ctx.fill();
+  // Crack lines on arms
+  ctx.strokeStyle='rgba(0,0,0,0.25)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(-58,-55+bob); ctx.lineTo(-52,-42+bob); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(56,-55+bob); ctx.lineTo(50,-42+bob); ctx.stroke();
+
+  // ── HEAD (stone block with eyes) ──
+  const headG = ctx.createLinearGradient(-28,-145+bob,28,-110+bob);
+  headG.addColorStop(0,'#b0b0b0'); headG.addColorStop(0.5,'#c5c5c5'); headG.addColorStop(1,'#888');
+  ctx.fillStyle=headG;
+  ctx.beginPath(); ctx.roundRect(-26,-148+bob,52,40,[4,4,0,0]); ctx.fill();
+  ctx.strokeStyle='#3a3a3a'; ctx.lineWidth=2; ctx.stroke();
+  // Head cracks
+  ctx.strokeStyle='rgba(0,0,0,0.3)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(-10,-148+bob); ctx.lineTo(-4,-130+bob); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(12,-145+bob); ctx.lineTo(8,-128+bob); ctx.stroke();
+
+  // ── GLOWING RED EYES ──
+  ctx.shadowBlur=25; ctx.shadowColor='#ff0000';
+  const eyeR1 = ctx.createRadialGradient(-12,-130+bob,1,-12,-130+bob,9);
+  eyeR1.addColorStop(0,'#ff8888'); eyeR1.addColorStop(0.4,'#ff2200'); eyeR1.addColorStop(1,'#660000');
+  ctx.fillStyle=eyeR1;
+  ctx.beginPath(); ctx.ellipse(-12,-130+bob,9,11,0,0,Math.PI*2); ctx.fill();
+  const eyeR2 = ctx.createRadialGradient(12,-130+bob,1,12,-130+bob,9);
+  eyeR2.addColorStop(0,'#ff8888'); eyeR2.addColorStop(0.4,'#ff2200'); eyeR2.addColorStop(1,'#660000');
+  ctx.fillStyle=eyeR2;
+  ctx.beginPath(); ctx.ellipse(12,-130+bob,9,11,0,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0;
+  // Eye whites
+  ctx.fillStyle='#ff2200';
+  ctx.beginPath(); ctx.ellipse(-12,-130+bob,3,4,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(12,-130+bob,3,4,0,0,Math.PI*2); ctx.fill();
+
+  // Stun
+  if(e.stunTimer>0){
+    ctx.fillStyle='rgba(255,220,0,0.9)'; ctx.font='bold 13px Share Tech Mono'; ctx.textAlign='center';
+    ctx.shadowBlur=12; ctx.shadowColor='#ffdd00';
+    ctx.fillText('★ STUNNED ★',0,-175+bob);
+    ctx.shadowBlur=0;
+  }
+  ctx.restore();
+}
+
+function drawEnemy4(e) {
+  const cx = e.x + 40, cy = e.y - 18;
+  const t = e.animTick;
+  ctx.save(); ctx.translate(cx, cy);
+
+  // Ground shadow
+  const gshd = ctx.createRadialGradient(0,18,5,0,18,55);
+  gshd.addColorStop(0,'rgba(0,80,0,0.35)'); gshd.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=gshd; ctx.beginPath(); ctx.ellipse(0,20,52,14,0,0,Math.PI*2); ctx.fill();
+
+  // ── BODY COIL (serpent) ──
+  const bodyGrad = ctx.createRadialGradient(0,8,8,0,8,52);
+  bodyGrad.addColorStop(0,'#3a6a00'); bodyGrad.addColorStop(0.5,'#2a5500'); bodyGrad.addColorStop(1,'#0f2a00');
+  ctx.fillStyle=bodyGrad;
+  ctx.beginPath(); ctx.ellipse(0, 10, 52, 26, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#4a8800'; ctx.lineWidth=2.5; ctx.stroke();
+  // Scale pattern (arcs)
+  ctx.strokeStyle='rgba(80,180,0,0.3)'; ctx.lineWidth=1.2;
+  for(let i=-44;i<44;i+=13){
+    ctx.beginPath(); ctx.arc(i,12,7,Math.PI,Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(i+6.5,18,7,Math.PI,Math.PI*2); ctx.stroke();
+  }
+  // Belly lighter
+  const bellyG = ctx.createLinearGradient(0,-15,0,25);
+  bellyG.addColorStop(0,'rgba(120,200,60,0.1)'); bellyG.addColorStop(1,'rgba(80,150,20,0.15)');
+  ctx.fillStyle=bellyG;
+  ctx.beginPath(); ctx.ellipse(0,12,35,18,0,0,Math.PI*2); ctx.fill();
+
+  // ── THREE NECKS + HEADS ──
+  const headDefs = [
+    { ox:-46, color:'#cc5500', sColor:'#ff8822', label:'AWS', eyeColor:'#ff8800' },
+    { ox:0,   color:'#0055aa', sColor:'#2299ee', label:'Azure', eyeColor:'#00aaff' },
+    { ox:46,  color:'#007722', sColor:'#00cc55', label:'pfSense', eyeColor:'#00ff66' }
+  ];
+  for(let i=0;i<3;i++){
+    const hd = headDefs[i];
+    const bob = e.headBobs[i];
+    const neckLen = 55 + bob;
+    const sway = Math.sin(t*0.04+i*1.2)*5;
+    ctx.save(); ctx.translate(hd.ox, 0);
+
+    // Neck — thick + scale texture
+    // Neck shadow
+    ctx.strokeStyle='rgba(0,0,0,0.4)'; ctx.lineWidth=14;
+    ctx.beginPath(); ctx.moveTo(2,0); ctx.quadraticCurveTo(sway+2,-neckLen*0.5,sway,-neckLen); ctx.stroke();
+    // Neck main
+    const neckG = ctx.createLinearGradient(-6,-neckLen,6,0);
+    neckG.addColorStop(0,hd.sColor); neckG.addColorStop(1,hd.color);
+    ctx.strokeStyle=neckG; ctx.lineWidth=11;
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(sway,-neckLen*0.5,sway,-neckLen); ctx.stroke();
+    // Neck scale lines
+    ctx.strokeStyle='rgba(0,0,0,0.2)'; ctx.lineWidth=1;
+    for(let s=0;s<4;s++){
+      const sy = -neckLen + s*(neckLen/4);
+      ctx.beginPath(); ctx.arc(sway*(s/4),sy,5,Math.PI*0.2,Math.PI*0.8); ctx.stroke();
+    }
+
+    // Head shape (more diamond-like, threatening)
+    const hx = sway, hy = -neckLen;
+    const headG = ctx.createRadialGradient(hx,hy,3,hx,hy,24);
+    headG.addColorStop(0,hd.sColor); headG.addColorStop(0.6,hd.color); headG.addColorStop(1,'#001100');
+    ctx.fillStyle=headG;
+    ctx.beginPath();
+    ctx.moveTo(hx,-hy-22); // top point (but we're already translated)
+    // Let's draw head as a rounded-diamond
+    ctx.save(); ctx.translate(hx,hy);
+    ctx.beginPath();
+    ctx.moveTo(0,-22);
+    ctx.bezierCurveTo(14,-18,18,-8,16,0);
+    ctx.bezierCurveTo(14,12,8,18,0,18);
+    ctx.bezierCurveTo(-8,18,-14,12,-16,0);
+    ctx.bezierCurveTo(-18,-8,-14,-18,0,-22);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle=hd.sColor; ctx.lineWidth=1.5; ctx.stroke();
+
+    // Glowing eyes
+    ctx.shadowBlur=14; ctx.shadowColor=hd.eyeColor;
+    const eyeG = ctx.createRadialGradient(-7,-4,1,-7,-4,5);
+    eyeG.addColorStop(0,'#ffffff'); eyeG.addColorStop(0.4,hd.eyeColor); eyeG.addColorStop(1,hd.color);
+    ctx.fillStyle=eyeG;
+    ctx.beginPath(); ctx.ellipse(-7,-4,5,6,0,0,Math.PI*2); ctx.fill();
+    const eyeG2 = ctx.createRadialGradient(7,-4,1,7,-4,5);
+    eyeG2.addColorStop(0,'#ffffff'); eyeG2.addColorStop(0.4,hd.eyeColor); eyeG2.addColorStop(1,hd.color);
+    ctx.fillStyle=eyeG2;
+    ctx.beginPath(); ctx.ellipse(7,-4,5,6,0,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0;
+    // Pupils (slitted)
+    ctx.fillStyle='#000';
+    ctx.beginPath(); ctx.ellipse(-7,-4,1.5,4,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(7,-4,1.5,4,0,0,Math.PI*2); ctx.fill();
+    // Fangs
+    ctx.fillStyle='#e8e8e8';
+    ctx.beginPath(); ctx.moveTo(-5,12); ctx.lineTo(-3,20); ctx.lineTo(-1,12); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(1,12); ctx.lineTo(3,20); ctx.lineTo(5,12); ctx.closePath(); ctx.fill();
+    // Service label
+    ctx.fillStyle='#fff'; ctx.font='bold 9px Share Tech Mono'; ctx.textAlign='center';
+    ctx.shadowBlur=6; ctx.shadowColor=hd.eyeColor;
+    ctx.fillText(hd.label, 0, -30);
+    ctx.shadowBlur=0;
+    ctx.restore(); // restore from head translate
+    ctx.restore(); // restore from hd.ox translate
+  }
+
+  // Stun
+  if(e.stunTimer>0){
+    ctx.fillStyle='rgba(255,220,0,0.9)'; ctx.font='bold 12px Share Tech Mono'; ctx.textAlign='center';
+    ctx.shadowBlur=10; ctx.shadowColor='#ffdd00';
+    ctx.fillText('★ STUNNED ★',0,-140);
+    ctx.shadowBlur=0;
+  }
+  ctx.restore();
+}
+
+function drawEnemy5(e) {
+  const cx = e.x + 38, cy = e.y;
+  const t = e.animTick;
+  ctx.save(); ctx.translate(cx, cy);
+
+  // Shadow
+  const gshd = ctx.createRadialGradient(0,4,4,0,4,42);
+  gshd.addColorStop(0,'rgba(0,0,0,0.5)'); gshd.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=gshd; ctx.beginPath(); ctx.ellipse(0,6,42,10,0,0,Math.PI*2); ctx.fill();
+
+  // Legs
+  ctx.fillStyle='#1a1a1a';
+  ctx.beginPath(); ctx.roundRect(-26,0,20,32,[0,0,4,4]); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(6,0,20,32,[0,0,4,4]); ctx.fill();
+  // Shoes
+  ctx.fillStyle='#111';
+  ctx.beginPath(); ctx.roundRect(-28,28,22,8,[2,2,6,6]); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(6,28,22,8,[2,2,6,6]); ctx.fill();
+  // Trouser crease
+  ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(-16,0); ctx.lineTo(-16,28); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(16,0); ctx.lineTo(16,28); ctx.stroke();
+
+  // ── SUIT BODY ──
+  const suitGrad = ctx.createLinearGradient(-34,-132,34,2);
+  suitGrad.addColorStop(0,'#2a2a2a'); suitGrad.addColorStop(0.3,'#222'); suitGrad.addColorStop(0.7,'#1a1a1a'); suitGrad.addColorStop(1,'#111');
+  ctx.fillStyle=suitGrad;
+  ctx.beginPath(); ctx.roundRect(-32,-130,64,132,[4,4,0,0]); ctx.fill();
+  ctx.strokeStyle='#3a3a3a'; ctx.lineWidth=1.5; ctx.stroke();
+
+  // Suit sheen
+  ctx.fillStyle='rgba(255,255,255,0.03)';
+  ctx.beginPath(); ctx.roundRect(-28,-128,22,128,[4,4,0,0]); ctx.fill();
+
+  // Shirt
+  ctx.fillStyle='#dde8f0';
+  ctx.fillRect(-9,-128,18,52);
+  // Shirt buttons
+  ctx.fillStyle='#aab8c8';
+  for(let i=0;i<4;i++) { ctx.beginPath(); ctx.arc(0,-120+i*12,1.5,0,Math.PI*2); ctx.fill(); }
+
+  // Tie (corporate stripe)
+  const tieG = ctx.createLinearGradient(-5,-128,5,-78);
+  tieG.addColorStop(0,'#880000'); tieG.addColorStop(0.5,'#aa1100'); tieG.addColorStop(1,'#660000');
+  ctx.fillStyle=tieG;
+  ctx.beginPath(); ctx.moveTo(-4,-128); ctx.lineTo(4,-128); ctx.lineTo(8,-84); ctx.lineTo(0,-78); ctx.lineTo(-8,-84); ctx.closePath(); ctx.fill();
+  // Tie knot
+  ctx.fillStyle='#cc2200';
+  ctx.beginPath(); ctx.moveTo(-4,-128); ctx.lineTo(4,-128); ctx.lineTo(3,-118); ctx.lineTo(0,-114); ctx.lineTo(-3,-118); ctx.closePath(); ctx.fill();
+  // Tie diagonal stripes
+  ctx.strokeStyle='rgba(200,150,0,0.25)'; ctx.lineWidth=2;
+  for(let s=0;s<3;s++){
+    ctx.save(); ctx.translate(0,-112+s*14);
+    ctx.rotate(0.5);
+    ctx.beginPath(); ctx.moveTo(-8,0); ctx.lineTo(8,0); ctx.stroke();
+    ctx.restore();
+  }
+
+  // ── LAPELS ──
+  ctx.fillStyle='#1e1e1e';
+  ctx.beginPath(); ctx.moveTo(0,-128); ctx.lineTo(-16,-114); ctx.lineTo(-11,-98); ctx.lineTo(-5,-95); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(0,-128); ctx.lineTo(16,-114); ctx.lineTo(11,-98); ctx.lineTo(5,-95); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle='#3a3a3a'; ctx.lineWidth=1; ctx.stroke();
+
+  // Pocket square (red)
+  ctx.fillStyle='#cc2200';
+  ctx.beginPath(); ctx.moveTo(-28,-108); ctx.lineTo(-18,-108); ctx.lineTo(-20,-100); ctx.lineTo(-30,-100); ctx.closePath(); ctx.fill();
+
+  // ── ARMS ──
+  const armSwing = Math.sin(t*0.04)*7;
+  ctx.fillStyle='#1e1e1e';
+  ctx.beginPath(); ctx.roundRect(-48,-90+armSwing,18,42,[8,8,6,6]); ctx.fill();
+  ctx.strokeStyle='#333'; ctx.lineWidth=1; ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(30,-90-armSwing,18,42,[8,8,6,6]); ctx.fill(); ctx.stroke();
+  // Shirt cuffs
+  ctx.fillStyle='#dde8f0';
+  ctx.fillRect(-48,-52+armSwing,18,6);
+  ctx.fillRect(30,-52-armSwing,18,6);
+  // Cuff links (gold)
+  ctx.fillStyle='#c8aa6e';
+  ctx.beginPath(); ctx.arc(-39,-49+armSwing,2.5,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(39,-49-armSwing,2.5,0,Math.PI*2); ctx.fill();
+
+  // ── NECK ──
+  ctx.fillStyle='#c89a78';
+  ctx.beginPath(); ctx.roundRect(-6,-136,12,10,3); ctx.fill();
+
+  // ── LOADING SCREEN HEAD ──
+  // Head background (dark monitor)
+  const headG = ctx.createRadialGradient(0,-148,3,0,-148,24);
+  headG.addColorStop(0,'#1a1a2a'); headG.addColorStop(0.6,'#111'); headG.addColorStop(1,'#0a0a0a');
+  ctx.fillStyle=headG;
+  ctx.beginPath(); ctx.ellipse(0,-148,24,24,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#3a3a5a'; ctx.lineWidth=2; ctx.stroke();
+
+  // Monitor flicker scanlines
+  if(Math.floor(t/3)%8>5){
+    ctx.fillStyle='rgba(200,200,255,0.04)';
+    for(let sl=0;sl<5;sl++) ctx.fillRect(-22,-168+sl*8,44,3);
+  }
+
+  // Loading spinner (4 arcs in gold/dark)
+  const spinA = t*0.09;
+  for(let i=0;i<4;i++){
+    const a = spinA + i*Math.PI/2;
+    ctx.strokeStyle = i%2===0 ? '#c8aa6e' : '#2a2a3a';
+    ctx.lineWidth = 5;
+    ctx.shadowBlur = i%2===0 ? 10 : 0;
+    ctx.shadowColor='#c8aa6e';
+    ctx.beginPath(); ctx.arc(0,-148,15,a,a+Math.PI*0.42); ctx.stroke();
+    ctx.shadowBlur=0;
+  }
+  // Percentage text that counts
+  const pct = Math.floor((t*1.2)%100);
+  ctx.fillStyle='#888a'; ctx.font='bold 8px Share Tech Mono'; ctx.textAlign='center';
+  ctx.fillText(`${pct}%`,-1,-145);
+  // LOADING... text below
+  const dots = '.'.repeat((Math.floor(t*0.08)%3)+1);
+  ctx.fillStyle='rgba(150,150,180,0.7)'; ctx.font='6px Share Tech Mono';
+  ctx.fillText(`LOADING${dots}`,-1,-136);
+
+  // ── SHIELD (compliance checklist orbiting) ──
+  if(e.shieldActive){
+    const items=['✓ POLICY','✓ AUDIT','✓ SOC2','✓ ISO27'];
+    // Shield halo
+    ctx.fillStyle='rgba(0,255,136,0.06)';
+    ctx.beginPath(); ctx.ellipse(0,-75,92,52,0,0,Math.PI*2); ctx.fill();
+    ctx.setLineDash([5,5]);
+    ctx.strokeStyle=`rgba(0,255,136,${0.2+0.1*Math.sin(t*0.05)})`;
+    ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.ellipse(0,-75,92,52,0,0,Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+    // Individual checklist panels
+    for(let i=0;i<4;i++){
+      const a = t*0.022 + i*Math.PI/2;
+      const ox = Math.cos(a)*88, oy = Math.sin(a)*46;
+      ctx.save(); ctx.translate(ox,oy-75);
+      const broken = i < e.shieldHits;
+      ctx.fillStyle = broken ? 'rgba(60,60,60,0.85)' : 'rgba(0,30,15,0.9)';
+      ctx.strokeStyle = broken ? '#444' : '#00ff88';
+      ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.roundRect(-28,-13,56,26,3); ctx.fill(); ctx.stroke();
+      if(!broken){
+        ctx.shadowBlur=8; ctx.shadowColor='#00ff88';
+      }
+      ctx.fillStyle = broken ? '#555' : '#00ff88';
+      ctx.font=`bold 8px Share Tech Mono`; ctx.textAlign='center';
+      ctx.fillText(broken?'✗ BROKEN':items[i], 0, 4);
+      ctx.shadowBlur=0;
+      ctx.restore();
+    }
+  }
+
+  // ── GHOST INTERNS ──
+  for(const intern of e.interns){
+    const ix = intern.x - cx - 38;
+    ctx.save(); ctx.globalAlpha=0.72;
+    ctx.fillStyle='rgba(180,200,220,0.7)';
+    ctx.beginPath(); ctx.roundRect(ix,-29,20,30,[4,4,2,2]); ctx.fill();
+    ctx.fillStyle='rgba(180,200,220,0.8)';
+    ctx.beginPath(); ctx.ellipse(ix+10,-35,9,9,0,0,Math.PI*2); ctx.fill();
+    // Intern face
+    ctx.fillStyle='rgba(0,0,0,0.4)';
+    ctx.beginPath(); ctx.ellipse(ix+7,-36,2,2,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(ix+13,-36,2,2,0,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  // Stun
+  if(e.stunTimer>0){
+    ctx.fillStyle='rgba(255,220,0,0.9)'; ctx.font='bold 13px Share Tech Mono'; ctx.textAlign='center';
+    ctx.shadowBlur=12; ctx.shadowColor='#ffdd00';
+    ctx.fillText('★ STUNNED ★',0,-186);
+    ctx.shadowBlur=0;
+  }
+  ctx.restore();
+}
+
+function drawEnemyProjectiles(e) {
+  ctx.save();
+  for (const p of e.projectiles) {
+    if (p.type === 'blob') {
+      const bGrad = ctx.createRadialGradient(p.x,p.y,1,p.x,p.y,p.r);
+      bGrad.addColorStop(0,'rgba(0,255,220,0.9)'); bGrad.addColorStop(1,'rgba(0,100,200,0)');
+      ctx.fillStyle = bGrad;
+      ctx.shadowBlur=15; ctx.shadowColor='#00ddff';
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+    } else if (p.type === 'beam') {
+      ctx.fillStyle='rgba(155,89,182,0.7)';
+      ctx.shadowBlur=10; ctx.shadowColor='#9b59b6';
+      ctx.fillRect(p.x,p.y,p.w,p.h);
+    } else if (p.type === 'shockwave') {
+      ctx.fillStyle='rgba(100,100,120,0.6)';
+      ctx.strokeStyle='#888'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.rect(p.x,p.y,p.w,p.h); ctx.fill(); ctx.stroke();
+    } else if (p.type === 'pie') {
+      ctx.fillStyle='rgba(200,170,110,0.7)';
+      ctx.shadowBlur=8; ctx.shadowColor='#c8aa6e';
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#8b0000'; ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.arc(p.x,p.y,p.r,0,Math.PI*0.6); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#0000aa'; ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.arc(p.x,p.y,p.r,Math.PI*0.6,Math.PI*1.3); ctx.closePath(); ctx.fill();
+    } else if (p.type === 'cloud') {
+      ctx.fillStyle='rgba(255,165,0,0.6)';
+      ctx.shadowBlur=10; ctx.shadowColor='#ff6600';
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+    } else if (p.type === 'laser') {
+      const lGrad = ctx.createLinearGradient(p.x,p.y,p.x+p.w,p.y);
+      lGrad.addColorStop(0,'rgba(255,50,50,0)'); lGrad.addColorStop(0.3,'rgba(255,50,50,0.9)'); lGrad.addColorStop(1,'rgba(255,0,0,0)');
+      ctx.fillStyle=lGrad;
+      ctx.shadowBlur=20; ctx.shadowColor='#ff0000';
+      ctx.fillRect(p.x,p.y,p.w,p.h);
+    }
+    ctx.shadowBlur=0;
+  }
+  // Ground obstacles (Snort IDS)
+  for (const o of e.groundObstacles) {
+    ctx.fillStyle='rgba(255,100,0,0.5)';
+    ctx.strokeStyle='#ff6600'; ctx.lineWidth=1;
+    ctx.fillRect(o.x,o.y,o.w,o.h); ctx.strokeRect(o.x,o.y,o.w,o.h);
+    ctx.fillStyle='#ff6600'; ctx.font='7px Share Tech Mono'; ctx.textAlign='center';
+    ctx.fillText('IDS!',o.x+o.w/2,o.y+12);
+  }
+  ctx.restore();
+}
+
+function drawMagician() {
+  const m = magicianState;
+  if (!m || m.done) return;
+  ctx.save();
+  ctx.globalAlpha = m.alpha;
+  ctx.translate(m.x + 40, GROUND_Y);
+  ctx.scale(m.scaleX, 1);
+  // MAGICIAN SPRITE: Replace with custom image by setting window.MAGICIAN_SPRITE = new Image(); window.MAGICIAN_SPRITE.src = 'magician_sprite.png';
+  if (window.MAGICIAN_SPRITE && window.MAGICIAN_SPRITE.complete) {
+    ctx.drawImage(window.MAGICIAN_SPRITE, -40, -120, 80, 120);
+  } else {
+    // Canvas-drawn magician
+    // Cloak
+    const cGrad = ctx.createLinearGradient(-30,-110,30,0);
+    cGrad.addColorStop(0,'#2d0055'); cGrad.addColorStop(0.5,'#6a0dad'); cGrad.addColorStop(1,'#1a0033');
+    ctx.fillStyle = cGrad;
+    ctx.beginPath();
+    ctx.moveTo(-30,-110);
+    ctx.quadraticCurveTo(-40,-60,-45,0);
+    ctx.lineTo(45,0);
+    ctx.quadraticCurveTo(40,-60,30,-110);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle='#9b59b6'; ctx.lineWidth=2; ctx.stroke();
+    // Gold trim
+    ctx.strokeStyle='#c8aa6e'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(-30,-110); ctx.lineTo(-45,0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(30,-110); ctx.lineTo(45,0); ctx.stroke();
+    // Star pattern
+    for(let i=0;i<4;i++) {
+      const sy = -80 + i*18;
+      ctx.fillStyle='rgba(200,170,110,0.6)';
+      ctx.beginPath(); ctx.arc(-20+Math.sin(i)*10, sy, 3, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(20+Math.cos(i)*8, sy-5, 3, 0, Math.PI*2); ctx.fill();
+    }
+    // Head
+    ctx.fillStyle='#c8a87a';
+    ctx.beginPath(); ctx.ellipse(0,-118,14,14,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#5a3a1a';
+    ctx.beginPath(); ctx.ellipse(-4,-120,3,4,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(4,-120,3,4,0,0,Math.PI*2); ctx.fill();
+    // Top hat (tall, purple)
+    const hGrad = ctx.createLinearGradient(-15,-165,15,-130);
+    hGrad.addColorStop(0,'#6a0dad'); hGrad.addColorStop(1,'#2d0055');
+    ctx.fillStyle=hGrad;
+    ctx.fillRect(-13,-165,26,35);
+    ctx.fillRect(-20,-132,40,7);
+    ctx.strokeStyle='#c8aa6e'; ctx.lineWidth=1.5; ctx.strokeRect(-13,-165,26,35);
+    // Hat band star
+    ctx.fillStyle='#c8aa6e';
+    ctx.font='14px serif'; ctx.textAlign='center';
+    ctx.fillText('★', 0, -145);
+    // Tarot card floating
+    const cardAngle = Date.now()*0.003;
+    ctx.save();
+    ctx.translate(40+Math.cos(cardAngle)*8, -60+Math.sin(cardAngle*1.3)*8);
+    ctx.rotate(cardAngle*0.5);
+    ctx.fillStyle='#f5f0e0';
+    ctx.fillRect(-12,-18,24,36);
+    ctx.strokeStyle='#c8aa6e'; ctx.lineWidth=1; ctx.strokeRect(-12,-18,24,36);
+    ctx.fillStyle='#9b59b6'; ctx.font='16px serif'; ctx.textAlign='center';
+    ctx.fillText('★', 0, 4);
+    ctx.restore();
+  }
+  // Speech bubble
+  if (m.phase === 'talking') {
+    const msg1 = 'Ah... a visitor. You seek';
+    const msg2 = 'the one who built CounterStack?';
+    const msg3 = m.timer > 130 ? 'The cards have spoken.' : 'He is... closer than you think.';
+    const msg4 = m.timer > 130 ? 'Four bullets remain.' : 'Take this.';
+    ctx.restore();
+    ctx.save();
+    ctx.fillStyle='rgba(20,0,40,0.92)';
+    ctx.strokeStyle='#9b59b6'; ctx.lineWidth=2;
+    const bx = m.x - 20, by = GROUND_Y - 210;
+    ctx.beginPath();
+    ctx.roundRect(bx, by, 320, 90, 4);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle='rgba(20,0,40,0.92)';
+    ctx.beginPath(); ctx.moveTo(bx+30,by+90); ctx.lineTo(bx+20,by+110); ctx.lineTo(bx+50,by+90); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='#9b59b6'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(bx+30,by+90); ctx.lineTo(bx+20,by+110); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx+50,by+90); ctx.lineTo(bx+20,by+110); ctx.stroke();
+    ctx.fillStyle='#c8aa6e'; ctx.font='12px Share Tech Mono'; ctx.textAlign='left';
+    ctx.fillText(msg1, bx+12, by+22);
+    ctx.fillText(msg2, bx+12, by+40);
+    ctx.fillStyle='#00ff88';
+    ctx.fillText(msg3, bx+12, by+60);
+    ctx.fillText(msg4, bx+12, by+78);
+    ctx.restore();
+    return;
+  }
+  ctx.restore();
+}
+
+function drawTraps() {
+  for (const trap of player.traps) {
+    const a = Math.min(1, trap.life/60);
+    ctx.save();
+    ctx.globalAlpha = a;
+    // Trap - glowing ring on ground
+    const tGrad = ctx.createRadialGradient(trap.x+16,trap.y+8,2,trap.x+16,trap.y+8,20);
+    tGrad.addColorStop(0,'rgba(255,180,0,0.8)'); tGrad.addColorStop(1,'rgba(255,80,0,0)');
+    ctx.fillStyle=tGrad;
+    ctx.beginPath(); ctx.ellipse(trap.x+16,trap.y+8,20,10,0,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#c8aa6e'; ctx.lineWidth=2;
+    ctx.shadowBlur=10; ctx.shadowColor='#c8aa6e';
+    ctx.beginPath(); ctx.ellipse(trap.x+16,trap.y+8,16,8,0,0,Math.PI*2); ctx.stroke();
+    ctx.shadowBlur=0;
+    ctx.fillStyle='#c8aa6e'; ctx.font='8px Share Tech Mono'; ctx.textAlign='center';
+    ctx.fillText('E',trap.x+16,trap.y+11);
+    ctx.restore();
+  }
+}
+
+function drawPlayerBullets() {
+  for (const b of playerBullets) {
+    ctx.save();
+    if (b.isR) {
+      const rGrad = ctx.createRadialGradient(b.x,b.y,2,b.x,b.y,b.w/2);
+      rGrad.addColorStop(0,'rgba(255,200,0,1)'); rGrad.addColorStop(0.5,'rgba(200,100,0,0.8)'); rGrad.addColorStop(1,'rgba(200,50,0,0)');
+      ctx.fillStyle=rGrad;
+      ctx.shadowBlur=30; ctx.shadowColor='#ff6600';
+      ctx.beginPath(); ctx.arc(b.x,b.y,b.w/2,0,Math.PI*2); ctx.fill();
+    } else if (b.crit) {
+      ctx.fillStyle='#ffff00';
+      ctx.shadowBlur=15; ctx.shadowColor='#ffff00';
+      ctx.fillRect(b.x-b.w/2,b.y-b.h/2,b.w,b.h);
+    } else {
+      ctx.fillStyle='#c8aa6e';
+      ctx.shadowBlur=6; ctx.shadowColor='#c8aa6e';
+      ctx.fillRect(b.x-b.w/2,b.y-b.h/2,b.w,b.h);
+    }
+    ctx.shadowBlur=0;
+    ctx.restore();
+  }
+}
+
+function drawBeams() {
+  for (const beam of playerBeams) {
+    const a = beam.life/18;
+    ctx.save(); ctx.globalAlpha = a;
+    const dir = beam.facing;
+    const bx = dir > 0 ? beam.x : beam.x + beam.w;
+    const bw = Math.abs(beam.w);
+    const bGrad = ctx.createLinearGradient(bx,0,bx+dir*bw,0);
+    bGrad.addColorStop(0,'rgba(200,170,110,0.9)'); bGrad.addColorStop(1,'rgba(200,170,110,0)');
+    ctx.fillStyle=bGrad;
+    ctx.shadowBlur=20; ctx.shadowColor='#c8aa6e';
+    ctx.fillRect(Math.min(bx,bx+dir*bw), beam.y, bw, beam.h);
+    ctx.shadowBlur=0; ctx.restore();
+  }
+}
+
+// ============================================================
+// HUD
+// ============================================================
+function drawHUD() {
+  ctx.save();
+  // Health bar
+  const hbx=20,hby=20,hbw=280,hbh=22;
+  ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(hbx-4,hby-4,hbw+8,hbh+8);
+  ctx.strokeStyle='#c8aa6e'; ctx.lineWidth=1.5; ctx.strokeRect(hbx-4,hby-4,hbw+8,hbh+8);
+  // BG
+  ctx.fillStyle='#1a0000'; ctx.fillRect(hbx,hby,hbw,hbh);
+  // Health fill
+  const hRatio = Math.max(0,player.health/player.maxHealth);
+  const hGrad = ctx.createLinearGradient(hbx,0,hbx+hbw*hRatio,0);
+  hGrad.addColorStop(0,'#c8aa6e'); hGrad.addColorStop(0.5,'#00ff88'); hGrad.addColorStop(1,'#00ff44');
+  ctx.fillStyle=hGrad;
+  ctx.fillRect(hbx,hby,hbw*hRatio,hbh);
+  // Shield shimmer
+  ctx.fillStyle='rgba(255,255,255,0.1)';
+  ctx.fillRect(hbx,hby,hbw*hRatio,hbh/2);
+  // HP text
+  ctx.fillStyle='#fff'; ctx.font='bold 12px Share Tech Mono'; ctx.textAlign='left';
+  ctx.fillText(`JHIN  ${Math.ceil(player.health)}/${player.maxHealth}`, hbx+6, hby+15);
+  // Level text
+  ctx.fillStyle='#c8aa6e'; ctx.font='11px Share Tech Mono';
+  ctx.fillText(`STAGE ${currentEnemyIndex+1}/5`, hbx, hby+38);
+
+  // Bullet icons (bottom-left)
+  const biy = LOGICAL_H - 50;
+  for (let i=0;i<player.maxBullets;i++) {
+    const loaded = i < player.bullets;
+    ctx.fillStyle = loaded ? '#c8aa6e' : '#333';
+    ctx.strokeStyle = loaded ? '#c8aa6e' : '#555';
+    ctx.lineWidth=1;
+    ctx.shadowBlur = loaded ? 8 : 0; ctx.shadowColor='#c8aa6e';
+    ctx.beginPath();
+    ctx.roundRect(20+i*22, biy, 14, 22, 2);
+    ctx.fill(); ctx.stroke();
+    if (loaded) { ctx.fillStyle='#fff'; ctx.beginPath(); ctx.ellipse(27+i*22,biy+4,4,4,0,0,Math.PI*2); ctx.fill(); }
+    ctx.shadowBlur=0;
+  }
+  // Reload bar
+  if (player.reloading) {
+    ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(16,biy-18,110,10);
+    ctx.fillStyle='#c8aa6e';
+    ctx.fillRect(16,biy-18,110*(player.reloadTimer/player.reloadDuration),10);
+    ctx.strokeStyle='#c8aa6e'; ctx.lineWidth=1; ctx.strokeRect(16,biy-18,110,10);
+    ctx.fillStyle='#fff'; ctx.font='9px Share Tech Mono'; ctx.textAlign='center';
+    ctx.fillText('RELOADING',71,biy-11);
+  }
+
+  // Ability icons (bottom-center)
+  const abilityDefs = [
+    { key:'Q', cd:0, maxCd:0, label:'Q' },
+    { key:'W', cd:player.wCooldown, maxCd:player.wMaxCooldown, label:'W' },
+    { key:'E', cd:player.eCooldown, maxCd:player.eMaxCooldown, label:'E' },
+    { key:'R', cd:player.rCooldown, maxCd:player.rMaxCooldown, label:'R' }
+  ];
+  const abStart = LOGICAL_W/2 - 100;
+  for (let i=0;i<4;i++) {
+    const ab = abilityDefs[i];
+    const ax = abStart + i*52, ay = LOGICAL_H - 70;
+    ctx.fillStyle='rgba(0,0,0,0.8)'; ctx.fillRect(ax,ay,44,44);
+    ctx.strokeStyle='#c8aa6e'; ctx.lineWidth=1.5; ctx.strokeRect(ax,ay,44,44);
+    // CD overlay
+    if (ab.maxCd > 0 && ab.cd > 0) {
+      const cdRatio = ab.cd/ab.maxCd;
+      ctx.fillStyle=`rgba(0,0,0,${0.4+cdRatio*0.5})`;
+      ctx.fillRect(ax,ay+44*(1-cdRatio),44,44*cdRatio);
+      ctx.fillStyle='#fff'; ctx.font='bold 14px Share Tech Mono'; ctx.textAlign='center';
+      ctx.fillText(Math.ceil(ab.cd/60)+'s', ax+22, ay+27);
+    }
+    // Key label
+    ctx.fillStyle = ab.cd > 0 ? '#666' : '#c8aa6e';
+    ctx.font='bold 18px Orbitron'; ctx.textAlign='center';
+    ctx.fillText(ab.key, ax+22, ay+28);
+    ctx.fillStyle='#888'; ctx.font='8px Share Tech Mono';
+    const descs = ['SHOT','STUN','TRAP','ULT'];
+    ctx.fillText(descs[i], ax+22, ay+40);
+    // R charge bar
+    if (i===3 && player.rCharging && player.rCooldown<=0) {
+      const cr = player.rCharge/player.rMaxCharge;
+      ctx.fillStyle='rgba(255,100,0,0.8)';
+      ctx.fillRect(ax,ay+44,Math.floor(44*cr),4);
+    }
+  }
+
+  // Kill feed (top-right)
+  const kfx = LOGICAL_W - 340;
+  for (let i=0;i<killFeed.length;i++) {
+    const kf = killFeed[i];
+    const a = Math.min(1, kf.life/60);
+    ctx.globalAlpha=a;
+    ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(kfx,12+i*22,320,18);
+    ctx.fillStyle='#fff'; ctx.font='11px Share Tech Mono'; ctx.textAlign='left';
+    ctx.fillText(kf.text, kfx+8, 25+i*22);
+    kf.life--;
+    ctx.globalAlpha=1;
+  }
+  killFeed = killFeed.filter(kf => kf.life > 0);
+
+  // Minimap (bottom-right)
+  const mmx=LOGICAL_W-120, mmy=LOGICAL_H-80, mmw=100, mmh=60;
+  ctx.fillStyle='rgba(0,10,5,0.85)'; ctx.fillRect(mmx,mmy,mmw,mmh);
+  ctx.strokeStyle='#00ff88'; ctx.lineWidth=1; ctx.strokeRect(mmx,mmy,mmw,mmh);
+  ctx.fillStyle='#c8aa6e';
+  const px2=mmx+4+(player.x/LOGICAL_W)*(mmw-8), py2=mmy+4+(Math.min(player.y,GROUND_Y)/LOGICAL_H)*(mmh-8);
+  ctx.beginPath(); ctx.arc(px2,py2,3,0,Math.PI*2); ctx.fill();
+  if (currentEnemy && !currentEnemy.dead) {
+    ctx.fillStyle='#ff2222';
+    const ex=mmx+4+(currentEnemy.x/LOGICAL_W)*(mmw-8), ey=mmy+4+(GROUND_Y/LOGICAL_H)*(mmh-8);
+    ctx.beginPath(); ctx.arc(ex,ey,3,0,Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle='#888'; ctx.font='7px Share Tech Mono'; ctx.textAlign='center';
+  ctx.fillText('MAP',mmx+mmw/2,mmy-2);
+
+  // Enemy health bar
+  if (currentEnemy && !currentEnemy.dead) {
+    const ehbx=LOGICAL_W/2-150, ehby=30, ehbw=300, ehbh=18;
+    ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(ehbx-4,ehby-4,ehbw+8,ehbh+24);
+    ctx.strokeStyle='#8b0000'; ctx.lineWidth=1.5; ctx.strokeRect(ehbx-4,ehby-4,ehbw+8,ehbh+24);
+    ctx.fillStyle='#1a0000'; ctx.fillRect(ehbx,ehby,ehbw,ehbh);
+    const eRatio = currentEnemy.hp/currentEnemy.maxHp;
+    const eGrad = ctx.createLinearGradient(ehbx,0,ehbx+ehbw,0);
+    eGrad.addColorStop(0,'#8b0000'); eGrad.addColorStop(1,'#ff2222');
+    ctx.fillStyle=eGrad;
+    if (!(currentEnemy.phase===5 && currentEnemy.shieldActive))
+      ctx.fillRect(ehbx,ehby,ehbw*eRatio,ehbh);
+    ctx.fillStyle='#fff'; ctx.font='bold 11px Share Tech Mono'; ctx.textAlign='center';
+    let enemyLabel = currentEnemy.name;
+    if (currentEnemy.phase===5 && currentEnemy.shieldActive) enemyLabel += ' [SHIELD: '+(4-currentEnemy.shieldHits)+'/4]';
+    ctx.fillText(enemyLabel, LOGICAL_W/2, ehby+13);
+    ctx.strokeStyle='#8b0000'; ctx.lineWidth=1; ctx.strokeRect(ehbx,ehby,ehbw,ehbh);
+  }
+
+  // Level card
+  if (levelCardTimer > 0) {
+    levelCardTimer--;
+    const a = Math.min(1, levelCardTimer>120 ? (150-levelCardTimer)/30 : levelCardTimer/30);
+    ctx.globalAlpha=a;
+    ctx.fillStyle='rgba(0,0,0,0.75)';
+    ctx.fillRect(LOGICAL_W/2-200, LOGICAL_H/2-35, 400, 70);
+    ctx.strokeStyle='#c8aa6e'; ctx.lineWidth=2;
+    ctx.strokeRect(LOGICAL_W/2-200, LOGICAL_H/2-35, 400, 70);
+    ctx.fillStyle='#c8aa6e'; ctx.font='bold 22px Orbitron'; ctx.textAlign='center';
+    ctx.shadowBlur=20; ctx.shadowColor='#c8aa6e';
+    ctx.fillText(levelCardText, LOGICAL_W/2, LOGICAL_H/2+8);
+    ctx.shadowBlur=0; ctx.globalAlpha=1;
+  }
+  ctx.restore();
+}
+
+// ============================================================
+// COLLISION: PLAYER BULLETS vs ENEMY
+// ============================================================
+function updateBulletCollisions() {
+  if (!currentEnemy || currentEnemy.dead) return;
+  for (const b of playerBullets) {
+    if (b.life <= 0) continue;
+    const bx=b.x-b.w/2, by=b.y-b.h/2;
+    const ex = currentEnemy.x, ey = currentEnemy.y - (currentEnemy.phase===2?60:0);
+    const ew = currentEnemy.phase===3?70:currentEnemy.phase===5?60:60;
+    const eh = currentEnemy.phase===3?100:currentEnemy.phase===5?130:80;
+    if (aabb(bx,by,b.w,b.h, ex,ey-eh,ew,eh)) {
+      currentEnemy.takeDamage(b.dmg, false);
+      b.life=0;
+      if (b.crit) addFlavor('CRIT! FOUR IS PERFECT','#ffff00',100);
+    }
+  }
+  // Beams
+  for (const beam of playerBeams) {
+    if (beam.life <= 0) continue;
+    const ex=currentEnemy.x, ey=currentEnemy.y-(currentEnemy.phase===2?60:0);
+    const ew=60, eh=80;
+    const bx=beam.facing>0?beam.x:beam.x+beam.w;
+    const bw=Math.abs(beam.w);
+    if (aabb(bx, beam.y, bw, beam.h, ex,ey-eh,ew,eh)) {
+      currentEnemy.takeDamage(beam.dmg, true);
+      if (!currentEnemy.dead) { currentEnemy.stunTimer = 150; addFlavor('STUNNED! NOW SHOOT!', '#ffdd00', 90); }
+      beam.life=0;
+    }
+  }
+  // Traps
+  for (const trap of player.traps) {
+    const ex=currentEnemy.x;
+    if (aabb(ex,currentEnemy.y-10,60,20, trap.x,trap.y,trap.w,trap.h)) {
+      currentEnemy.takeDamage(45, false);
+      trap.triggered=true;
+      addFlavor('TRAP TRIGGERED!','#ff8800',80);
+      screenShake=10;
+    }
+  }
+}
+
+// ============================================================
+// MAIN GAME LOOP
+// ============================================================
+let deathPopupShown = false;
+
+function gameLoop(timestamp) {
+  if (!gameRunning) return;
+  let dt = Math.min((timestamp - lastTime) / 16.67, 3);
+  lastTime = timestamp;
+
+  // Screen shake
+  let shakeX=0, shakeY=0;
+  if (screenShake > 0) {
+    shakeX = (Math.random()-0.5)*screenShake;
+    shakeY = (Math.random()-0.5)*screenShake;
+    screenShake = Math.max(0, screenShake-0.8);
+  }
+
+  ctx.save();
+  ctx.setTransform(scale,0,0,scale, offsetX+shakeX*scale, offsetY+shakeY*scale);
+
+  drawBackground();
+
+  if (!paused || gamePhase==='magician') {
+    updatePlayer(dt);
+    if (gamePhase==='fighting' && currentEnemy && !currentEnemy.dead) {
+      currentEnemy.update();
+    }
+    updateMagician();
+    // Update bullets
+    for (const b of playerBullets) { b.x+=b.vx; b.y+=b.vy; b.life--; }
+    playerBullets.splice(0, playerBullets.length, ...playerBullets.filter(b=>b.life>0));
+    for (const b of playerBeams) { b.life--; }
+    playerBeams.splice(0, playerBeams.length, ...playerBeams.filter(b=>b.life>0));
+    updateBulletCollisions();
+    // Enemy death check
+    if (currentEnemy && currentEnemy.dead && !deathPopupShown && gamePhase==='fighting') {
+      deathPopupShown = true;
+      const eData = ENEMY_DATA[currentEnemyIndex];
+      addFlavor(eData.deathQuote.slice(1,-1), '#c8aa6e', 180);
+      setTimeout(()=>{ deathPopupShown = false; showResumePopup(eData); }, 1200);
+    }
+    // Magician done → already handled inside updateMagician
+  }
+
+  // Draw
+  drawTraps();
+  drawPlayerBullets();
+  drawBeams();
+
+  if (gamePhase==='fighting' && currentEnemy && !currentEnemy.dead) {
+    const drawFns = [drawEnemy1,drawEnemy2,drawEnemy3,drawEnemy4,drawEnemy5];
+    drawFns[currentEnemy.phase-1](currentEnemy);
+    drawEnemyProjectiles(currentEnemy);
+  } else if (gamePhase==='magician' || (gamePhase==='fighting' && currentEnemyIndex===2)) {
+    if (gamePhase==='magician') drawMagician();
+    if (gamePhase==='fighting' && currentEnemy && !currentEnemy.dead) {
+      drawEnemy3(currentEnemy);
+      drawEnemyProjectiles(currentEnemy);
+    }
+  }
+
+  drawJhin();
+  drawHUD();
+
+  ctx.restore();
+  requestAnimationFrame(gameLoop);
+}
+
+// Start matrix rain on tutorial
+(function() {
+  const tutCanvas = document.createElement('canvas');
+  tutCanvas.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;z-index:99;pointer-events:none;opacity:0.18;';
+  tutCanvas.id='tutMatrix';
+  document.getElementById('tutorialScreen').appendChild(tutCanvas);
+  function resizeTut() { tutCanvas.width=window.innerWidth; tutCanvas.height=window.innerHeight; }
+  resizeTut();
+  window.addEventListener('resize', resizeTut);
+  const tc = tutCanvas.getContext('2d');
+  const cols = Math.ceil(window.innerWidth/18);
+  const drops = Array.from({length:cols},()=>Math.random()*window.innerHeight/18);
+  function matrixTut() {
+    if (!document.getElementById('tutMatrix')) return;
+    tc.fillStyle='rgba(0,0,0,0.05)';
+    tc.fillRect(0,0,tutCanvas.width,tutCanvas.height);
+    tc.fillStyle='#003300'; tc.font='14px Share Tech Mono';
+    for(let i=0;i<drops.length;i++) {
+      const ch=matrixChars[Math.floor(Math.random()*matrixChars.length)];
+      tc.fillText(ch, i*18, drops[i]*18);
+      if(drops[i]*18>tutCanvas.height && Math.random()>0.975) drops[i]=0;
+      drops[i]+=0.5+Math.random()*0.5;
+    }
+    requestAnimationFrame(matrixTut);
+  }
+  matrixTut();
+})();
+</script>
+</body>
+</html>
