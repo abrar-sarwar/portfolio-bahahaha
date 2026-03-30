@@ -1,15 +1,17 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { STATES } from './game/constants.js';
 import TutorialScreen from './screens/TutorialScreen.jsx';
 import ResumePopup from './screens/ResumePopup.jsx';
 import VictoryScreen from './screens/VictoryScreen.jsx';
+import DeathScreen from './screens/DeathScreen.jsx';
 import Game from './game/Game.jsx';
 
 export default function App() {
-  const [screen, setScreen] = useState('intro'); // 'intro' | 'game' | 'victory'
+  const [screen, setScreen] = useState('intro'); // 'intro' | 'game' | 'victory' | 'death'
   const [gameState, setGameState] = useState(STATES.PLAYING);
-  const [revealData, setRevealData] = useState(null); // { enemyIndex, continueCallback }
+  const [revealData, setRevealData] = useState(null);
   const [victoryStats, setVictoryStats] = useState(null);
+  const [deathStats, setDeathStats] = useState(null);
 
   const handleStart = useCallback(() => {
     setScreen('game');
@@ -22,9 +24,7 @@ export default function App() {
   }, []);
 
   const handlePopupContinue = useCallback(() => {
-    if (revealData?.continueCallback) {
-      revealData.continueCallback();
-    }
+    if (revealData?.continueCallback) revealData.continueCallback();
     setRevealData(null);
     setGameState(STATES.PLAYING);
   }, [revealData]);
@@ -35,18 +35,23 @@ export default function App() {
     setTimeout(() => setScreen('victory'), 800);
   }, []);
 
+  const handleDeath = useCallback((stats) => {
+    setDeathStats(stats);
+    setGameState(STATES.DEAD);
+    setTimeout(() => setScreen('death'), 600);
+  }, []);
+
   const handleRestart = useCallback(() => {
     setScreen('intro');
     setGameState(STATES.PLAYING);
     setRevealData(null);
     setVictoryStats(null);
+    setDeathStats(null);
   }, []);
 
   return (
     <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: '#020710', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      {screen === 'intro' && (
-        <TutorialScreen onStart={handleStart} />
-      )}
+      {screen === 'intro' && <TutorialScreen onStart={handleStart} />}
 
       {screen === 'game' && (
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
@@ -54,9 +59,8 @@ export default function App() {
             gameState={gameState}
             onEnemyDead={handleEnemyDead}
             onVictory={handleVictory}
+            onDeath={handleDeath}
           />
-
-          {/* Resume popup overlay */}
           {revealData && (
             <ResumePopup
               enemyIndex={revealData.enemyIndex}
@@ -66,12 +70,8 @@ export default function App() {
         </div>
       )}
 
-      {screen === 'victory' && (
-        <VictoryScreen
-          stats={victoryStats}
-          onRestart={handleRestart}
-        />
-      )}
+      {screen === 'victory' && <VictoryScreen stats={victoryStats} onRestart={handleRestart} />}
+      {screen === 'death' && <DeathScreen stats={deathStats} onRestart={handleRestart} />}
     </div>
   );
 }

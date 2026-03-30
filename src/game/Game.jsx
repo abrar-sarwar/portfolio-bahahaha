@@ -19,7 +19,7 @@ import {
   setAudioEnabled, isAudioEnabled,
 } from './audio.js';
 
-export default function Game({ onEnemyDead, onVictory, gameState }) {
+export default function Game({ onEnemyDead, onVictory, onDeath, gameState }) {
   const canvasRef = useRef(null);
   const rafRef = useRef(null);
 
@@ -395,9 +395,13 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
           }
         }
 
-        // Player death — cap at 1
+        // Player death
         if (player.health <= 0) {
-          player.health = 1;
+          player.health = 0;
+          if (onDeath) {
+            onDeath({ player: { ...player } });
+          }
+          return; // stop the game loop update
         }
 
         // ── Camera follows player ────────────────────────────────────────────

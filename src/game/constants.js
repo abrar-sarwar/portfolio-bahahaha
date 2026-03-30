@@ -26,6 +26,7 @@ export const STATES = {
   REVEAL: 'reveal',
   MAGICIAN: 'magician',
   VICTORY: 'victory',
+  DEAD: 'dead',
 };
 
 export const ENEMY_DATA = [

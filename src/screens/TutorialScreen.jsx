@@ -79,7 +79,7 @@ export default function TutorialScreen({ onStart }) {
           marginBottom: '8px',
           transition: 'color 0.05s, text-shadow 0.05s',
         }}>
-          ABRAR.EXE
+          PORTFOLIO.EXE
         </h1>
 
         <div style={{
@@ -89,7 +89,7 @@ export default function TutorialScreen({ onStart }) {
           letterSpacing: '6px',
           marginBottom: '32px',
         }}>
-          THE VIRTUOSO PROTOCOL
+          THE VIRTUOSO PROTOCOL — ABRAR SARWAR
         </div>
 
         {/* Divider */}
