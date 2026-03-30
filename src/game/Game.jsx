@@ -19,6 +19,71 @@ import {
   setAudioEnabled, isAudioEnabled,
 } from './audio.js';
 
+// Draw HP orbs on canvas
+function drawHpOrbs(ctx, orbs, frame, cam) {
+  for (const orb of orbs) {
+    if (!orb.active) continue;
+    const sx = orb.x - cam.x;
+    const sy = orb.y - cam.y;
+    if (sx < -40 || sx > 1320 || sy < -40 || sy > 760) continue;
+
+    const pulse = Math.sin(frame * 0.06) * 0.3 + 0.7;
+    const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, orb.radius * 1.6);
+    glow.addColorStop(0, `rgba(30,220,100,${0.6 * pulse})`);
+    glow.addColorStop(1, 'rgba(0,180,60,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(sx, sy, orb.radius * 1.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Outer ring
+    ctx.save();
+    ctx.strokeStyle = `rgba(50,255,120,${0.7 * pulse})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(sx, sy, orb.radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Inner circle
+    const inner = ctx.createRadialGradient(sx, sy - 3, 2, sx, sy, orb.radius - 4);
+    inner.addColorStop(0, `rgba(180,255,200,${pulse})`);
+    inner.addColorStop(1, `rgba(20,180,70,${0.8 * pulse})`);
+    ctx.fillStyle = inner;
+    ctx.beginPath();
+    ctx.arc(sx, sy, orb.radius - 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Cross / plus symbol
+    ctx.strokeStyle = `rgba(255,255,255,${0.9 * pulse})`;
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - 7); ctx.lineTo(sx, sy + 7);
+    ctx.moveTo(sx - 7, sy); ctx.lineTo(sx + 7, sy);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// Spawn HP orbs at fixed positions around the arena
+function generateHpOrbs() {
+  const cx = MAP_W / 2, cy = MAP_H / 2;
+  const r = MAP_W * 0.32;
+  const count = 6;
+  return Array.from({ length: count }, (_, i) => {
+    const angle = (Math.PI * 2 * i) / count + Math.PI / count;
+    return {
+      x: cx + Math.cos(angle) * r,
+      y: cy + Math.sin(angle) * r,
+      heal: 30,
+      radius: 18,
+      active: true,
+      respawnTimer: 0,
+      respawnDuration: 480, // 8 seconds
+    };
+  });
+}
+
 export default function Game({ onEnemyDead, onVictory, onDeath, gameState, paused }) {
   const canvasRef = useRef(null);
   const rafRef = useRef(null);
@@ -39,6 +104,9 @@ export default function Game({ onEnemyDead, onVictory, onDeath, gameState, pause
   const [isMuted, setIsMuted] = useState(false);
   const isMutedRef = useRef(false);
   const rChargeSoundedRef = useRef(false);
+
+  // HP orbs scattered around the arena
+  const hpOrbsRef = useRef(generateHpOrbs());
 
   // Keep gameState + paused refs in sync
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
@@ -345,7 +413,7 @@ export default function Game({ onEnemyDead, onVictory, onDeath, gameState, pause
               if (player.iFrames <= 0) {
                 player.health = Math.max(0, player.health - ep.dmg);
                 player.hitFlash = 10;
-                player.iFrames = 18;
+                player.iFrames = 28;
                 spawnDamageNumber(ps, player.x - cam.x, player.y - cam.y - 30, ep.dmg, 'player');
                 spawnHitSparks(ps, player.x - cam.x, player.y - cam.y, '#FF4444');
                 try { soundPlayerHit(); } catch (err) { /* ignore */ }
@@ -410,6 +478,25 @@ export default function Game({ onEnemyDead, onVictory, onDeath, gameState, pause
           }
         }
 
+        // ── HP Orb collection ────────────────────────────────────────────────
+        for (const orb of hpOrbsRef.current) {
+          if (!orb.active) {
+            orb.respawnTimer++;
+            if (orb.respawnTimer >= orb.respawnDuration) {
+              orb.active = true;
+              orb.respawnTimer = 0;
+            }
+            continue;
+          }
+          const dist = Math.hypot(player.x - orb.x, player.y - orb.y);
+          if (dist < player.radius + orb.radius) {
+            orb.active = false;
+            orb.respawnTimer = 0;
+            player.health = Math.min(player.maxHealth, player.health + orb.heal);
+            spawnDamageNumber(ps, orb.x - cam.x, orb.y - cam.y - 20, `+${orb.heal}`, 'heal');
+          }
+        }
+
         // Player death
         if (player.health <= 0) {
           player.health = 0;
@@ -439,6 +526,9 @@ export default function Game({ onEnemyDead, onVictory, onDeath, gameState, pause
 
       // Particles (screen space)
       drawParticles(ctx, ps);
+
+      // HP Orbs
+      drawHpOrbs(ctx, hpOrbsRef.current, frame, cam);
 
       // Traps (map space -> screen via camera)
       drawTraps(ctx, player, frame, cam);

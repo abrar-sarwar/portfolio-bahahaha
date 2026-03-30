@@ -156,7 +156,7 @@ function fireEnemyAttack(enemy, player, ps) {
       enemy.projectiles.push({
         x: enemy.x, y: enemy.y,
         vx: Math.cos(a) * 3, vy: Math.sin(a) * 3,
-        dmg: 28, life: 60, r: 10,
+        dmg: 16, life: 60, r: 10,
         color: '#AA8822',
       });
     }
@@ -170,7 +170,7 @@ function fireEnemyAttack(enemy, player, ps) {
       enemy.projectiles.push({
         x: enemy.x, y: enemy.y,
         vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
-        dmg: 26, life: 70, r: 8,
+        dmg: 14, life: 70, r: 8,
         color: '#FF4400',
       });
     }
@@ -179,7 +179,7 @@ function fireEnemyAttack(enemy, player, ps) {
 
   // Default: single shot toward player
   if (dist > 0) {
-    const dmg = enemy.index === 4 ? 38 : enemy.index === 1 ? 26 : 20;
+    const dmg = enemy.index === 4 ? 22 : enemy.index === 1 ? 16 : 12;
     const col = enemy.index === 4 ? '#8800AA' : (enemy.index === 1 ? '#CC44FF' : '#22FF44');
     enemy.projectiles.push({
       x: enemy.x, y: enemy.y,
