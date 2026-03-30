@@ -122,6 +122,19 @@ export function updatePlayer(player, keys, currentEnemy, ps, onMuzzleFlash, onHi
   player.x = Math.max(player.radius, Math.min(MAP_W - player.radius, player.x));
   player.y = Math.max(player.radius, Math.min(MAP_H - player.radius, player.y));
 
+  // Arena boundary: circular arena (radius ~MAP_W*0.5)
+  const arenaCX = MAP_W / 2, arenaCY = MAP_H / 2;
+  const arenaR = MAP_W * 0.50;
+  const dFromCenter = Math.hypot(player.x - arenaCX, player.y - arenaCY);
+  if (dFromCenter > arenaR) {
+    // Push back toward center
+    const ang = Math.atan2(player.y - arenaCY, player.x - arenaCX);
+    player.x = arenaCX + Math.cos(ang) * arenaR;
+    player.y = arenaCY + Math.sin(ang) * arenaR;
+    player.vx *= -0.3; player.vy *= -0.3;
+    player.moveTarget = null;
+  }
+
   // Walk frame animation
   const moving = Math.abs(player.vx) > 0.3 || Math.abs(player.vy) > 0.3;
   if (moving) player.walkFrame += 0.12;

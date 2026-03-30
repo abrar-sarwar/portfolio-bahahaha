@@ -1,47 +1,45 @@
 import { MAP_W, MAP_H, ENEMY_DATA } from './constants.js';
 
-const ENEMY_START_POSITIONS = [
-  { x: MAP_W * 0.75, y: MAP_H * 0.5 },    // center right
-  { x: MAP_W * 0.8,  y: MAP_H * 0.3 },    // top right
-  { x: MAP_W * 0.7,  y: MAP_H * 0.7 },    // bottom right
-  { x: MAP_W * 0.85, y: MAP_H * 0.5 },    // far right
-  { x: MAP_W * 0.75, y: MAP_H * 0.45 },   // center right (final boss)
-];
-
 export function createEnemy(index) {
   const data = ENEMY_DATA[index];
-  const pos = ENEMY_START_POSITIONS[index] || { x: MAP_W * 0.75, y: MAP_H * 0.5 };
+  // Spawn at random edge position, opposite side from player
+  const spawnAngles = [0, Math.PI/4, Math.PI/2, 3*Math.PI/4, Math.PI];
+  const spawnAngle = spawnAngles[index % spawnAngles.length] + Math.PI; // opposite side
+  const spawnR = MAP_W * 0.44;
+  const cx = MAP_W/2, cy = MAP_H/2;
+
   return {
     ...data,
     index,
-    x: pos.x,
-    y: pos.y,
+    x: cx + Math.cos(spawnAngle) * spawnR,
+    y: cy + Math.sin(spawnAngle) * spawnR,
     hp: data.maxHp,
     vx: 0,
     vy: 0,
-    radius: 35,
-    facing: Math.PI, // faces left initially
+    radius: index === 2 ? 40 : 30,  // Risk Golem bigger
+    facing: Math.PI,
     dead: false,
     deathTimer: 0,
-    deathDuration: 60,
+    deathDuration: 80,
     attackTimer: 0,
     stunned: false,
     stunTimer: 0,
     projectiles: [],
     walkFrame: 0,
-    aggroRange: 600,
-    attackRange: 350,
-    isChasing: false,
+    aggroRange: MAP_W * 0.6,  // Large range — enemy almost always sees you
+    attackRange: 300 + index * 20,
+    isChasing: true,  // Start chasing immediately
+    spawnTimer: 90,   // Spawn animation frames
 
-    // Enemy 2 (Phantom) specific
-    clones: [],
+    // Enemy-specific
+    clones: index === 1 ? [
+      { x: cx + Math.cos(spawnAngle + 1.2) * spawnR * 0.7, y: cy + Math.sin(spawnAngle + 1.2) * spawnR * 0.7 },
+      { x: cx + Math.cos(spawnAngle - 1.2) * spawnR * 0.7, y: cy + Math.sin(spawnAngle - 1.2) * spawnR * 0.7 },
+    ] : [],
     teleportTimer: 0,
-
-    // Enemy 5 (Final Audit) specific
     shieldActive: index === 4,
     shieldHits: 0,
     shieldHp: 80,
-
     phase: index + 1,
     animTimer: 0,
   };
@@ -51,6 +49,20 @@ export function updateEnemy(enemy, player, ps, frame) {
   if (enemy.dead) {
     enemy.deathTimer++;
     return;
+  }
+
+  // Handle spawn animation
+  if (enemy.spawnTimer > 0) {
+    enemy.spawnTimer--;
+    // Slowly move toward center during spawn
+    const scx = MAP_W/2, scy = MAP_H/2;
+    const sdx = scx - enemy.x, sdy = scy - enemy.y;
+    const sd = Math.hypot(sdx, sdy);
+    if (sd > 0) {
+      enemy.x += (sdx/sd) * enemy.speed * 0.5;
+      enemy.y += (sdy/sd) * enemy.speed * 0.5;
+    }
+    return; // no attacks during spawn
   }
 
   enemy.attackTimer++;

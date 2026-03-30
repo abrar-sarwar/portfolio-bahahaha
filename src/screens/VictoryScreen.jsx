@@ -246,7 +246,7 @@ export default function VictoryScreen({ stats, onRestart }) {
           </div>
         )}
 
-        {/* Jhin quote */}
+        {/* Virtuoso quote */}
         <div style={{
           textAlign: 'center',
           color: '#4A5A6A',
@@ -255,7 +255,7 @@ export default function VictoryScreen({ stats, onRestart }) {
           fontFamily: "'Share Tech Mono', monospace",
           marginBottom: '24px',
         }}>
-          "I promise I won't miss." — Jhin
+          "I promise I won't miss." — The Virtuoso
         </div>
 
         {/* Action buttons */}

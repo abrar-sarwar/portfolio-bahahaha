@@ -1,17 +1,23 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { LOGICAL_W, LOGICAL_H, MAP_W, MAP_H, STATES } from './constants.js';
 import { createPlayer, updatePlayer, fireQAbility, fireWAbility, fireEAbility, startRCharge, releaseRAbility } from './player.js';
 import { createEnemy, updateEnemy } from './enemies.js';
 import {
-  drawMap, drawJhin, drawPlayerProjectiles, drawWBeam,
+  drawMap, drawVirtuoso, drawPlayerProjectiles, drawWBeam,
   drawTraps, drawEnemyProjectiles, drawEnemy, drawMagician as _drawMagician,
 } from './draw.js';
-import { drawHUD } from './ui.js';
+import { drawHUD, drawMuteButton } from './ui.js';
 import {
   createParticleSystem, updateParticles, drawParticles,
   spawnClickRipple, spawnMuzzleFlash, spawnHitSparks, spawnBeamParticles,
   spawnDamageNumber,
 } from './particles.js';
+import {
+  soundShoot, soundCritShoot, soundReload, soundWBeam, soundETrap,
+  soundRCharge, soundRRelease, soundEnemyHit, soundPlayerHit,
+  soundEnemyDeath, soundStun, soundLevelUp, soundVictory, soundEnemySpawn,
+  setAudioEnabled, isAudioEnabled,
+} from './audio.js';
 
 export default function Game({ onEnemyDead, onVictory, gameState }) {
   const canvasRef = useRef(null);
@@ -29,6 +35,9 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
   const magicianRef = useRef({ visible: false, x: LOGICAL_W + 100, slideTarget: 900, timer: 0 });
   const autoFireTimerRef = useRef(0);
   const cameraRef = useRef({ x: 0, y: 0 });
+  const [isMuted, setIsMuted] = useState(false);
+  const isMutedRef = useRef(false);
+  const rChargeSoundedRef = useRef(false);
 
   // Keep gameState ref in sync
   useEffect(() => {
@@ -65,11 +74,13 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
         case 'Q':
           e.preventDefault();
           if (!player.reloading && player.bullets > 0) {
+            const isCritShot = player.bullets === 1;
             if (fireQAbility(player)) {
               const mfx = player.x + Math.cos(player.facing) * 44;
               const mfy = player.y + Math.sin(player.facing) * 44;
               const cam = cameraRef.current;
               spawnMuzzleFlash(ps, mfx - cam.x, mfy - cam.y);
+              try { isCritShot ? soundCritShoot() : soundShoot(); } catch (err) { /* ignore */ }
             }
           }
           break;
@@ -83,16 +94,20 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
               enemy.x - cam.x, enemy.y - cam.y
             );
             spawnDamageNumber(ps, enemy.x - cam.x, enemy.y - cam.y - 40, 'STUN!', 'beam');
+            try { soundWBeam(); soundStun(); } catch (err) { /* ignore */ }
           }
           break;
         case 'E':
           e.preventDefault();
-          fireEAbility(player);
+          if (fireEAbility(player)) {
+            try { soundETrap(); } catch (err) { /* ignore */ }
+          }
           break;
         case 'R':
           e.preventDefault();
           if (!player.rCharging) {
             startRCharge(player);
+            rChargeSoundedRef.current = false;
           }
           break;
       }
@@ -112,7 +127,9 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
           if (enemy && !enemy.dead) {
             spawnHitSparks(ps, enemy.x - cam.x, enemy.y - cam.y, '#CC2222');
           }
+          try { soundRRelease(); } catch (err) { /* ignore */ }
         }
+        rChargeSoundedRef.current = false;
       }
     };
 
@@ -130,8 +147,29 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
     if (!canvas) return;
 
     const handleMouseDown = (e) => {
-      if (gameStateRef.current !== STATES.PLAYING) return;
       e.preventDefault();
+
+      // Check mute button click (screen coordinates)
+      if (e.button === 0) {
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const rect = canvas.getBoundingClientRect();
+          const scaleX = LOGICAL_W / rect.width;
+          const scaleY = LOGICAL_H / rect.height;
+          const screenX = (e.clientX - rect.left) * scaleX;
+          const screenY = (e.clientY - rect.top) * scaleY;
+          const bx = LOGICAL_W - 44, by = 10, bw = 34, bh = 24;
+          if (screenX >= bx && screenX <= bx + bw && screenY >= by && screenY <= by + bh) {
+            const newMuted = !isMutedRef.current;
+            isMutedRef.current = newMuted;
+            setIsMuted(newMuted);
+            try { setAudioEnabled(!newMuted); } catch (err) { /* ignore */ }
+            return;
+          }
+        }
+      }
+
+      if (gameStateRef.current !== STATES.PLAYING) return;
 
       const { mx, my } = getMapCoords(e);
       const player = playerRef.current;
@@ -212,6 +250,10 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
         // Update R charge timer
         if (player.rCharging) {
           player.rChargeTimer++;
+          if (!rChargeSoundedRef.current && player.rChargeTimer === 1) {
+            rChargeSoundedRef.current = true;
+            try { soundRCharge(); } catch (err) { /* ignore */ }
+          }
         }
 
         // Auto-attack when reached attack target
@@ -221,15 +263,18 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
           if (!player.reloading && player.bullets > 0 && enemy && !enemy.dead) {
             const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
             if (dist < 500) {
+              const isAutoLastBullet = player.bullets === 1;
               if (fireQAbility(player)) {
                 const mfx = player.x + Math.cos(player.facing) * 44;
                 const mfy = player.y + Math.sin(player.facing) * 44;
                 spawnMuzzleFlash(ps, mfx - cam.x, mfy - cam.y);
+                try { isAutoLastBullet ? soundCritShoot() : soundShoot(); } catch (err) { /* ignore */ }
               }
             }
           }
         }
 
+        const wasReloading = player.reloading;
         updatePlayer(
           player,
           keysRef.current,
@@ -238,6 +283,10 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
           (x, y) => spawnMuzzleFlash(ps, x - cam.x, y - cam.y),
           (x, y, color) => spawnHitSparks(ps, x - cam.x, y - cam.y, color)
         );
+        // Reload start detection
+        if (!wasReloading && player.reloading) {
+          try { soundReload(); } catch (err) { /* ignore */ }
+        }
 
         updateEnemy(enemy, player, ps, frame);
 
@@ -252,7 +301,7 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
                 enemy.shieldHits++;
                 if (enemy.shieldHits >= 4) {
                   enemy.shieldActive = false;
-                  addKillFeed('SHIELD BROKEN!');
+                  killFeedRef.current.unshift({ name: 'SHIELD BROKEN!', age: 0, color: '#88CCFF' });
                 }
                 spawnDamageNumber(ps, p.x - cam.x, p.y - cam.y - 20, 'BLOCKED', 'beam');
               } else {
@@ -261,6 +310,7 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
                 if (p.isCrit) player.critHits++;
                 spawnHitSparks(ps, p.x - cam.x, p.y - cam.y, p.isCrit ? '#FFD700' : '#C89B3C');
                 spawnDamageNumber(ps, p.x - cam.x, p.y - cam.y - 20, p.dmg, p.isCrit ? 'crit' : 'normal');
+                try { soundEnemyHit(); } catch (err) { /* ignore */ }
               }
               p.life = 0;
               if (enemy.hp <= 0 && !enemy.dead) {
@@ -283,6 +333,7 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
                 player.iFrames = 45;
                 spawnDamageNumber(ps, player.x - cam.x, player.y - cam.y - 30, ep.dmg, 'player');
                 spawnHitSparks(ps, player.x - cam.x, player.y - cam.y, '#FF4444');
+                try { soundPlayerHit(); } catch (err) { /* ignore */ }
               }
               ep.life = 0;
             }
@@ -316,7 +367,8 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
         if (enemy.dead && enemy.deathTimer === 1) {
           const idx = enemyIndexRef.current;
 
-          killFeedRef.current.unshift({ name: enemy.name, age: 0 });
+          killFeedRef.current.unshift({ name: enemy.name, age: 0, color: enemy.color });
+          try { soundEnemyDeath(); } catch (err) { /* ignore */ }
 
           // Trigger magician after enemy 2
           if (idx === 1) {
@@ -331,12 +383,14 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
           }
 
           if (idx >= 4) {
+            try { soundVictory(); } catch (err) { /* ignore */ }
             onVictory({ player, killFeed: killFeedRef.current });
           } else {
             onEnemyDead(idx, () => {
               const nextIdx = idx + 1;
               enemyIndexRef.current = nextIdx;
               currentEnemyRef.current = createEnemy(nextIdx);
+              try { soundEnemySpawn(); soundLevelUp(); } catch (err) { /* ignore */ }
             });
           }
         }
@@ -384,10 +438,13 @@ export default function Game({ onEnemyDead, onVictory, gameState }) {
       // Player
       drawPlayerProjectiles(ctx, player, frame, cam);
       drawWBeam(ctx, player, cam);
-      drawJhin(ctx, player, frame, cam);
+      drawVirtuoso(ctx, player, frame, cam);
 
       // HUD (always screen space)
       drawHUD(ctx, player, enemy && !enemy.dead ? enemy : null, killFeedRef.current, frame);
+
+      // Mute button
+      drawMuteButton(ctx, isMutedRef.current);
 
       // Speed buff indicator
       if (player.speedBuffTimer > 0) {

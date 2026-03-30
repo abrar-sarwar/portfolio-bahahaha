@@ -108,7 +108,7 @@ export default function TutorialScreen({ onStart }) {
           fontWeight: 500,
         }}>
           Five cyber-threats stand between you and the resume.<br />
-          Control <span style={{ color: '#F0E6A0' }}>Jhin "The Virtuoso"</span> and eliminate them all.
+          Control <span style={{ color: '#F0E6A0' }}>THE VIRTUOSO</span> and eliminate them all.
         </p>
 
         {/* Controls grid */}
@@ -222,7 +222,7 @@ export default function TutorialScreen({ onStart }) {
           ENTER THE RIFT
         </button>
 
-        {/* Jhin quote */}
+        {/* Virtuoso quote */}
         <div style={{
           marginTop: '20px',
           color: '#4A5A6A',
@@ -230,7 +230,7 @@ export default function TutorialScreen({ onStart }) {
           fontSize: '12px',
           fontFamily: "'Share Tech Mono', monospace",
         }}>
-          "They will all be beautiful." — Jhin
+          "They will all be beautiful." — The Virtuoso
         </div>
       </div>
 
@@ -251,7 +251,7 @@ function BootText() {
   const [lines, setLines] = useState([]);
   const bootLines = [
     '> INITIALIZING VIRTUOSO.PROTOCOL.EXE...',
-    '> LOADING CHAMPION DATA: JHIN...',
+    '> LOADING CHAMPION DATA: THE VIRTUOSO...',
     '> SCANNING THREAT DATABASE: 5 TARGETS IDENTIFIED',
     '> SUMMONER\'S RIFT LOADED — GOOD LUCK.',
   ];

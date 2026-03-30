@@ -51,13 +51,13 @@ function drawChampionPanel(ctx, player, frame) {
   ctx.lineWidth = 1.5;
   ctx.strokeRect(portX, portY, portW, portH);
 
-  // Draw mini Jhin portrait
-  drawJhinPortrait(ctx, portX + portW / 2, portY + portH - 5, frame);
+  // Draw mini Virtuoso portrait
+  drawVirtuosoPortrait(ctx, portX + portW / 2, portY + portH - 5, frame);
 
   // Champion name
   ctx.fillStyle = '#C89B3C';
   ctx.font = '10px "Cinzel"';
-  ctx.fillText('JHIN', portX + portW + 8, portY + 14);
+  ctx.fillText('VIRTUOSO', portX + portW + 8, portY + 14);
   ctx.fillStyle = '#888';
   ctx.font = '8px "Share Tech Mono"';
   ctx.fillText('THE VIRTUOSO', portX + portW + 8, portY + 26);
@@ -110,7 +110,7 @@ function drawStatBar(ctx, x, y, w, h, fill, colorFull, colorEmpty, label) {
   }
 }
 
-function drawJhinPortrait(ctx, cx, cy, frame) {
+function drawVirtuosoPortrait(ctx, cx, cy, frame) {
   // Simple face portrait
   ctx.fillStyle = '#E8E0D0';
   ctx.beginPath();
@@ -358,8 +358,8 @@ function drawAbilityIcon(ctx, key, cx, cy, color, onCd, frame) {
 // Boss HP Bar (top-center)
 // ─────────────────────────────────────────────────────────────────────────────
 function drawBossHPBar(ctx, enemy, frame) {
-  const barW = 500;
-  const barH = 18;
+  const barW = 560;
+  const barH = 22;
   const bx = (LOGICAL_W - barW) / 2;
   const by = 18;
 
@@ -429,11 +429,14 @@ function drawBossHPBar(ctx, enemy, frame) {
   ctx.lineWidth = 1.5;
   ctx.strokeRect(bx, by, barW, barH);
 
-  // Enemy name
+  // Enemy name + stage indicator
   ctx.fillStyle = '#F0E6A0';
   ctx.font = '11px "Cinzel"';
   ctx.textAlign = 'center';
   ctx.fillText(enemy.name.toUpperCase(), LOGICAL_W / 2, by + barH + 18);
+  ctx.fillStyle = '#C89B3C';
+  ctx.font = '9px "Share Tech Mono"';
+  ctx.fillText(`STAGE ${enemy.phase || enemy.id || 1} / 5`, LOGICAL_W / 2, by + barH + 30);
   ctx.textAlign = 'left';
 
   // HP text
@@ -475,14 +478,16 @@ function drawKillFeed(ctx, killFeed) {
     ctx.fillStyle = 'rgba(2,4,12,0.8)';
     ctx.fillRect(kx, ey, 250, 20);
 
-    // Gold left accent
-    ctx.fillStyle = '#C89B3C';
+    // Colored left accent using enemy color
+    const entryColor = entry.color || '#C89B3C';
+    ctx.fillStyle = entryColor;
     ctx.fillRect(kx, ey, 3, 20);
 
     // Text
     ctx.fillStyle = '#F0E6A0';
     ctx.font = '9px "Share Tech Mono"';
-    ctx.fillText(`JHIN slew ${entry.name}`, kx + 10, ey + 13);
+    const slayText = entry.name.includes('SHIELD') ? entry.name : `THE VIRTUOSO slew ${entry.name}`;
+    ctx.fillText(slayText, kx + 10, ey + 13);
 
     ctx.globalAlpha = 1;
   }
@@ -611,5 +616,23 @@ function drawCornerOrnaments(ctx, x, y, w, h, size, color) {
   ctx.lineTo(x + w, y + h - size);
   ctx.stroke();
 
+  ctx.lineWidth = 1;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mute Button (top-right corner)
+// ─────────────────────────────────────────────────────────────────────────────
+export function drawMuteButton(ctx, isMuted) {
+  const bx = LOGICAL_W - 44, by = 10, bw = 34, bh = 24;
+  ctx.fillStyle = 'rgba(2,5,12,0.8)';
+  ctx.fillRect(bx, by, bw, bh);
+  ctx.strokeStyle = isMuted ? '#666' : '#C89B3C';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx, by, bw, bh);
+  ctx.fillStyle = isMuted ? '#666' : '#C89B3C';
+  ctx.font = '14px serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(isMuted ? '\uD83D\uDD07' : '\uD83D\uDD0A', bx + bw/2, by + bh/2 + 5);
+  ctx.textAlign = 'left';
   ctx.lineWidth = 1;
 }
