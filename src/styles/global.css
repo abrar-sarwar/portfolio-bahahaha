@@ -1,0 +1,46 @@
+:root {
+  --rift-bg: #020710;
+  --rift-navy: #050D1C;
+  --rift-blue: #0A1628;
+  --rift-gold: #C89B3C;
+  --rift-gold-bright: #F0E6A0;
+  --rift-teal: #0BC4C4;
+  --rift-red: #CC2222;
+  --rift-dark: #03070F;
+  --font-display: 'Cinzel', serif;
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-body: 'Rajdhani', sans-serif;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--rift-bg);
+  color: #fff;
+  font-family: var(--font-body);
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+canvas {
+  display: block;
+  cursor: default;
+}
+
+button {
+  cursor: pointer;
+  font-family: var(--font-body);
+}
