@@ -212,7 +212,7 @@ function drawAmmoCounter(ctx, player) {
 // ─────────────────────────────────────────────────────────────────────────────
 const ABILITY_DEFS = [
   { key: 'Q', label: 'Whisper Shot', color: '#AADDAA', maxCd: 0 },
-  { key: 'W', label: 'Deadly Flourish', color: '#0BC4C4', maxCd: 'wMaxCooldown' },
+  { key: 'X', label: 'Deadly Flourish', color: '#0BC4C4', maxCd: 'wMaxCooldown' },
   { key: 'E', label: 'Captive Audience', color: '#C89B3C', maxCd: 'eMaxCooldown' },
   { key: 'R', label: 'Curtain Call', color: '#CC2222', maxCd: 'rMaxCooldown' },
 ];
@@ -228,8 +228,8 @@ function drawAbilityBar(ctx, player, frame) {
   for (let i = 0; i < ABILITY_DEFS.length; i++) {
     const ab = ABILITY_DEFS[i];
     const bx = startX + i * (slotW + gap);
-    const cdKey = ab.key === 'W' ? 'wCooldown' : ab.key === 'E' ? 'eCooldown' : ab.key === 'R' ? 'rCooldown' : null;
-    const maxCdKey = ab.key === 'W' ? 'wMaxCooldown' : ab.key === 'E' ? 'eMaxCooldown' : ab.key === 'R' ? 'rMaxCooldown' : null;
+    const cdKey = ab.key === 'X' ? 'wCooldown' : ab.key === 'E' ? 'eCooldown' : ab.key === 'R' ? 'rCooldown' : null;
+    const maxCdKey = ab.key === 'X' ? 'wMaxCooldown' : ab.key === 'E' ? 'eMaxCooldown' : ab.key === 'R' ? 'rMaxCooldown' : null;
 
     const onCd = cdKey ? player[cdKey] > 0 : false;
     const cdRatio = (cdKey && maxCdKey) ? player[cdKey] / player[maxCdKey] : 0;
@@ -312,7 +312,7 @@ function drawAbilityIcon(ctx, key, cx, cy, color, onCd, frame) {
       ctx.stroke();
       break;
     }
-    case 'W': {
+    case 'X': {
       // Beam/lightning bolt
       ctx.beginPath();
       ctx.moveTo(cx - 10, cy - 14);

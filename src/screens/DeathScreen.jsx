@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { soundLoLDefeat } from '../game/audio.js';
 
 const ROASTS = [
   "bro really got cooked by a Script Kiddie 💀",
@@ -21,11 +22,11 @@ export default function DeathScreen({ stats, onRestart }) {
 
   useEffect(() => {
     setTimeout(() => setVisible(true), 80);
-    // Shake on mount
     setTimeout(() => {
       setShake(true);
       setTimeout(() => setShake(false), 500);
     }, 200);
+    try { soundLoLDefeat(); } catch (e) { /* ignore */ }
   }, []);
 
   return (

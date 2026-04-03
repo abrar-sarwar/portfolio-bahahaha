@@ -12,8 +12,12 @@ export function createPlayer() {
     // facing is now an angle in radians
     facing: 0,
 
-    health: 120,
-    maxHealth: 120,
+    health: 300,
+    maxHealth: 300,
+
+    // Damage buff (from orb pickup)
+    damageMult: 1,
+    damageBuffTimer: 0,
 
     // 4-shot mechanic
     bullets: 4,
@@ -150,6 +154,10 @@ export function updatePlayer(player, keys, currentEnemy, ps, onMuzzleFlash, onHi
   if (player.wCooldown > 0) player.wCooldown--;
   if (player.eCooldown > 0) player.eCooldown--;
   if (player.rCooldown > 0) player.rCooldown--;
+  if (player.damageBuffTimer > 0) {
+    player.damageBuffTimer--;
+    if (player.damageBuffTimer <= 0) player.damageMult = 1;
+  }
   if (player.speedBuffTimer > 0) {
     player.speedBuffTimer--;
     if (!player.speedBuffTimer) player.speedBuff = 0;
@@ -216,7 +224,7 @@ export function updatePlayer(player, keys, currentEnemy, ps, onMuzzleFlash, onHi
 export function fireQAbility(player) {
   if (player.reloading || player.bullets <= 0) return false;
   const isCrit = player.bullets === 1; // last bullet crits
-  const dmg = isCrit ? 55 : 25;
+  const dmg = Math.round((isCrit ? 55 : 25) * player.damageMult);
   const speed = 9;
   player.projectiles.push({
     x: player.x,
@@ -251,7 +259,7 @@ export function fireWAbility(player, enemy) {
   player.wBeamTimer = 15;
   player.beamTarget = { x: enemy.x, y: enemy.y };
   player.wCooldown = player.wMaxCooldown;
-  const dmg = 40;
+  const dmg = Math.round(40 * player.damageMult);
   enemy.hp = Math.max(0, enemy.hp - dmg);
   enemy.stunned = true;
   enemy.stunTimer = 150;
@@ -282,7 +290,7 @@ export function releaseRAbility(player, enemy, ps) {
   player.rCharging = false;
   if (player.rCooldown > 0) return 0;
   const chargeRatio = Math.min(1, player.rChargeTimer / player.rMaxCharge);
-  const dmg = Math.floor(100 + chargeRatio * 150);
+  const dmg = Math.floor((100 + chargeRatio * 150) * player.damageMult);
   const speed = 14;
   player.projectiles.push({
     x: player.x,

@@ -149,14 +149,14 @@ function fireEnemyAttack(enemy, player, ps) {
   const dist = Math.sqrt(dx * dx + dy * dy);
   const speed = enemy.projectileSpeed;
 
-  // Enemy 3 (Risk Golem): ground slam — radial projectiles
+  // Enemy 3 (Risk Golem): ground slam — radial projectiles that travel across the whole map
   if (enemy.index === 2) {
-    for (let i = 0; i < 6; i++) {
-      const a = (Math.PI * 2 * i) / 6;
+    for (let i = 0; i < 8; i++) {
+      const a = (Math.PI * 2 * i) / 8;
       enemy.projectiles.push({
         x: enemy.x, y: enemy.y,
-        vx: Math.cos(a) * 3, vy: Math.sin(a) * 3,
-        dmg: 16, life: 60, r: 10,
+        vx: Math.cos(a) * 5, vy: Math.sin(a) * 5,
+        dmg: 18, life: 560, r: 12,
         color: '#AA8822',
       });
     }

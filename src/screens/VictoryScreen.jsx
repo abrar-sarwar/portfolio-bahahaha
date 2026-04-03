@@ -1,4 +1,29 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import emailjs from '@emailjs/browser';
+import { soundLoLVictory } from '../game/audio.js';
+import { PERSONAL_PHOTOS } from '../game/constants.js';
+
+// ── EMAILJS CONFIG ────────────────────────────────────────────────────────────
+// Setup (free, 200 emails/month):
+// 1. Go to emailjs.com → sign up
+// 2. Email Services → Add Service → Gmail → connect abrartsarwar@gmail.com → copy Service ID
+// 3. Email Templates → Create Template:
+//    Template A (owner notification) — To: abrartsarwar@gmail.com
+//      Subject: Coffee Chat Request — {{visitor_name}} on {{date}} at {{time}}
+//      Body: Hey! {{visitor_name}} ({{visitor_email}}) booked a coffee chat for {{date}} at {{time}} EST.
+//    Template B (visitor confirmation) — To: {{visitor_email}}
+//      Subject: Your Coffee Chat with Abrar — {{date}} at {{time}} EST ☕
+//      Body: Hey {{visitor_name}}! Just confirming your coffee chat with Abrar Sarwar on {{date}} at {{time}} EST. Talk soon!
+// 4. Account → General → copy Public Key
+// Replace the values below:
+const EMAILJS_SERVICE_ID  = 'service_wjavhef';
+const EMAILJS_OWNER_TPL   = 'template_g7nyx5g';   // Template A → to Abrar
+const EMAILJS_VISITOR_TPL = 'template_bzlavjf';   // Template B → to visitor
+const EMAILJS_PUBLIC_KEY  = 'EHRaMF15kL1qMpqQT';
+
+const TIME_SLOTS = ['10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'];
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAY_LABELS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
 
 const CONFETTI_COLORS = ['#C89B3C', '#F0E6A0', '#FF4400', '#FF8800', '#FFCC00', '#FF2200', '#FFE066'];
 
@@ -53,7 +78,7 @@ function useConfetti(count = 120) {
   return particles;
 }
 
-export default function VictoryScreen({ stats, onRestart }) {
+export default function VictoryScreen({ stats, skipped, onRestart }) {
   const [phase, setPhase] = useState('splash'); // 'splash' | 'resume'
   const [splashVisible, setSplashVisible] = useState(false);
   const [resumeVisible, setResumeVisible] = useState(false);
@@ -62,7 +87,7 @@ export default function VictoryScreen({ stats, onRestart }) {
 
   useEffect(() => {
     setTimeout(() => setSplashVisible(true), 100);
-    // Glitch effect on pentakill text
+    try { setTimeout(() => soundLoLVictory(), 400); } catch (e) { /* ignore */ }
     const gi = setInterval(() => {
       setGlitch(true);
       setTimeout(() => setGlitch(false), 60);
@@ -76,7 +101,7 @@ export default function VictoryScreen({ stats, onRestart }) {
   };
 
   if (phase === 'resume') {
-    return <ResumePhase visible={resumeVisible} stats={stats} onRestart={onRestart} confetti={confetti} />;
+    return <ResumePhase visible={resumeVisible} stats={stats} skipped={skipped} onRestart={onRestart} confetti={confetti} />;
   }
 
   return (
@@ -248,8 +273,362 @@ export default function VictoryScreen({ stats, onRestart }) {
   );
 }
 
-function ResumePhase({ visible, stats, onRestart, confetti }) {
+function CalendarModal({ onClose }) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedTime, setSelectedTime] = useState(null);
+  const [name, setName] = useState('');
+  const [visitorEmail, setVisitorEmail] = useState('');
+  const [step, setStep] = useState('calendar'); // 'calendar' | 'time' | 'name' | 'sent'
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+
+  const isAvailable = useCallback((d) => {
+    if (!d) return false;
+    const day = d.getDay();
+    // weekdays only, must be in the future (not today)
+    return day !== 0 && day !== 6 && d > today;
+  }, [today]);
+
+  const navMonth = (dir) => {
+    let m = viewMonth + dir;
+    let y = viewYear;
+    if (m > 11) { m = 0; y++; }
+    if (m < 0) { m = 11; y--; }
+    setViewMonth(m);
+    setViewYear(y);
+  };
+
+  const handleDayClick = (d) => {
+    if (!isAvailable(d)) return;
+    setSelectedDate(d);
+    setStep('time');
+  };
+
+  const handleTimeClick = (t) => {
+    setSelectedTime(t);
+    setStep('name');
+  };
+
+  const formatDate = (d) => d
+    ? `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
+    : '';
+
+  const handleSend = useCallback(async () => {
+    if (!name.trim() || !visitorEmail.trim() || !selectedDate || !selectedTime) return;
+    setSending(true);
+    setError('');
+    const dateStr = formatDate(selectedDate);
+    const params = {
+      visitor_name: name.trim(),
+      visitor_email: visitorEmail.trim(),
+      date: dateStr,
+      time: selectedTime,
+    };
+    try {
+      // Email 1 → Abrar: booking notification
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_OWNER_TPL, params, EMAILJS_PUBLIC_KEY);
+      // Email 2 → visitor: confirmation reminder
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_VISITOR_TPL, params, EMAILJS_PUBLIC_KEY);
+      setStep('sent');
+    } catch {
+      setError('Could not send — EmailJS not configured yet. Check the config at top of VictoryScreen.jsx.');
+    }
+    setSending(false);
+  }, [name, visitorEmail, selectedDate, selectedTime]);
+
+  // Build calendar grid for current view month
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(viewYear, viewMonth, d));
+
+  const gold = '#C89B3C';
+  const inputStyle = {
+    width: '100%', boxSizing: 'border-box',
+    background: 'rgba(0,0,0,0.5)', border: `1px solid rgba(200,155,60,0.4)`,
+    color: '#F0E6A0', fontFamily: "'Share Tech Mono', monospace", fontSize: '13px',
+    padding: '10px 12px', outline: 'none', borderRadius: '2px',
+  };
+
   return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 100,
+      background: 'rgba(0,0,0,0.8)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }} onClick={onClose}>
+      <div style={{
+        background: 'linear-gradient(180deg, #060D1A 0%, #030810 100%)',
+        border: `2px solid ${gold}`,
+        borderRadius: '4px',
+        padding: '28px',
+        maxWidth: '440px',
+        width: '94%',
+        boxShadow: '0 0 60px rgba(200,155,60,0.3)',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+      }} onClick={e => e.stopPropagation()}>
+
+        <div style={{ fontFamily: "'Cinzel', serif", color: '#FFD700', fontSize: '18px', letterSpacing: '3px', marginBottom: '4px' }}>
+          ☕ BOOK A COFFEE CHAT
+        </div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", color: '#445', fontSize: '10px', marginBottom: '20px' }}>
+          pick a day · pick a time · message sends automatically
+        </div>
+
+        {step === 'calendar' && (
+          <>
+            {/* Month nav */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <button onClick={() => navMonth(-1)} style={{ background: 'transparent', border: `1px solid ${gold}44`, color: gold, cursor: 'pointer', padding: '4px 10px', fontFamily: "'Share Tech Mono', monospace", fontSize: '12px' }}>‹</button>
+              <div style={{ color: '#F0E6A0', fontFamily: "'Cinzel', serif", fontSize: '13px', letterSpacing: '2px' }}>
+                {MONTH_NAMES[viewMonth]} {viewYear}
+              </div>
+              <button onClick={() => navMonth(1)} style={{ background: 'transparent', border: `1px solid ${gold}44`, color: gold, cursor: 'pointer', padding: '4px 10px', fontFamily: "'Share Tech Mono', monospace", fontSize: '12px' }}>›</button>
+            </div>
+
+            {/* Day labels */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', marginBottom: '4px' }}>
+              {DAY_LABELS.map(d => (
+                <div key={d} style={{ textAlign: 'center', fontSize: '9px', color: '#334', fontFamily: "'Share Tech Mono', monospace", padding: '4px 0' }}>{d}</div>
+              ))}
+            </div>
+
+            {/* Calendar cells */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px' }}>
+              {cells.map((d, i) => {
+                if (!d) return <div key={`e${i}`} />;
+                const avail = isAvailable(d);
+                const isToday = d.getTime() === today.getTime();
+                return (
+                  <button
+                    key={d.getDate()}
+                    onClick={() => handleDayClick(d)}
+                    disabled={!avail}
+                    style={{
+                      background: avail ? 'rgba(200,155,60,0.1)' : 'transparent',
+                      border: isToday ? `1px solid ${gold}88` : avail ? `1px solid ${gold}44` : '1px solid #111',
+                      color: avail ? '#F0E6A0' : '#2A2A2A',
+                      cursor: avail ? 'pointer' : 'default',
+                      padding: '7px 0',
+                      fontFamily: "'Share Tech Mono', monospace",
+                      fontSize: '12px',
+                      borderRadius: '2px',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => avail && (e.currentTarget.style.background = 'rgba(200,155,60,0.25)')}
+                    onMouseLeave={e => avail && (e.currentTarget.style.background = 'rgba(200,155,60,0.1)')}
+                  >
+                    {d.getDate()}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ marginTop: '14px', fontSize: '10px', color: '#334', fontFamily: "'Share Tech Mono', monospace" }}>
+              ◆ highlighted = i'm free &nbsp;|&nbsp; weekdays only &nbsp;|&nbsp; all times EST
+            </div>
+
+            <button onClick={onClose} style={{ marginTop: '16px', background: 'transparent', border: '1px solid #222', color: '#334', fontFamily: "'Cinzel', serif", fontSize: '11px', padding: '7px 18px', cursor: 'pointer', letterSpacing: '1px' }}>
+              CANCEL
+            </button>
+          </>
+        )}
+
+        {step === 'time' && (
+          <>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '11px', color: gold, marginBottom: '14px' }}>
+              {formatDate(selectedDate)} — pick a time:
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '16px' }}>
+              {TIME_SLOTS.map(t => (
+                <button key={t} onClick={() => handleTimeClick(t)} style={{
+                  background: 'rgba(200,155,60,0.08)', border: `1px solid ${gold}55`,
+                  color: '#F0E6A0', fontFamily: "'Share Tech Mono', monospace", fontSize: '13px',
+                  padding: '12px', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(200,155,60,0.22)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(200,155,60,0.08)')}
+                >
+                  {t} <span style={{ fontSize: '10px', color: '#445' }}>EST</span>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setStep('calendar')} style={{ background: 'transparent', border: '1px solid #222', color: '#445', fontFamily: "'Share Tech Mono', monospace", fontSize: '11px', padding: '6px 14px', cursor: 'pointer' }}>
+              ← back
+            </button>
+          </>
+        )}
+
+        {step === 'name' && (
+          <>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '11px', color: gold, marginBottom: '14px' }}>
+              {formatDate(selectedDate)} @ {selectedTime} EST
+            </div>
+
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '11px', color: '#8899BB', marginBottom: '6px' }}>YOUR NAME</div>
+            <input
+              autoFocus
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onKeyDown={e => e.key === 'Tab' && e.preventDefault()}
+              placeholder="enter your name..."
+              style={{ ...inputStyle, marginBottom: '12px' }}
+            />
+
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '11px', color: '#8899BB', marginBottom: '4px' }}>YOUR EMAIL</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '10px', color: '#334', marginBottom: '6px' }}>
+              so i can send you a reminder ☕
+            </div>
+            <input
+              value={visitorEmail}
+              onChange={e => setVisitorEmail(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSend()}
+              placeholder="your@email.com"
+              type="email"
+              style={{ ...inputStyle, marginBottom: '0' }}
+            />
+
+            {error && (
+              <div style={{ color: '#CC4444', fontFamily: "'Share Tech Mono', monospace", fontSize: '10px', marginTop: '8px' }}>{error}</div>
+            )}
+
+            <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+              <button
+                onClick={handleSend}
+                disabled={!name.trim() || !visitorEmail.trim() || sending}
+                style={{
+                  flex: 1,
+                  background: name.trim() && visitorEmail.trim() && !sending ? 'linear-gradient(180deg,#AA6600,#662200)' : 'rgba(20,20,20,0.8)',
+                  border: `1px solid ${name.trim() && visitorEmail.trim() && !sending ? '#FFD700' : '#333'}`,
+                  color: name.trim() && visitorEmail.trim() && !sending ? '#FFD700' : '#444',
+                  fontFamily: "'Cinzel', serif", fontSize: '13px', letterSpacing: '2px',
+                  padding: '10px', cursor: name.trim() && visitorEmail.trim() && !sending ? 'pointer' : 'default', transition: 'all 0.2s',
+                }}
+              >
+                {sending ? 'SENDING...' : 'LOCK IT IN ☕'}
+              </button>
+              <button onClick={() => setStep('time')} style={{ background: 'transparent', border: '1px solid #222', color: '#445', fontFamily: "'Share Tech Mono', monospace", fontSize: '11px', padding: '10px 14px', cursor: 'pointer' }}>←</button>
+            </div>
+          </>
+        )}
+
+        {step === 'sent' && (
+          <div style={{ textAlign: 'center', padding: '16px 0' }}>
+            <div style={{ fontSize: '32px', marginBottom: '10px' }}>🤝</div>
+            <div style={{ color: '#0BC4C4', fontFamily: "'Cinzel', serif", fontSize: '14px', letterSpacing: '2px', marginBottom: '6px' }}>REQUEST SENT!</div>
+            <div style={{ color: '#556', fontFamily: "'Share Tech Mono', monospace", fontSize: '11px', lineHeight: 1.6 }}>
+              {name.trim()} — i got you. {formatDate(selectedDate)} @ {selectedTime} EST.<br />
+              <span style={{ color: '#334' }}>talk soon gang 👊</span>
+            </div>
+            <button onClick={onClose} style={{ marginTop: '20px', background: 'transparent', border: `1px solid ${gold}`, color: gold, fontFamily: "'Cinzel', serif", fontSize: '12px', letterSpacing: '2px', padding: '8px 24px', cursor: 'pointer' }}>CLOSE</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PhotoStrip({ side }) {
+  // Duplicate photos for seamless infinite scroll
+  const photos = [...PERSONAL_PHOTOS, ...PERSONAL_PHOTOS, ...PERSONAL_PHOTOS];
+  const totalHeight = PERSONAL_PHOTOS.length * 340;
+  const dir = side === 'left' ? 'scrollDown' : 'scrollUp';
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      [side]: 0,
+      width: '26%',
+      height: '100vh',
+      overflow: 'hidden',
+      zIndex: 0,
+      pointerEvents: 'none',
+    }}>
+      {/* Scrolling strip */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px',
+        padding: '6px',
+        animation: `${dir} ${PERSONAL_PHOTOS.length * 6}s linear infinite`,
+        willChange: 'transform',
+      }}>
+        {photos.map((src, i) => (
+          <div key={i} style={{ position: 'relative', flexShrink: 0 }}>
+            <img
+              src={src}
+              style={{
+                width: '100%',
+                height: 'auto',
+                objectFit: 'contain',
+                borderRadius: '4px',
+                display: 'block',
+              }}
+              alt=""
+              onError={e => { e.target.parentElement.style.display = 'none'; }}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Low dark overlay over photos */}
+      <div style={{
+        position: 'absolute', inset: 0, zIndex: 1,
+        background: 'rgba(2,7,16,0.35)',
+        pointerEvents: 'none',
+      }} />
+
+      {/* Top fade */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: '140px', zIndex: 2,
+        background: 'linear-gradient(180deg, #020710 0%, transparent 100%)',
+        pointerEvents: 'none',
+      }} />
+      {/* Bottom fade */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: '140px', zIndex: 2,
+        background: 'linear-gradient(0deg, #020710 0%, transparent 100%)',
+        pointerEvents: 'none',
+      }} />
+      {/* Inner edge fade — blends into resume */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        [side === 'left' ? 'right' : 'left']: 0,
+        width: '80px',
+        height: '100%',
+        zIndex: 2,
+        background: side === 'left'
+          ? 'linear-gradient(270deg, #020710 0%, transparent 100%)'
+          : 'linear-gradient(90deg, #020710 0%, transparent 100%)',
+        pointerEvents: 'none',
+      }} />
+
+      <style>{`
+        @keyframes scrollUp {
+          0%   { transform: translateY(0); }
+          100% { transform: translateY(-${totalHeight}px); }
+        }
+        @keyframes scrollDown {
+          0%   { transform: translateY(-${totalHeight}px); }
+          100% { transform: translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function ResumePhase({ visible, stats, skipped, onRestart, confetti }) {
+  const [showCoffee, setShowCoffee] = useState(false);
+  return (
+    <>
+    {showCoffee && <CalendarModal onClose={() => setShowCoffee(false)} />}
     <div style={{
       width: '100vw',
       height: '100vh',
@@ -263,6 +642,10 @@ function ResumePhase({ visible, stats, onRestart, confetti }) {
       overflowX: 'hidden',
       position: 'relative',
     }}>
+      {/* Photo strips — left and right */}
+      <PhotoStrip side="left" />
+      <PhotoStrip side="right" />
+
       {/* Confetti still going */}
       <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
         {confetti.map(p => (
@@ -283,13 +666,50 @@ function ResumePhase({ visible, stats, onRestart, confetti }) {
       <div style={{
         position: 'relative',
         zIndex: 1,
-        width: '100%',
-        maxWidth: '800px',
-        padding: '40px 20px 60px',
+        width: '48%',
+        minWidth: '340px',
+        maxWidth: '700px',
+        padding: '40px 24px 60px 24px',
         opacity: visible ? 1 : 0,
         transform: visible ? 'translateY(0)' : 'translateY(40px)',
         transition: 'all 0.7s cubic-bezier(0.34, 1.2, 0.64, 1)',
       }}>
+
+        {/* Skip shame banner */}
+        {skipped && (
+          <div style={{
+            marginBottom: '24px',
+            padding: '18px 24px',
+            background: 'rgba(180,60,0,0.07)',
+            border: '1px solid rgba(200,80,0,0.25)',
+            borderLeft: '3px solid rgba(200,80,0,0.6)',
+            borderRadius: '3px',
+            textAlign: 'left',
+          }}>
+            <div style={{
+              fontFamily: "'Cinzel', serif",
+              fontSize: '11px',
+              color: 'rgba(200,80,0,0.6)',
+              letterSpacing: '3px',
+              marginBottom: '8px',
+            }}>
+              EASY ROUTE DETECTED
+            </div>
+            <div style={{
+              fontFamily: "'Rajdhani', sans-serif",
+              fontSize: '16px',
+              color: '#C8A080',
+              lineHeight: 1.7,
+              fontWeight: 500,
+            }}>
+              damn. you took the easy way out.
+              <br />
+              <span style={{ color: '#7A6050' }}>
+                i guess you can see my stuff...
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* HIRE ME hero banner */}
         <div style={{
@@ -380,7 +800,8 @@ function ResumePhase({ visible, stats, onRestart, confetti }) {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                <ContactLink icon="✉" text="abrarsarwar98@gmail.com" href="mailto:abrarsarwar98@gmail.com" />
+                <ContactLink icon="✉" text="abrartsarwar@gmail.com" href="mailto:abrartsarwar@gmail.com" />
+                <ContactLink icon="📞" text="470-399-2597" href="tel:4703992597" />
                 <ContactLink icon="🔗" text="linkedin.com/in/abrar-sarwar" href="https://linkedin.com/in/abrar-sarwar" />
               </div>
             </div>
@@ -414,8 +835,8 @@ function ResumePhase({ visible, stats, onRestart, confetti }) {
 
           {/* Projects */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
-            <ResumeBlock title="COUNTERSTACK PROJECT" funny="(hackathon winner btw 👑)">
-              <ResumeItem label="Award" value="Hackathon Winner — 1st Place" accent />
+            <ResumeBlock title="COUNTERSTACK PROJECT" funny="(Hacklanta winner btw 🏆)">
+              <ResumeItem label="Award" value="Hacklanta Winner! 🏆" accent />
               <ResumeItem label="Scale" value="10,000+ security events processed daily" />
               <ResumeItem label="Framework" value="MITRE ATT&CK gamification engine" />
               <ResumeItem label="Stack" value="React · FastAPI · PostgreSQL · Docker" />
@@ -500,16 +921,86 @@ function ResumePhase({ visible, stats, onRestart, confetti }) {
           <ActionButton onClick={onRestart} color="#C89B3C">
             ↩ PLAY AGAIN
           </ActionButton>
-          <ActionButton href="mailto:abrarsarwar98@gmail.com" color="#FF8800">
+          <ActionButton href="mailto:abrartsarwar@gmail.com" color="#FF8800">
             ✉ HIRE ME (EMAIL)
           </ActionButton>
           <ActionButton href="https://linkedin.com/in/abrar-sarwar" color="#0BC4C4">
             🔗 LINKEDIN
           </ActionButton>
+          <ActionButton onClick={() => setShowCoffee(true)} color="#22FF88">
+            ☕ BOOK A COFFEE CHAT
+          </ActionButton>
         </div>
 
         <div style={{ textAlign: 'center', marginTop: '20px', color: '#2A3A4A', fontFamily: "'Share Tech Mono', monospace", fontSize: '11px' }}>
           built with react + canvas + way too much free time · PORTFOLIO.EXE v1.0
+        </div>
+
+        {/* Easter egg hint */}
+        <div style={{
+          marginTop: '28px',
+          padding: '20px 24px',
+          border: '1px solid rgba(200,155,60,0.4)',
+          borderRadius: '3px',
+          background: 'rgba(200,155,60,0.06)',
+          boxShadow: '0 0 24px rgba(200,155,60,0.08)',
+          position: 'relative',
+          overflow: 'hidden',
+        }}>
+          {/* shimmer top bar */}
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0, height: '2px',
+            background: 'linear-gradient(90deg, transparent, #C89B3C, transparent)',
+            animation: 'shimmer 2.5s ease-in-out infinite',
+          }} />
+
+          <div style={{
+            fontFamily: "'Cinzel', serif",
+            fontSize: '10px',
+            color: '#C89B3C',
+            letterSpacing: '3px',
+            marginBottom: '12px',
+            opacity: 0.7,
+          }}>
+            CLASSIFIED
+          </div>
+
+          <div style={{
+            fontFamily: "'Share Tech Mono', monospace",
+            fontSize: '22px',
+            color: '#F0E6A0',
+            letterSpacing: '6px',
+            marginBottom: '12px',
+            textShadow: '0 0 18px rgba(200,155,60,0.4)',
+          }}>
+            YWJyYXI=
+          </div>
+
+          <div style={{
+            fontFamily: "'Rajdhani', sans-serif",
+            fontSize: '14px',
+            color: '#8899AA',
+            lineHeight: 1.7,
+            marginBottom: '14px',
+          }}>
+            This is my name... but encoded in Base64.
+          </div>
+
+          <div style={{
+            fontFamily: "'Rajdhani', sans-serif",
+            fontSize: '14px',
+            color: '#F0E6A0',
+            fontWeight: 600,
+            lineHeight: 1.7,
+            padding: '12px 16px',
+            border: '1px solid rgba(200,155,60,0.5)',
+            borderLeft: '3px solid #C89B3C',
+            borderRadius: '2px',
+            background: 'rgba(200,155,60,0.1)',
+            boxShadow: '0 0 16px rgba(200,155,60,0.1)',
+          }}>
+            Copy the code above, click <span style={{ color: '#C89B3C', fontFamily: "'Cinzel', serif", fontSize: '13px', letterSpacing: '1px' }}>PLAY AGAIN</span>, and enter it into the <span style={{ color: '#C89B3C', fontFamily: "'Cinzel', serif", fontSize: '13px', letterSpacing: '1px' }}>CLASSIFIED</span> box to unlock something special.
+          </div>
         </div>
       </div>
 
@@ -520,6 +1011,7 @@ function ResumePhase({ visible, stats, onRestart, confetti }) {
         }
       `}</style>
     </div>
+    </>
   );
 }
 

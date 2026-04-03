@@ -1,6 +1,27 @@
 import { LOGICAL_W, LOGICAL_H, MAP_W, MAP_H } from './constants.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SPRITE CACHE
+// ─────────────────────────────────────────────────────────────────────────────
+const SPRITES = {};
+(function loadSprites() {
+  const entries = [
+    ['virtuoso',     'assets/sprites/virtuoso.png'],
+    ['scriptkiddie', 'assets/sprites/scriptkiddle.png'],
+    ['phantom',      'assets/sprites/phantomthreat.png'],
+    ['golem',        'assets/sprites/riskgolem.png'],
+    ['hydra',        'assets/sprites/firewallhydra.png'],
+    ['audit',        'assets/sprites/finalaudit.png'],
+    ['magician',     'assets/sprites/magicianportfolio.png'],
+  ];
+  for (const [key, src] of entries) {
+    const img = new Image();
+    img.onload = () => { SPRITES[key] = img; };
+    img.src = src;
+  }
+})();
+
+// ─────────────────────────────────────────────────────────────────────────────
 // MAP DRAWING (open hex arena)
 // ─────────────────────────────────────────────────────────────────────────────
 export function drawMap(ctx, frame, camera) {
@@ -528,6 +549,14 @@ export function drawVirtuoso(ctx, player, frame, camera) {
     ctx.globalAlpha = 1;
   }
 
+  // ── BODY (sprite or fallback) ──
+  if (SPRITES.virtuoso) {
+    ctx.save();
+    ctx.rotate(facing - Math.PI / 2);
+    ctx.drawImage(SPRITES.virtuoso, -80, -64, 160, 128);
+    ctx.restore();
+  } else {
+
   // ── CAPE (trails behind — angular, geometric) ──
   const capeDir = facing + Math.PI;
   const capeSpread = 0.8;
@@ -680,6 +709,11 @@ export function drawVirtuoso(ctx, player, frame, camera) {
   ctx.fillStyle = '#F0E6A0';
   ctx.beginPath(); ctx.arc(mx, my, 3.5, 0, Math.PI*2); ctx.fill();
 
+  } // end fallback drawing
+
+  // Muzzle flash position (rifle tip or sprite approximation)
+  const _mfx = Math.cos(facing) * 46, _mfy = Math.sin(facing) * 46;
+
   // Muzzle flash when recently shot
   if (player.lastShotFlash > 0) {
     const fl = player.lastShotFlash;
@@ -689,12 +723,12 @@ export function drawVirtuoso(ctx, player, frame, camera) {
     for (let i = 0; i < 4; i++) {
       const fa = facing + i * Math.PI/2;
       ctx.beginPath();
-      ctx.moveTo(mx, my);
-      ctx.lineTo(mx + Math.cos(fa) * fl * 3, my + Math.sin(fa) * fl * 3);
+      ctx.moveTo(_mfx, _mfy);
+      ctx.lineTo(_mfx + Math.cos(fa) * fl * 3, _mfy + Math.sin(fa) * fl * 3);
       ctx.stroke();
     }
     ctx.fillStyle = '#FFF8C0';
-    ctx.beginPath(); ctx.arc(mx, my, fl * 2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(_mfx, _mfy, fl * 2, 0, Math.PI*2); ctx.fill();
     ctx.globalAlpha = 1;
     player.lastShotFlash--;
   }
@@ -802,17 +836,24 @@ function drawScriptKiddieTopDown(ctx, enemy, frame) {
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
   ctx.beginPath(); ctx.ellipse(3, 5 + bob, 28, 18, 0, 0, Math.PI * 2); ctx.fill();
 
+  if (SPRITES.scriptkiddie) {
+    ctx.save();
+    ctx.rotate(enemy.facing - Math.PI / 2);
+    ctx.drawImage(SPRITES.scriptkiddie, -75, -60 + bob, 150, 120);
+    ctx.restore();
+    return;
+  }
+
+  // Fallback canvas drawing
   // Hoodie body
   ctx.fillStyle = '#1A1A1A';
   ctx.beginPath(); ctx.arc(0, bob, 26, 0, Math.PI * 2); ctx.fill();
 
-  // Hood top
   const hx = Math.cos(enemy.facing) * 8;
   const hy = Math.sin(enemy.facing) * 8;
   ctx.fillStyle = '#111';
   ctx.beginPath(); ctx.arc(hx, hy + bob, 20, 0, Math.PI * 2); ctx.fill();
 
-  // Red eyes
   const ex1x = Math.cos(enemy.facing + 1.0) * 9 + hx;
   const ex1y = Math.sin(enemy.facing + 1.0) * 9 + hy;
   const ex2x = Math.cos(enemy.facing - 1.0) * 9 + hx;
@@ -823,7 +864,6 @@ function drawScriptKiddieTopDown(ctx, enemy, frame) {
   ctx.beginPath(); ctx.arc(ex2x, ex2y + bob, 3.5, 0, Math.PI * 2); ctx.fill();
   ctx.shadowBlur = 0;
 
-  // Laptop
   const lpx = Math.cos(enemy.facing) * 22;
   const lpy = Math.sin(enemy.facing) * 22;
   ctx.fillStyle = '#222'; ctx.fillRect(lpx - 10, lpy + bob - 7, 20, 14);
@@ -834,6 +874,16 @@ function drawScriptKiddieTopDown(ctx, enemy, frame) {
 
 function drawPhantomThreatTopDown(ctx, enemy, frame) {
   const glitch = Math.random() > 0.95 ? (Math.random() - 0.5) * 6 : 0;
+
+  if (SPRITES.phantom) {
+    ctx.save();
+    ctx.globalAlpha = ctx.globalAlpha * (enemy.stunned ? 0.5 : 1);
+    ctx.rotate(enemy.facing - Math.PI / 2);
+    ctx.translate(glitch, 0);
+    ctx.drawImage(SPRITES.phantom, -80, -64, 160, 128);
+    ctx.restore();
+    return;
+  }
 
   // Smoke wisps
   for (let i = 0; i < 5; i++) {
@@ -877,6 +927,14 @@ function drawRiskGolemTopDown(ctx, enemy, frame) {
   // Shadow
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
   ctx.beginPath(); ctx.ellipse(5, 5 + stomp, 38, 28, 0, 0, Math.PI * 2); ctx.fill();
+
+  if (SPRITES.golem) {
+    ctx.save();
+    ctx.rotate(enemy.facing - Math.PI / 2);
+    ctx.drawImage(SPRITES.golem, -92, -72 + stomp, 185, 144);
+    ctx.restore();
+    return;
+  }
 
   // Stone body
   ctx.fillStyle = '#5A5A55';
@@ -929,21 +987,26 @@ function drawFirewallHydraTopDown(ctx, enemy, frame) {
   shadow.addColorStop(0, 'rgba(0,0,0,0.5)'); shadow.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = shadow; ctx.beginPath(); ctx.arc(0, 0, 40, 0, Math.PI * 2); ctx.fill();
 
-  // Circuit board body
-  ctx.fillStyle = '#0A1A08';
-  ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI * 2); ctx.fill();
-
-  // Circuit lines
-  ctx.strokeStyle = '#00CC44'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.6;
-  for (let i = 0; i < 4; i++) {
-    const a = i * Math.PI / 2;
-    ctx.beginPath();
-    ctx.moveTo(Math.cos(a) * 8, Math.sin(a) * 8);
-    ctx.lineTo(Math.cos(a) * 26, Math.sin(a) * 26);
-    ctx.stroke();
-    ctx.beginPath(); ctx.arc(Math.cos(a) * 20, Math.sin(a) * 20, 4, 0, Math.PI * 2); ctx.stroke();
+  if (SPRITES.hydra) {
+    ctx.save();
+    ctx.rotate(enemy.facing - Math.PI / 2);
+    ctx.drawImage(SPRITES.hydra, -85, -68, 170, 136);
+    ctx.restore();
+  } else {
+    // Circuit board body
+    ctx.fillStyle = '#0A1A08';
+    ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#00CC44'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.6;
+    for (let i = 0; i < 4; i++) {
+      const a = i * Math.PI / 2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * 8, Math.sin(a) * 8);
+      ctx.lineTo(Math.cos(a) * 26, Math.sin(a) * 26);
+      ctx.stroke();
+      ctx.beginPath(); ctx.arc(Math.cos(a) * 20, Math.sin(a) * 20, 4, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
   }
-  ctx.globalAlpha = 1;
 
   // Three heads
   const headAngles = [enemy.facing, enemy.facing + 2.1, enemy.facing - 2.1];
@@ -974,52 +1037,49 @@ function drawFinalAuditTopDown(ctx, enemy, frame) {
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
   ctx.beginPath(); ctx.ellipse(4, 6, 32, 22, 0, 0, Math.PI * 2); ctx.fill();
 
-  // Dark suit
-  ctx.fillStyle = '#1A1A22';
-  ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI * 2); ctx.fill();
-
-  // White shirt front
-  ctx.fillStyle = '#E0E0E8';
-  ctx.beginPath();
-  ctx.arc(Math.cos(enemy.facing) * 12, Math.sin(enemy.facing) * 12, 12,
-    enemy.facing - 0.7, enemy.facing + 0.7);
-  ctx.lineTo(Math.cos(enemy.facing) * 4, Math.sin(enemy.facing) * 4);
-  ctx.closePath(); ctx.fill();
-
-  // Red tie
-  ctx.fillStyle = '#CC0000';
-  ctx.beginPath();
-  ctx.moveTo(Math.cos(enemy.facing) * 14, Math.sin(enemy.facing) * 14);
-  ctx.lineTo(Math.cos(enemy.facing + 0.15) * 10, Math.sin(enemy.facing + 0.15) * 10);
-  ctx.lineTo(Math.cos(enemy.facing) * 4, Math.sin(enemy.facing) * 4);
-  ctx.lineTo(Math.cos(enemy.facing - 0.15) * 10, Math.sin(enemy.facing - 0.15) * 10);
-  ctx.closePath(); ctx.fill();
-
-  // Devil horns
-  const hx = Math.cos(enemy.facing) * 16;
-  const hy = Math.sin(enemy.facing) * 16;
-  ctx.fillStyle = '#CC0000';
-  ctx.beginPath();
-  ctx.moveTo(hx + Math.cos(enemy.facing + 1.4) * 10, hy + Math.sin(enemy.facing + 1.4) * 10);
-  ctx.lineTo(hx + Math.cos(enemy.facing + 1.2) * 18, hy + Math.sin(enemy.facing + 1.2) * 18);
-  ctx.lineTo(hx + Math.cos(enemy.facing + 0.9) * 10, hy + Math.sin(enemy.facing + 0.9) * 10);
-  ctx.closePath(); ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(hx + Math.cos(enemy.facing - 1.4) * 10, hy + Math.sin(enemy.facing - 1.4) * 10);
-  ctx.lineTo(hx + Math.cos(enemy.facing - 1.2) * 18, hy + Math.sin(enemy.facing - 1.2) * 18);
-  ctx.lineTo(hx + Math.cos(enemy.facing - 0.9) * 10, hy + Math.sin(enemy.facing - 0.9) * 10);
-  ctx.closePath(); ctx.fill();
-
-  // Red eyes
-  ctx.fillStyle = '#FF0000'; ctx.shadowColor = '#FF0000'; ctx.shadowBlur = 8;
-  ctx.beginPath(); ctx.arc(hx + Math.cos(enemy.facing + 1.0) * 6, hy + Math.sin(enemy.facing + 1.0) * 6, 4, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(hx + Math.cos(enemy.facing - 1.0) * 6, hy + Math.sin(enemy.facing - 1.0) * 6, 4, 0, Math.PI * 2); ctx.fill();
-  ctx.shadowBlur = 0;
-
-  // Glasses
-  ctx.strokeStyle = '#888'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.arc(hx + Math.cos(enemy.facing + 1.0) * 6, hy + Math.sin(enemy.facing + 1.0) * 6, 5, 0, Math.PI * 2); ctx.stroke();
-  ctx.beginPath(); ctx.arc(hx + Math.cos(enemy.facing - 1.0) * 6, hy + Math.sin(enemy.facing - 1.0) * 6, 5, 0, Math.PI * 2); ctx.stroke();
+  if (SPRITES.audit) {
+    ctx.save();
+    ctx.rotate(enemy.facing - Math.PI / 2);
+    ctx.drawImage(SPRITES.audit, -87, -70, 174, 140);
+    ctx.restore();
+  } else {
+    // Fallback canvas drawing
+    ctx.fillStyle = '#1A1A22';
+    ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#E0E0E8';
+    ctx.beginPath();
+    ctx.arc(Math.cos(enemy.facing) * 12, Math.sin(enemy.facing) * 12, 12,
+      enemy.facing - 0.7, enemy.facing + 0.7);
+    ctx.lineTo(Math.cos(enemy.facing) * 4, Math.sin(enemy.facing) * 4);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#CC0000';
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(enemy.facing) * 14, Math.sin(enemy.facing) * 14);
+    ctx.lineTo(Math.cos(enemy.facing + 0.15) * 10, Math.sin(enemy.facing + 0.15) * 10);
+    ctx.lineTo(Math.cos(enemy.facing) * 4, Math.sin(enemy.facing) * 4);
+    ctx.lineTo(Math.cos(enemy.facing - 0.15) * 10, Math.sin(enemy.facing - 0.15) * 10);
+    ctx.closePath(); ctx.fill();
+    const hx = Math.cos(enemy.facing) * 16;
+    const hy = Math.sin(enemy.facing) * 16;
+    ctx.fillStyle = '#CC0000';
+    ctx.beginPath();
+    ctx.moveTo(hx + Math.cos(enemy.facing + 1.4) * 10, hy + Math.sin(enemy.facing + 1.4) * 10);
+    ctx.lineTo(hx + Math.cos(enemy.facing + 1.2) * 18, hy + Math.sin(enemy.facing + 1.2) * 18);
+    ctx.lineTo(hx + Math.cos(enemy.facing + 0.9) * 10, hy + Math.sin(enemy.facing + 0.9) * 10);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(hx + Math.cos(enemy.facing - 1.4) * 10, hy + Math.sin(enemy.facing - 1.4) * 10);
+    ctx.lineTo(hx + Math.cos(enemy.facing - 1.2) * 18, hy + Math.sin(enemy.facing - 1.2) * 18);
+    ctx.lineTo(hx + Math.cos(enemy.facing - 0.9) * 10, hy + Math.sin(enemy.facing - 0.9) * 10);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#FF0000'; ctx.shadowColor = '#FF0000'; ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.arc(hx + Math.cos(enemy.facing + 1.0) * 6, hy + Math.sin(enemy.facing + 1.0) * 6, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(hx + Math.cos(enemy.facing - 1.0) * 6, hy + Math.sin(enemy.facing - 1.0) * 6, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#888'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(hx + Math.cos(enemy.facing + 1.0) * 6, hy + Math.sin(enemy.facing + 1.0) * 6, 5, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(hx + Math.cos(enemy.facing - 1.0) * 6, hy + Math.sin(enemy.facing - 1.0) * 6, 5, 0, Math.PI * 2); ctx.stroke();
+  }
 
   // Compliance shield
   if (enemy.shieldActive) {
@@ -1045,7 +1105,13 @@ export function drawMagician(ctx, magician, frame) {
   ctx.save();
   ctx.translate(x, y);
 
-  // Robe
+  if (SPRITES.magician) {
+    ctx.drawImage(SPRITES.magician, -120, -280, 240, 280);
+    ctx.restore();
+    return;
+  }
+
+  // Robe fallback
   ctx.fillStyle = '#1A0A2A';
   ctx.beginPath();
   ctx.moveTo(-20, -150);

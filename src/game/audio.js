@@ -210,3 +210,193 @@ export function soundEnemySpawn() {
     playNoise({ duration: 0.1, volume: 0.3, filterFreq: 300, filterQ: 1 });
   } catch (e) { /* ignore */ }
 }
+
+// ── LEAGUE-STYLE CINEMATIC SOUNDS ─────────────────────────────────────────────
+
+export function soundLoLVictory() {
+  if (!enabled) return;
+  try {
+    const ctx = getCtx();
+    const now = ctx.currentTime;
+
+    // Snare intro roll
+    [0, 0.08, 0.16, 0.22].forEach(t => {
+      try {
+        const bufSize = Math.floor(ctx.sampleRate * 0.08);
+        const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufSize * 0.25));
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 3500;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.45, now + t);
+        g.gain.exponentialRampToValueAtTime(0.001, now + t + 0.1);
+        src.connect(filter); filter.connect(g); g.connect(masterGain);
+        src.start(now + t); src.stop(now + t + 0.15);
+      } catch (e) { /* ignore */ }
+    });
+
+    // Brass fanfare: G4 → B4 → D5 → G5
+    [
+      { freq: 392, t: 0.3, dur: 0.25 },
+      { freq: 494, t: 0.55, dur: 0.25 },
+      { freq: 587, t: 0.8, dur: 0.25 },
+      { freq: 784, t: 1.05, dur: 0.7 },
+    ].forEach(({ freq, t, dur }) => {
+      try {
+        [{ type: 'sawtooth', vol: 0.18 }, { type: 'triangle', vol: 0.09, mult: 2 }].forEach(({ type, vol, mult = 1 }) => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = type;
+          osc.frequency.value = freq * mult;
+          osc.connect(g); g.connect(masterGain);
+          g.gain.setValueAtTime(0, now + t);
+          g.gain.linearRampToValueAtTime(vol, now + t + 0.04);
+          g.gain.exponentialRampToValueAtTime(0.001, now + t + dur);
+          osc.start(now + t); osc.stop(now + t + dur + 0.05);
+        });
+      } catch (e) { /* ignore */ }
+    });
+
+    // Big triumphant G major chord (G4 B4 D5 G5 B5)
+    [392, 494, 587, 784, 988].forEach((freq, i) => {
+      try {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = i < 3 ? 'triangle' : 'sine';
+        osc.frequency.value = freq;
+        osc.connect(g); g.connect(masterGain);
+        const s = now + 1.85;
+        g.gain.setValueAtTime(0, s);
+        g.gain.linearRampToValueAtTime(0.14 - i * 0.02, s + 0.09);
+        g.gain.setValueAtTime(0.14 - i * 0.02, s + 1.4);
+        g.gain.exponentialRampToValueAtTime(0.001, s + 2.4);
+        osc.start(s); osc.stop(s + 2.5);
+      } catch (e) { /* ignore */ }
+    });
+
+    // Shimmer highs on chord hit
+    [1568, 1976, 2349].forEach((freq, i) => {
+      try {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        osc.connect(g); g.connect(masterGain);
+        const s = now + 1.9 + i * 0.1;
+        g.gain.setValueAtTime(0, s);
+        g.gain.linearRampToValueAtTime(0.04, s + 0.15);
+        g.gain.exponentialRampToValueAtTime(0.001, s + 2.0);
+        osc.start(s); osc.stop(s + 2.1);
+      } catch (e) { /* ignore */ }
+    });
+
+    // Deep bass hit
+    try {
+      const bass = ctx.createOscillator();
+      const g = ctx.createGain();
+      bass.type = 'sine';
+      bass.frequency.value = 98;
+      bass.connect(g); g.connect(masterGain);
+      g.gain.setValueAtTime(0, now + 1.85);
+      g.gain.linearRampToValueAtTime(0.5, now + 1.9);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 2.7);
+      bass.start(now + 1.85); bass.stop(now + 2.8);
+    } catch (e) { /* ignore */ }
+
+  } catch (e) { /* ignore */ }
+}
+
+export function soundLoLDefeat() {
+  if (!enabled) return;
+  try {
+    const ctx = getCtx();
+    const now = ctx.currentTime;
+
+    // Heavy opening thud
+    try {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(120, now);
+      osc.frequency.exponentialRampToValueAtTime(35, now + 0.45);
+      osc.connect(g); g.connect(masterGain);
+      g.gain.setValueAtTime(0.6, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+      osc.start(now); osc.stop(now + 0.55);
+    } catch (e) { /* ignore */ }
+
+    // Low noise burst
+    try {
+      const bufSize = Math.floor(ctx.sampleRate * 0.3);
+      const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 180;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.35, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      src.connect(filter); filter.connect(g); g.connect(masterGain);
+      src.start(now); src.stop(now + 0.4);
+    } catch (e) { /* ignore */ }
+
+    // Deep bass drone
+    try {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 55;
+      osc.connect(g); g.connect(masterGain);
+      g.gain.setValueAtTime(0, now);
+      g.gain.linearRampToValueAtTime(0.3, now + 0.5);
+      g.gain.setValueAtTime(0.3, now + 3.2);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 4.5);
+      osc.start(now); osc.stop(now + 4.6);
+    } catch (e) { /* ignore */ }
+
+    // Sad descending melody: D4 C4 A♭3 F3
+    [
+      { freq: 294, t: 0.4, dur: 0.75 },
+      { freq: 262, t: 1.15, dur: 0.75 },
+      { freq: 208, t: 1.9, dur: 0.75 },
+      { freq: 175, t: 2.65, dur: 1.3 },
+    ].forEach(({ freq, t, dur }) => {
+      try {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        osc.connect(g); g.connect(masterGain);
+        g.gain.setValueAtTime(0, now + t);
+        g.gain.linearRampToValueAtTime(0.14, now + t + 0.1);
+        g.gain.setValueAtTime(0.14, now + t + dur - 0.1);
+        g.gain.exponentialRampToValueAtTime(0.001, now + t + dur);
+        osc.start(now + t); osc.stop(now + t + dur + 0.05);
+      } catch (e) { /* ignore */ }
+    });
+
+    // D minor chord pad (D3 F3 A3)
+    [147, 175, 220].forEach((freq, i) => {
+      try {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        osc.connect(g); g.connect(masterGain);
+        g.gain.setValueAtTime(0, now + 0.6);
+        g.gain.linearRampToValueAtTime(0.09 - i * 0.02, now + 0.9);
+        g.gain.setValueAtTime(0.09 - i * 0.02, now + 2.8);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 4.2);
+        osc.start(now + 0.6); osc.stop(now + 4.3);
+      } catch (e) { /* ignore */ }
+    });
+
+  } catch (e) { /* ignore */ }
+}

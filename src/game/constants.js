@@ -87,6 +87,63 @@ export const ENEMY_DATA = [
   },
 ];
 
+// All personal photos (used in reveals + victory screen gallery strip)
+export const PERSONAL_PHOTOS = [
+  '/assets/sprites/IMG_3760.webp',
+  '/assets/sprites/IMG_6058.webp',
+  '/assets/sprites/IMG_2391.webp',
+  '/assets/sprites/IMG_9924.webp',
+  '/assets/sprites/IMG_1757.webp',
+  '/assets/sprites/IMG_2018.webp',
+  '/assets/sprites/IMG_3295.webp',
+  '/assets/sprites/IMG_3384.webp',
+  '/assets/sprites/IMG_4613.png',
+  '/assets/sprites/IMG_4615.webp',
+  '/assets/sprites/IMG_6012.jpg',
+  '/assets/sprites/IMG_7766.jpg',
+  '/assets/sprites/IMG_7913.webp',
+  '/assets/sprites/image0.webp',
+  '/assets/sprites/074FC809-3C34-40A1-8AAD-43E700B5BBBB.webp',
+];
+
+export const ABRAR_REVEALS = [
+  {
+    tag: 'UNLOCKING: ABRAR.EXE · CHAPTER 1',
+    title: 'yo, the name\'s Abrar.',
+    message: 'you actually sat down and played this whole thing?? okay okay, i see you. no skip button for real ones. so yeah, i\'m Abrar. i treat every day like a side quest worth grinding. the gym is my daily checkpoint, hiking is my fast travel, and life\'s just a massive open world i\'m trying to 100%. whatever it takes to level up, i\'m on it.',
+    tags: ['#gym rat', '#hiker', '#side quest speedrunner', '#progression arc'],
+    photo: '/assets/sprites/abrarboss1.webp',
+  },
+  {
+    tag: 'UNLOCKING: ABRAR.EXE · CHAPTER 2',
+    title: 'cybersecurity by degree. engineer by soul.',
+    message: 'Georgia State, CIS is the official title. but honestly i\'m just someone who loves building things. give me a problem and i\'ll make something that solves it, probably over-engineer it a little, and have a blast doing it. the cyber part just means i also know what the bad guys are up to lol. it\'s giving creative engineer energy for real.',
+    tags: ['#GSU', '#security+', '#builder mentality', '#creative engineer'],
+    photo: '/assets/sprites/abrarboss2.webp',
+  },
+  {
+    tag: 'UNLOCKING: ABRAR.EXE · CHAPTER 3',
+    title: 'the big dream. no cap.',
+    message: 'okay so this one\'s personal. i want to make a story that could genuinely be a manga. something that captures the excitement of exploring the world, the kind where anything feels possible. i already have an idea i\'ve been working on, still got plenty of ground to cover, but the best way i can describe it is think JoJo meets One Piece. real exploration, wild moments, and characters with actual depth. that kind of energy. it\'s coming together slowly but surely.',
+    tags: ['#one piece reference', '#world builder', '#manifesting', '#the lore runs deep'],
+    photo: '/assets/sprites/abrarboss3.webp',
+  },
+  {
+    tag: 'UNLOCKING: ABRAR.EXE · CHAPTER 4',
+    title: 'ATL is home. for now.',
+    message: 'based in Atlanta and yeah it absolutely slaps. but i\'m always moving, love exploring new spots and meeting people. currently locked in on a coffee shop world tour across the city. if you know a fire spot in ATL i genuinely need the rec, my list keeps growing and so does the mission. i will find every single one.',
+    tags: ['#atlanta', '#coffee world tour', '#explorer mode', '#send locations pls'],
+    photo: '/assets/sprites/abrarboss4.webp',
+  },
+  {
+    tag: 'UNLOCKING: ABRAR.EXE · FINAL CHAPTER',
+    title: 'bro. you actually beat all 5.',
+    message: 'okay i genuinely did not expect this. you\'re actually goated. most people hit that skip button (i saw you skip button lookers 👀). but you? you stayed. you fought through all 5 bosses. that\'s the kind of dedication i bring to everything i do, so yeah, here\'s everything. links, resume, the whole thing. you earned this fr fr.',
+    tags: ['#you\'re goated', '#certified W', '#earned access', '#fr fr'],
+    photo: '/assets/sprites/IMG_9924.webp',
+  },
+];
+
 export const RESUME_SECTIONS = [
   {
     title: 'TECHNICAL SKILLS',

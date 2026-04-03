@@ -8,12 +8,13 @@ import GameTutorial from './screens/GameTutorial.jsx';
 import Game from './game/Game.jsx';
 
 export default function App() {
-  const [screen, setScreen] = useState('intro'); // 'intro' | 'game' | 'victory' | 'death'
+  const [screen, setScreen] = useState('intro'); // 'intro' | 'game' | 'victory' | 'death' | 'skipped'
   const [gameState, setGameState] = useState(STATES.PLAYING);
   const [revealData, setRevealData] = useState(null);
   const [victoryStats, setVictoryStats] = useState(null);
   const [deathStats, setDeathStats] = useState(null);
   const [showGameTutorial, setShowGameTutorial] = useState(false);
+  const [skipped, setSkipped] = useState(false);
 
   const handleStart = useCallback(() => {
     setScreen('game');
@@ -44,6 +45,13 @@ export default function App() {
     setTimeout(() => setScreen('death'), 600);
   }, []);
 
+  const handleSkip = useCallback(() => {
+    setVictoryStats(null);
+    setSkipped(true);
+    setGameState(STATES.VICTORY);
+    setScreen('victory');
+  }, []);
+
   const handleRestart = useCallback(() => {
     setScreen('intro');
     setGameState(STATES.PLAYING);
@@ -51,11 +59,12 @@ export default function App() {
     setVictoryStats(null);
     setDeathStats(null);
     setShowGameTutorial(false);
+    setSkipped(false);
   }, []);
 
   return (
     <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: '#020710', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      {screen === 'intro' && <TutorialScreen onStart={handleStart} />}
+      {screen === 'intro' && <TutorialScreen onStart={handleStart} onSkip={handleSkip} />}
 
       {screen === 'game' && (
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
@@ -73,12 +82,13 @@ export default function App() {
             <ResumePopup
               enemyIndex={revealData.enemyIndex}
               onContinue={handlePopupContinue}
+              onSkip={handleSkip}
             />
           )}
         </div>
       )}
 
-      {screen === 'victory' && <VictoryScreen stats={victoryStats} onRestart={handleRestart} />}
+      {screen === 'victory' && <VictoryScreen stats={victoryStats} skipped={skipped} onRestart={handleRestart} />}
       {screen === 'death' && <DeathScreen stats={deathStats} onRestart={handleRestart} />}
     </div>
   );

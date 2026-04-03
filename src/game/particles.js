@@ -165,14 +165,14 @@ export function drawParticles(ctx, ps) {
   for (const d of ps.damageNumbers) {
     ctx.globalAlpha = d.alpha;
     if (d.isCrit) {
-      ctx.font = 'bold 22px "Share Tech Mono"';
+      ctx.font = 'bold 34px "Share Tech Mono"';
       ctx.fillStyle = '#C89B3C';
       ctx.strokeStyle = '#000';
       ctx.lineWidth = 3;
       ctx.strokeText(`★${d.text}`, d.x, d.y);
       ctx.fillText(`★${d.text}`, d.x, d.y);
     } else {
-      ctx.font = '16px "Share Tech Mono"';
+      ctx.font = '24px "Share Tech Mono"';
       ctx.fillStyle = d.color;
       ctx.strokeStyle = '#000';
       ctx.lineWidth = 2;

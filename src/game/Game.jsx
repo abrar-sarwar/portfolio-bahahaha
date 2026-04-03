@@ -65,6 +65,16 @@ function drawHpOrbs(ctx, orbs, frame, cam) {
   }
 }
 
+// Crystal pickups — same positions as the blue diamonds drawn on the map
+function generateCrystalPickups() {
+  return [
+    { x: MAP_W * 0.42, y: MAP_H * 0.42 },
+    { x: MAP_W * 0.58, y: MAP_H * 0.42 },
+    { x: MAP_W * 0.42, y: MAP_H * 0.58 },
+    { x: MAP_W * 0.58, y: MAP_H * 0.58 },
+  ].map(pos => ({ ...pos, r: 22, active: true, respawnTimer: 0, respawnDuration: 480 }));
+}
+
 // Spawn HP orbs at fixed positions around the arena
 function generateHpOrbs() {
   const cx = MAP_W / 2, cy = MAP_H / 2;
@@ -107,6 +117,8 @@ export default function Game({ onEnemyDead, onVictory, onDeath, gameState, pause
 
   // HP orbs scattered around the arena
   const hpOrbsRef = useRef(generateHpOrbs());
+  // Crystal pickups (the blue diamonds on the map)
+  const crystalPickupsRef = useRef(generateCrystalPickups());
 
   // Keep gameState + paused refs in sync
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
@@ -152,7 +164,7 @@ export default function Game({ onEnemyDead, onVictory, onDeath, gameState, pause
             }
           }
           break;
-        case 'W':
+        case 'X':
           e.preventDefault();
           if (fireWAbility(player, enemy)) {
             const cam = cameraRef.current;
@@ -497,6 +509,22 @@ export default function Game({ onEnemyDead, onVictory, onDeath, gameState, pause
           }
         }
 
+        // ── Crystal pickup collection ────────────────────────────────────────
+        for (const c of crystalPickupsRef.current) {
+          if (!c.active) {
+            c.respawnTimer++;
+            if (c.respawnTimer >= c.respawnDuration) { c.active = true; c.respawnTimer = 0; }
+            continue;
+          }
+          if (Math.hypot(player.x - c.x, player.y - c.y) < player.radius + c.r) {
+            c.active = false;
+            c.respawnTimer = 0;
+            player.damageMult = 1.5;
+            player.damageBuffTimer = 360;
+            spawnDamageNumber(ps, c.x - cam.x, c.y - cam.y - 30, 'DMG +50%', 'crit');
+          }
+        }
+
         // Player death
         if (player.health <= 0) {
           player.health = 0;
@@ -530,6 +558,33 @@ export default function Game({ onEnemyDead, onVictory, onDeath, gameState, pause
       // HP Orbs
       drawHpOrbs(ctx, hpOrbsRef.current, frame, cam);
 
+      // Crystal pickup overlay — pulse when active, dark when depleted
+      for (const c of crystalPickupsRef.current) {
+        const sx = c.x - cam.x, sy = c.y - cam.y;
+        ctx.save();
+        ctx.translate(sx, sy);
+        if (c.active) {
+          const pulse = 0.5 + Math.sin(frame * 0.08) * 0.5;
+          ctx.globalAlpha = 0.55 * pulse;
+          ctx.shadowColor = '#00EEFF'; ctx.shadowBlur = 22;
+          ctx.strokeStyle = '#00EEFF'; ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.moveTo(0, -c.r); ctx.lineTo(c.r * 0.65, 0);
+          ctx.lineTo(0, c.r); ctx.lineTo(-c.r * 0.65, 0);
+          ctx.closePath(); ctx.stroke();
+          ctx.shadowBlur = 0;
+        } else {
+          // Dark overlay to show it's consumed
+          ctx.globalAlpha = 0.55;
+          ctx.fillStyle = 'rgba(0,0,0,0.7)';
+          ctx.beginPath();
+          ctx.moveTo(0, -c.r); ctx.lineTo(c.r * 0.65, 0);
+          ctx.lineTo(0, c.r); ctx.lineTo(-c.r * 0.65, 0);
+          ctx.closePath(); ctx.fill();
+        }
+        ctx.restore();
+      }
+
       // Traps (map space -> screen via camera)
       drawTraps(ctx, player, frame, cam);
 
@@ -562,6 +617,17 @@ export default function Game({ onEnemyDead, onVictory, onDeath, gameState, pause
         ctx.font = '11px "Share Tech Mono"';
         ctx.textAlign = 'center';
         ctx.fillText('HASTE', LOGICAL_W / 2, LOGICAL_H - 20);
+        ctx.textAlign = 'left';
+        ctx.globalAlpha = 1;
+      }
+      // Damage buff indicator
+      if (player.damageBuffTimer > 0) {
+        const pulse = 0.7 + Math.sin(frame * 0.15) * 0.3;
+        ctx.fillStyle = '#FFD700';
+        ctx.globalAlpha = pulse;
+        ctx.font = 'bold 12px "Share Tech Mono"';
+        ctx.textAlign = 'center';
+        ctx.fillText(`⬥ DMG +50% ⬥`, LOGICAL_W / 2, LOGICAL_H - 36);
         ctx.textAlign = 'left';
         ctx.globalAlpha = 1;
       }
