@@ -257,24 +257,10 @@ export default function Game({ onEnemyDead, onVictory, onDeath, gameState, pause
       const ps = psRef.current;
       const cam = cameraRef.current;
 
-      const isOnEnemy = enemy && !enemy.dead &&
-        Math.hypot(mx - enemy.x, my - enemy.y) < enemy.radius + 20;
-
       if (e.button === 0 || e.button === 2) {
-        if (isOnEnemy) {
-          // Move toward enemy
-          player.moveTarget = {
-            x: enemy.x - Math.cos(player.facing) * 80,
-            y: enemy.y - Math.sin(player.facing) * 80,
-          };
-          player.attackTarget = true;
-          player.facing = Math.atan2(enemy.y - player.y, enemy.x - player.x);
-          spawnClickRipple(ps, mx - cam.x, my - cam.y, '#FF4444');
-        } else {
-          player.moveTarget = { x: mx, y: my };
-          player.attackTarget = false;
-          spawnClickRipple(ps, mx - cam.x, my - cam.y, '#22FF55');
-        }
+        player.moveTarget = { x: mx, y: my };
+        player.attackTarget = false;
+        spawnClickRipple(ps, mx - cam.x, my - cam.y, '#22FF55');
       }
     };
 
@@ -292,13 +278,52 @@ export default function Game({ onEnemyDead, onVictory, onDeath, gameState, pause
 
     const handleContextMenu = (e) => e.preventDefault();
 
+    // ── Touch events (mobile tap-to-move) ─────────────────────────────────────
+    const getTouchMapCoords = (touch) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return { mx: 0, my: 0 };
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = LOGICAL_W / rect.width;
+      const scaleY = LOGICAL_H / rect.height;
+      const screenX = (touch.clientX - rect.left) * scaleX;
+      const screenY = (touch.clientY - rect.top) * scaleY;
+      const cam = cameraRef.current;
+      return { mx: screenX + cam.x, my: screenY + cam.y };
+    };
+
+    const handleTouchStart = (e) => {
+      e.preventDefault();
+      if (gameStateRef.current !== STATES.PLAYING) return;
+      const touch = e.changedTouches[0];
+      const { mx, my } = getTouchMapCoords(touch);
+      const player = playerRef.current;
+      const ps = psRef.current;
+      const cam = cameraRef.current;
+      player.moveTarget = { x: mx, y: my };
+      player.attackTarget = false;
+      spawnClickRipple(ps, mx - cam.x, my - cam.y, '#22FF55');
+    };
+
+    const handleTouchMove = (e) => {
+      e.preventDefault();
+      if (gameStateRef.current !== STATES.PLAYING) return;
+      const touch = e.changedTouches[0];
+      const { mx, my } = getTouchMapCoords(touch);
+      const player = playerRef.current;
+      player.facing = Math.atan2(my - player.y, mx - player.x);
+    };
+
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('contextmenu', handleContextMenu);
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
     return () => {
       canvas.removeEventListener('mousedown', handleMouseDown);
       canvas.removeEventListener('mousemove', handleMouseMove);
       canvas.removeEventListener('contextmenu', handleContextMenu);
+      canvas.removeEventListener('touchstart', handleTouchStart);
+      canvas.removeEventListener('touchmove', handleTouchMove);
     };
   }, [getMapCoords]);
 
@@ -348,24 +373,6 @@ export default function Game({ onEnemyDead, onVictory, onDeath, gameState, pause
           if (!rChargeSoundedRef.current && player.rChargeTimer === 1) {
             rChargeSoundedRef.current = true;
             try { soundRCharge(); } catch (err) { /* ignore */ }
-          }
-        }
-
-        // Auto-attack when reached attack target
-        autoFireTimerRef.current++;
-        if (player.attackTarget && player.moveTarget === null && autoFireTimerRef.current > 15) {
-          autoFireTimerRef.current = 0;
-          if (!player.reloading && player.bullets > 0 && enemy && !enemy.dead) {
-            const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
-            if (dist < 500) {
-              const isAutoLastBullet = player.bullets === 1;
-              if (fireQAbility(player)) {
-                const mfx = player.x + Math.cos(player.facing) * 44;
-                const mfy = player.y + Math.sin(player.facing) * 44;
-                spawnMuzzleFlash(ps, mfx - cam.x, mfy - cam.y);
-                try { isAutoLastBullet ? soundCritShoot() : soundShoot(); } catch (err) { /* ignore */ }
-              }
-            }
           }
         }
 

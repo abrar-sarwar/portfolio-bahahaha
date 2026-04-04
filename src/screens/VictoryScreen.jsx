@@ -107,15 +107,18 @@ export default function VictoryScreen({ stats, skipped, onRestart }) {
   return (
     <div style={{
       width: '100vw',
-      height: '100vh',
+      minHeight: '100vh',
       background: '#000',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
       fontFamily: "'Rajdhani', sans-serif",
-      overflow: 'hidden',
+      overflowY: 'auto',
+      overflowX: 'hidden',
       position: 'relative',
+      padding: '20px 16px',
+      boxSizing: 'border-box',
     }}>
       {/* Confetti */}
       <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
@@ -540,7 +543,7 @@ function PhotoStrip({ side }) {
   const dir = side === 'left' ? 'scrollDown' : 'scrollUp';
 
   return (
-    <div style={{
+    <div className="photo-strip" style={{
       position: 'fixed',
       top: 0,
       [side]: 0,
@@ -663,7 +666,7 @@ function ResumePhase({ visible, stats, skipped, onRestart, confetti }) {
         ))}
       </div>
 
-      <div style={{
+      <div className="resume-content" style={{
         position: 'relative',
         zIndex: 1,
         width: '48%',
@@ -1008,6 +1011,14 @@ function ResumePhase({ visible, stats, skipped, onRestart, confetti }) {
         @keyframes shimmer {
           0%, 100% { opacity: 0.5; }
           50% { opacity: 1; }
+        }
+        @media (max-width: 767px) {
+          .photo-strip { display: none !important; }
+          .resume-content {
+            width: 92% !important;
+            min-width: unset !important;
+            padding: 24px 16px 60px !important;
+          }
         }
       `}</style>
     </div>

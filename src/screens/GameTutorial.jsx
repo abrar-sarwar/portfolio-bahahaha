@@ -72,7 +72,6 @@ export default function GameTutorial({ onDismiss }) {
           <div style={{ display: 'flex', gap: '8px' }}>
             {[
               { key: 'Left Click', desc: 'Move to location' },
-              { key: 'Right Click', desc: 'Attack enemy' },
               { key: 'WASD', desc: 'Move' },
             ].map(({ key, desc }) => (
               <div key={key} style={{

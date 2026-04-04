@@ -323,151 +323,167 @@ function IntroPhase({ onStart, onSkip }) {
 
       <SkipButton onSkip={onSkip} />
 
-      <div style={{
-        textAlign: 'center',
-        opacity: visible ? 1 : 0,
-        transform: visible ? 'translateY(0)' : 'translateY(22px)',
-        transition: 'all 0.9s cubic-bezier(0.34, 1.1, 0.64, 1)',
-        maxWidth: '820px', padding: '0 28px',
+      {/* Scrollable content wrapper */}
+      <div className="intro-scroll" style={{
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        paddingTop: '20px',
+        paddingBottom: '28px',
+        boxSizing: 'border-box',
+        scrollbarWidth: 'none',
       }}>
-        <h1 style={{
-          fontFamily: "'Cinzel', serif",
-          fontSize: 'clamp(30px, 5vw, 54px)',
-          color: glitch ? '#FF2200' : '#F0E6A0',
-          textShadow: glitch
-            ? '4px 0 #0BC4C4, -4px 0 #CC2222, 0 0 20px #FF2200'
-            : '0 0 30px rgba(200,155,60,0.55), 0 0 70px rgba(200,155,60,0.2)',
-          letterSpacing: '5px', marginBottom: '6px',
-          transition: 'color 0.05s, text-shadow 0.05s',
-        }}>
-          PORTFOLIO.EXE
-        </h1>
-
-        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 'clamp(11px, 1.8vw, 16px)', color: '#C89B3C', letterSpacing: '6px', marginBottom: '28px' }}>
-          THE VIRTUOSO PROTOCOL — ABRAR SARWAR
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '26px' }}>
-          <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, transparent, #C89B3C)' }} />
-          <div style={{ color: '#C89B3C', fontSize: '14px' }}>◆</div>
-          <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, #C89B3C, transparent)' }} />
-        </div>
-
-        <p style={{ color: '#A0B4CC', fontSize: 'clamp(13px, 1.7vw, 15px)', lineHeight: 1.7, marginBottom: '28px', fontWeight: 500 }}>
-          Five cyber-threats stand between you and the resume.<br />
-          Control <span style={{ color: '#F0E6A0' }}>THE VIRTUOSO</span> and eliminate them all.
-        </p>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '26px', textAlign: 'left' }}>
-          {[
-            { key: 'Left Click', desc: 'Move to location' },
-            { key: 'Right Click', desc: 'Move / Attack enemy' },
-            { key: 'Q', desc: 'Whisper Shot (4th = CRIT)' },
-            { key: 'X', desc: 'Deadly Flourish (stun beam)' },
-            { key: 'E', desc: 'Captive Audience (trap)' },
-            { key: 'R (hold)', desc: 'Curtain Call (ultimate)' },
-            { key: 'WASD / Arrows', desc: 'Move' },
-            { key: 'Kill all 5', desc: 'Unlock full resume' },
-          ].map(({ key, desc }) => (
-            <div key={key} style={{
-              background: 'rgba(10,22,40,0.7)', border: '1px solid rgba(200,155,60,0.25)',
-              borderRadius: '3px', padding: '7px 12px',
-              display: 'flex', alignItems: 'center', gap: '10px',
-            }}>
-              <span style={{
-                background: 'rgba(200,155,60,0.12)', border: '1px solid #C89B3C',
-                borderRadius: '3px', padding: '2px 8px', color: '#F0E6A0',
-                fontFamily: "'Share Tech Mono', monospace", fontSize: '11px',
-                whiteSpace: 'nowrap', minWidth: '88px', textAlign: 'center',
-              }}>{key}</span>
-              <span style={{ color: '#C8D8E8', fontSize: '12px' }}>{desc}</span>
-            </div>
-          ))}
-        </div>
-
         <div style={{
-          background: 'rgba(5,13,28,0.8)', border: '1px solid rgba(200,155,60,0.35)',
-          borderRadius: '3px', padding: '12px 18px', marginBottom: '28px', textAlign: 'left',
+          textAlign: 'center',
+          opacity: visible ? 1 : 0,
+          transform: visible ? 'translateY(0)' : 'translateY(22px)',
+          transition: 'all 0.9s cubic-bezier(0.34, 1.1, 0.64, 1)',
+          width: 'min(820px, 94vw)',
+          padding: '0 16px',
+          boxSizing: 'border-box',
         }}>
-          <div style={{ color: '#C89B3C', fontFamily: "'Cinzel', serif", fontSize: '10px', letterSpacing: '2px', marginBottom: '9px' }}>ENEMIES</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
-            {[
-              { name: 'Script Kiddie', color: '#22FF44', hp: '80HP' },
-              { name: 'Phantom Threat', color: '#CC44FF', hp: '130HP' },
-              { name: 'Risk Golem', color: '#FFAA22', hp: '170HP' },
-              { name: 'Firewall Hydra', color: '#FF4400', hp: '220HP' },
-              { name: 'Final Audit', color: '#AA00CC', hp: '280HP' },
-            ].map((e, i) => (
-              <div key={e.name} style={{
-                background: 'rgba(10,22,40,0.5)', border: `1px solid ${e.color}33`,
-                borderLeft: `3px solid ${e.color}`, borderRadius: '2px', padding: '4px 10px', fontSize: '12px',
-              }}>
-                <span style={{ color: '#666' }}>#{i + 1}</span>{' '}
-                <span style={{ color: e.color }}>{e.name}</span>{' '}
-                <span style={{ color: '#555', fontFamily: "'Share Tech Mono', monospace", fontSize: '10px' }}>{e.hp}</span>
-              </div>
-            ))}
-          </div>
-        </div>
 
-        <button
-          onClick={onStart}
-          style={{
-            background: 'linear-gradient(180deg, #1C160A 0%, #0A0804 100%)',
-            border: '2px solid #C89B3C', color: '#F0E6A0',
-            fontFamily: "'Cinzel', serif", fontSize: '17px',
-            letterSpacing: '5px', padding: '15px 52px',
-            cursor: 'pointer', transition: 'all 0.2s',
-            boxShadow: '0 0 22px rgba(200,155,60,0.28)', outline: 'none',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = 'linear-gradient(180deg, #2C2212 0%, #1A1008 100%)';
-            e.currentTarget.style.boxShadow = '0 0 36px rgba(200,155,60,0.65)';
-            e.currentTarget.style.transform = 'scale(1.03)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = 'linear-gradient(180deg, #1C160A 0%, #0A0804 100%)';
-            e.currentTarget.style.boxShadow = '0 0 22px rgba(200,155,60,0.28)';
-            e.currentTarget.style.transform = 'scale(1)';
-          }}
-        >
-          ENTER THE RIFT
-        </button>
-
-        <div style={{ marginTop: '16px', color: '#3A4A5A', fontStyle: 'italic', fontSize: '12px', fontFamily: "'Share Tech Mono', monospace" }}>
-          "They will all be beautiful." — The Virtuoso
-        </div>
-
-        {/* Secret trigger */}
-        <button
-          onClick={() => setShowSecret(true)}
-          style={{
-            marginTop: '14px',
-            background: 'linear-gradient(180deg, #1C160A 0%, #0A0804 100%)',
-            border: '2px solid #C89B3C',
-            color: '#F0E6A0',
-            fontFamily: "'Cinzel', serif",
-            fontSize: '13px',
+          {/* ── WELCOME HEADER ── */}
+          <div style={{
+            color: '#0BC4C4',
+            fontFamily: "'Share Tech Mono', monospace",
+            fontSize: 'clamp(10px, 1.5vw, 13px)',
             letterSpacing: '4px',
-            padding: '10px 32px',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            boxShadow: '0 0 22px rgba(200,155,60,0.28)',
-            outline: 'none',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = 'linear-gradient(180deg, #2C2212 0%, #1A1008 100%)';
-            e.currentTarget.style.boxShadow = '0 0 36px rgba(200,155,60,0.65)';
-            e.currentTarget.style.transform = 'scale(1.03)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = 'linear-gradient(180deg, #1C160A 0%, #0A0804 100%)';
-            e.currentTarget.style.boxShadow = '0 0 22px rgba(200,155,60,0.28)';
-            e.currentTarget.style.transform = 'scale(1)';
-          }}
-        >
-          ◆ CLASSIFIED ◆
-        </button>
+            marginBottom: '8px',
+            opacity: 0.85,
+          }}>
+            WELCOME TO MY PORTFOLIO
+          </div>
+
+          <h1 style={{
+            fontFamily: "'Cinzel', serif",
+            fontSize: 'clamp(26px, 5vw, 50px)',
+            color: glitch ? '#FF2200' : '#F0E6A0',
+            textShadow: glitch
+              ? '4px 0 #0BC4C4, -4px 0 #CC2222, 0 0 20px #FF2200'
+              : '0 0 30px rgba(200,155,60,0.55), 0 0 70px rgba(200,155,60,0.2)',
+            letterSpacing: '5px', marginBottom: '4px',
+            transition: 'color 0.05s, text-shadow 0.05s',
+          }}>
+            PORTFOLIO.EXE
+          </h1>
+
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: 'clamp(10px, 1.6vw, 14px)', color: '#C89B3C', letterSpacing: '5px', marginBottom: '18px' }}>
+            THE VIRTUOSO PROTOCOL — ABRAR SARWAR
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
+            <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, transparent, #C89B3C)' }} />
+            <div style={{ color: '#C89B3C', fontSize: '12px' }}>◆</div>
+            <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, #C89B3C, transparent)' }} />
+          </div>
+
+          {/* ── SHORT BIO ── */}
+          <div style={{
+            background: 'rgba(11,196,196,0.04)',
+            border: '1px solid rgba(11,196,196,0.18)',
+            borderLeft: '3px solid #0BC4C4',
+            borderRadius: '3px',
+            padding: 'clamp(10px, 2vw, 14px) clamp(12px, 2.5vw, 18px)',
+            marginBottom: '18px',
+            textAlign: 'left',
+          }}>
+            <div style={{ color: '#0BC4C4', fontFamily: "'Share Tech Mono', monospace", fontSize: '9px', letterSpacing: '3px', marginBottom: '8px' }}>
+              ABOUT ME
+            </div>
+            <p style={{ color: '#A8C0D8', fontSize: 'clamp(12px, 1.6vw, 14px)', lineHeight: 1.75, margin: 0, fontWeight: 500 }}>
+              Hey, I'm <span style={{ color: '#F0E6A0', fontWeight: 600 }}>Abrar Sarwar</span>. I'm a passionate person by nature
+              and a loyalist at my core. The people and things I care about get everything I have. I'm a gamer through and through,
+              a collector of books and manga, someone who finds meaning in stories and worlds bigger than the one right in front of me.
+              I stay active, keep moving, and try to experience as much of life as I can.
+            </p>
+          </div>
+
+          {/* ── GAME CTA ── */}
+          <div style={{
+            background: 'rgba(200,155,60,0.05)',
+            border: '1px solid rgba(200,155,60,0.3)',
+            borderRadius: '3px',
+            padding: 'clamp(10px, 2vw, 14px) clamp(12px, 2.5vw, 18px)',
+            marginBottom: '18px',
+          }}>
+            <div style={{ color: '#F0E6A0', fontFamily: "'Cinzel', serif", fontSize: 'clamp(13px, 2vw, 17px)', letterSpacing: '2px', marginBottom: '7px' }}>
+              Ready to learn more?
+            </div>
+            <p style={{ color: '#A0B4CC', fontSize: 'clamp(12px, 1.6vw, 14px)', lineHeight: 1.7, margin: 0, fontWeight: 500 }}>
+              I built this interactive game so you could actually{' '}
+              <span style={{ color: '#F0E6A0' }}>experience</span> my story instead of just reading it.
+              Defeat all 5 bosses to unlock my resume, projects, and personal chapters — one fight at a time.
+            </p>
+          </div>
+
+          <button
+            onClick={onStart}
+            style={{
+              background: 'linear-gradient(180deg, #1C160A 0%, #0A0804 100%)',
+              border: '2px solid #C89B3C', color: '#F0E6A0',
+              fontFamily: "'Cinzel', serif", fontSize: 'clamp(14px, 2vw, 17px)',
+              letterSpacing: '5px', padding: 'clamp(12px, 2vw, 15px) clamp(32px, 6vw, 52px)',
+              cursor: 'pointer', transition: 'all 0.2s',
+              boxShadow: '0 0 22px rgba(200,155,60,0.28)', outline: 'none',
+              width: '100%', maxWidth: '320px',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'linear-gradient(180deg, #2C2212 0%, #1A1008 100%)';
+              e.currentTarget.style.boxShadow = '0 0 36px rgba(200,155,60,0.65)';
+              e.currentTarget.style.transform = 'scale(1.03)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'linear-gradient(180deg, #1C160A 0%, #0A0804 100%)';
+              e.currentTarget.style.boxShadow = '0 0 22px rgba(200,155,60,0.28)';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            ENTER THE RIFT
+          </button>
+
+          <div style={{ marginTop: '12px', color: '#3A4A5A', fontStyle: 'italic', fontSize: '11px', fontFamily: "'Share Tech Mono', monospace" }}>
+            "They will all be beautiful." — The Virtuoso
+          </div>
+
+          {/* Secret trigger */}
+          <button
+            onClick={() => setShowSecret(true)}
+            style={{
+              marginTop: '12px',
+              background: 'linear-gradient(180deg, #1C160A 0%, #0A0804 100%)',
+              border: '2px solid #C89B3C',
+              color: '#F0E6A0',
+              fontFamily: "'Cinzel', serif",
+              fontSize: 'clamp(11px, 1.5vw, 13px)',
+              letterSpacing: '4px',
+              padding: 'clamp(8px, 1.5vw, 10px) clamp(20px, 4vw, 32px)',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 0 22px rgba(200,155,60,0.28)',
+              outline: 'none',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'linear-gradient(180deg, #2C2212 0%, #1A1008 100%)';
+              e.currentTarget.style.boxShadow = '0 0 36px rgba(200,155,60,0.65)';
+              e.currentTarget.style.transform = 'scale(1.03)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'linear-gradient(180deg, #1C160A 0%, #0A0804 100%)';
+              e.currentTarget.style.boxShadow = '0 0 22px rgba(200,155,60,0.28)';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            ◆ CLASSIFIED ◆
+          </button>
+
+          <div style={{ height: '8px' }} />
+        </div>
       </div>
 
       {showSecret && <SecretOverlay onClose={() => setShowSecret(false)} />}
@@ -477,6 +493,7 @@ function IntroPhase({ onStart, onSkip }) {
           0%, 100% { transform: translateY(0); }
           50%       { transform: translateY(-14px); }
         }
+        .intro-scroll::-webkit-scrollbar { display: none; }
       `}</style>
     </div>
   );

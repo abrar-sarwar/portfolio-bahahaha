@@ -39,7 +39,7 @@ export default function DeathScreen({ stats, onRestart }) {
       alignItems: 'center',
       justifyContent: 'center',
       fontFamily: "'Rajdhani', sans-serif",
-      overflow: 'hidden',
+      overflow: 'auto',
       position: 'relative',
       animation: shake ? 'deathShake 0.5s ease' : 'none',
     }}>

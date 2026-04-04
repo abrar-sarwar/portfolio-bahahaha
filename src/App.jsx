@@ -5,6 +5,7 @@ import ResumePopup from './screens/ResumePopup.jsx';
 import VictoryScreen from './screens/VictoryScreen.jsx';
 import DeathScreen from './screens/DeathScreen.jsx';
 import GameTutorial from './screens/GameTutorial.jsx';
+import MobileControls from './screens/MobileControls.jsx';
 import Game from './game/Game.jsx';
 
 export default function App() {
@@ -78,6 +79,7 @@ export default function App() {
           {showGameTutorial && (
             <GameTutorial onDismiss={() => setShowGameTutorial(false)} />
           )}
+          {!showGameTutorial && <MobileControls />}
           {!showGameTutorial && revealData && (
             <ResumePopup
               enemyIndex={revealData.enemyIndex}
