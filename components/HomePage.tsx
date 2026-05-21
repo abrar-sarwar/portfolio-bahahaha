@@ -12,7 +12,6 @@ type Props = {
 const NAV_LINKS: { id: SubView; label: string }[] = [
   { id: "projects", label: "Projects" },
   { id: "organizations", label: "Organizations" },
-  { id: "fun", label: "Fun" },
 ];
 
 const SOCIALS = [
@@ -26,9 +25,14 @@ const BIO_TEXT =
   "Hey, I'm Abrar. I'm Asian American, born and raised in Georgia in a pretty diverse family. Outside of work I draw, read, hit the gym, game, and spend as much time as I can hiking and finding weird corners of the world to explore. On the career side, I've been into CS and cybersecurity since I was the kid setting up Minecraft LAN servers for my friends and fixing the TV whenever it cut out at home. Long term I want to be a solutions architect, building systems that actually solve problems for the people using them. If you've got hiking spots to share, let's talk.";
 
 const containerVariants = {
-  hidden: {},
+  hidden: { clipPath: "circle(0% at 50% 50%)" },
   visible: {
-    transition: { staggerChildren: 0.12, delayChildren: 0.1 },
+    clipPath: "circle(140% at 50% 50%)",
+    transition: {
+      clipPath: { duration: 0.9, ease: [0.65, 0, 0.35, 1] as const },
+      staggerChildren: 0.12,
+      delayChildren: 0.45,
+    },
   },
 };
 
@@ -41,26 +45,42 @@ const itemVariants = {
   },
 };
 
+const navContainerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.08 } },
+};
+
+const navPopVariants = {
+  hidden: { opacity: 0, scale: 0.3, y: -10 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: { type: "spring" as const, stiffness: 520, damping: 16 },
+  },
+};
+
 const portraitVariants = {
-  hidden: { opacity: 0, x: 40 },
+  hidden: { opacity: 0, x: 50, scale: 0.95 },
   visible: {
     opacity: 1,
     x: 0,
-    transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] as const, delay: 0.25 },
+    scale: 1,
+    transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] as const, delay: 0.35 },
   },
 };
 
 const bamVariants = {
-  hidden: { opacity: 0, scale: 0.4, rotate: 25 },
+  hidden: { opacity: 0, scale: 0.3, rotate: 35 },
   visible: {
     opacity: 1,
     scale: 1,
     rotate: -12,
     transition: {
       type: "spring" as const,
-      stiffness: 380,
-      damping: 14,
-      delay: 0.8,
+      stiffness: 400,
+      damping: 12,
+      delay: 1.0,
     },
   },
 };
@@ -94,20 +114,49 @@ export default function HomePage({ onNavigate }: Props) {
       <PurpleAura />
 
       <motion.nav
-        variants={itemVariants}
+        variants={navContainerVariants}
         aria-label="Sections"
         className="relative z-20 flex items-center justify-end gap-6 px-8 py-5 text-xs uppercase tracking-[0.25em] sm:px-12"
       >
         {NAV_LINKS.map((link) => (
-          <button
+          <motion.button
             key={link.id}
+            variants={navPopVariants}
             type="button"
             onClick={() => onNavigate(link.id)}
             className="text-white/55 transition hover:text-violet-300 focus:outline-none focus-visible:text-violet-300 focus-visible:underline"
           >
             {link.label}
-          </button>
+          </motion.button>
         ))}
+
+        <motion.div variants={navPopVariants}>
+          <motion.button
+            type="button"
+            onClick={() => onNavigate("fun")}
+            aria-label="Fun"
+            animate={{
+              rotate: [0, -6, 6, -4, 4, 0],
+              scale: [1, 1.12, 1, 1.08, 1],
+              color: [
+                "rgba(255,255,255,0.55)",
+                "rgb(244, 114, 182)",
+                "rgb(167, 139, 250)",
+                "rgb(244, 114, 182)",
+                "rgba(255,255,255,0.55)",
+              ],
+            }}
+            transition={{
+              duration: 1.8,
+              repeat: Infinity,
+              repeatDelay: 2.2,
+              ease: "easeInOut",
+            }}
+            className="origin-center focus:outline-none focus-visible:underline"
+          >
+            Fun
+          </motion.button>
+        </motion.div>
       </motion.nav>
 
       <section className="relative z-10 max-w-2xl space-y-4 px-8 pt-2 text-xs sm:px-12">
