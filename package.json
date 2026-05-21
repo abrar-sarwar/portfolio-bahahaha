@@ -1,0 +1,28 @@
+{
+  "name": "portfolio-bahahaha",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "16.2.6",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "framer-motion": "12.40.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.11.0",
+    "@types/react": "19.2.15",
+    "@types/react-dom": "19.2.3",
+    "autoprefixer": "10.4.20",
+    "eslint": "10.4.0",
+    "eslint-config-next": "16.2.6",
+    "postcss": "8.5.10",
+    "tailwindcss": "3.4.15",
+    "typescript": "5.6.3"
+  }
+}
