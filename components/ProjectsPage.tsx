@@ -7,10 +7,43 @@ type Props = {
   onBack: () => void;
 };
 
-const PROJECTS = [
-  { id: "01", title: "Project 01" },
-  { id: "02", title: "Project 02" },
-  { id: "03", title: "Project 03" },
+type Project = {
+  id: string;
+  title: string;
+  tag: string;
+  description: string;
+  spriteSrc: string;
+  linkTodo: string;
+};
+
+const PROJECTS: Project[] = [
+  {
+    id: "counterstack",
+    title: "CounterStack",
+    tag: "Hacklanta Hackathon Winner",
+    description:
+      "Built a full stack app in 12 hours that consolidates three SIEM sources into a PostgreSQL backbone, maps NIST CSF assessment data to an AI generated security posture score using Gemini, and visualizes risk as a 4 card poker hand covering resilience, recovery, and technical controls.",
+    spriteSrc: "/assets/sprites/counterstack.png",
+    linkTodo: "demo link",
+  },
+  {
+    id: "tripwire",
+    title: "TripWire",
+    tag: "Serverless AWS Detection and Auto Response",
+    description:
+      "A serverless AWS pipeline using CloudTrail, EventBridge, and Lambda that detects 5 high risk control plane events across IAM, S3, and EC2 in seconds, mapped to MITRE ATT&CK. Python boto3 remediation Lambdas auto revert public S3 buckets, open security group rules, and unrestricted IAM policies in under 10 seconds.",
+    spriteSrc: "/assets/sprites/tripwire.png",
+    linkTodo: "github link",
+  },
+  {
+    id: "glint",
+    title: "GLINT",
+    tag: "ShinyHunters OSINT Research",
+    description:
+      "OSINT research project on the ShinyHunters threat cluster across 3 major campaigns (UNC5537, UNC6395, 2026 Canvas extortion). Every claim cited to Mandiant, vendor disclosures, or major news reporting.",
+    spriteSrc: "/assets/sprites/glint.png",
+    linkTodo: "github link",
+  },
 ];
 
 export default function ProjectsPage({ onBack }: Props) {
@@ -32,31 +65,29 @@ export default function ProjectsPage({ onBack }: Props) {
           {PROJECTS.map((p) => (
             <li
               key={p.id}
-              className="rounded-xl border border-white/10 bg-white/5 p-5 transition hover:border-white/30"
+              className="flex flex-col rounded-xl border border-white/10 bg-white/5 p-5 transition hover:border-white/30"
             >
-              {/* TODO: project-{id} sprite */}
               <SpriteSlot
-                src={`/assets/sprites/project-${p.id}.png`}
+                src={p.spriteSrc}
                 alt={`${p.title} sprite`}
-                fallbackLabel={`Project ${p.id} sprite`}
+                fallbackLabel={`${p.title} sprite`}
                 className="aspect-video w-full rounded-lg"
               />
 
-              {/* TODO: project-{id} details */}
               <h2 className="mt-4 text-xl font-semibold">{p.title}</h2>
-              <p className="mt-2 text-sm text-white/60">
-                <span className="text-white/40">
-                  [ TODO: short description for {p.title} ]
-                </span>
+              <p className="mt-1 text-xs uppercase tracking-[0.2em] text-white/50">
+                {p.tag}
+              </p>
+              <p className="mt-3 text-sm leading-relaxed text-white/70">
+                {p.description}
               </p>
 
-              {/* TODO: project-{id} link */}
               <button
                 type="button"
                 onClick={() => {
-                  // TODO: link/modal
+                  // TODO: {p.linkTodo}
                 }}
-                className="mt-4 inline-flex items-center gap-2 rounded-md border border-white/20 px-3 py-1.5 text-xs uppercase tracking-wider text-white/70 hover:border-white/60 hover:text-white"
+                className="mt-5 inline-flex items-center gap-2 self-start rounded-md border border-white/20 px-3 py-1.5 text-xs uppercase tracking-wider text-white/70 hover:border-white/60 hover:text-white"
               >
                 View →
               </button>
