@@ -100,12 +100,12 @@ export default function HomePage({ onNavigate }: Props) {
         </ul>
       </section>
 
-      <aside className="pointer-events-none absolute bottom-6 right-4 z-0 sm:right-8 md:bottom-8 md:right-12">
+      <aside className="pointer-events-none absolute bottom-0 right-4 z-0 sm:right-8 md:right-12">
         <SpriteSlot
           src="/assets/sprites/abrarmainscreen.png"
           alt="Abrar"
           fallbackLabel="abrarmainscreen.png"
-          className="h-64 w-auto select-none object-contain sm:h-72 md:h-80"
+          className="block h-80 w-auto select-none object-contain sm:h-96 md:h-[26rem]"
         />
       </aside>
 
