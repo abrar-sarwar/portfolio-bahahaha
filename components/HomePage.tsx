@@ -41,13 +41,13 @@ export default function HomePage({ onNavigate }: Props) {
     <main className="relative h-full w-full overflow-y-auto bg-black text-white">
       <PurpleAura />
 
-      <div className="relative z-10 mx-auto flex min-h-full max-w-3xl flex-col px-6 py-16 sm:py-24">
-        <header className="space-y-5">
-          <h1 className="text-5xl sm:text-6xl font-semibold tracking-tight">
+      <div className="relative z-10 flex min-h-full max-w-sm flex-col gap-8 px-8 py-12 text-xs sm:px-12 sm:py-16">
+        <header className="space-y-3">
+          <h1 className="text-base font-semibold tracking-tight">
             Abrar Tahir Sarwar
           </h1>
 
-          <p className="max-w-2xl text-base sm:text-lg leading-relaxed text-white/80">
+          <p className="text-xs leading-relaxed text-white/70">
             Hey, I&apos;m Abrar. I&apos;m Asian American, born and raised in
             Georgia in a pretty diverse family. Outside of work I draw, read,
             hit the gym, game, and spend as much time as I can hiking and
@@ -59,7 +59,7 @@ export default function HomePage({ onNavigate }: Props) {
             them. If you&apos;ve got hiking spots to share, let&apos;s talk.
           </p>
 
-          <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-white/60">
+          <ul className="flex flex-col gap-1 pt-1 text-[11px] text-white/55">
             {SOCIALS.map((s) => (
               <li key={s.label}>
                 <a
@@ -79,19 +79,17 @@ export default function HomePage({ onNavigate }: Props) {
 
         <section
           aria-label="Sections"
-          className="mt-16 flex flex-col items-start gap-4 sm:mt-24"
+          className="flex flex-col items-start gap-3"
         >
-          <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="flex w-full flex-col gap-2">
             {MAIN_TILES.map((tile) => (
               <button
                 key={tile.id}
                 type="button"
                 onClick={() => onNavigate(tile.id)}
-                className="group flex items-center justify-between rounded-lg border border-white/15 bg-white/[0.03] px-5 py-4 text-left transition hover:border-violet-400/60 hover:bg-violet-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+                className="group flex w-full items-center justify-between rounded-md border border-white/15 bg-white/[0.03] px-3 py-2 text-left text-xs transition hover:border-violet-400/60 hover:bg-violet-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
               >
-                <span className="text-lg font-medium tracking-tight">
-                  {tile.label}
-                </span>
+                <span className="font-medium tracking-tight">{tile.label}</span>
                 <span className="text-white/40 transition group-hover:translate-x-1 group-hover:text-violet-200">
                   →
                 </span>
@@ -102,7 +100,7 @@ export default function HomePage({ onNavigate }: Props) {
           <button
             type="button"
             onClick={() => onNavigate("fun")}
-            className="text-xs uppercase tracking-[0.3em] text-white/40 transition hover:text-violet-300 focus:outline-none focus-visible:text-violet-300"
+            className="text-[10px] uppercase tracking-[0.3em] text-white/40 transition hover:text-violet-300 focus:outline-none focus-visible:text-violet-300"
           >
             · fun ·
           </button>
