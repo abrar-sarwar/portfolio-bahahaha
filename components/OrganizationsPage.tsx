@@ -11,36 +11,45 @@ type OrgEntry = {
   id: string;
   role: string;
   dates: string;
+  description: string;
   logoSrc: string;
 };
 
 const PROGSU_ENTRIES: OrgEntry[] = [
   {
-    id: "progsu-1",
-    role: "[ TODO: progsu entry-1 role ]",
-    dates: "[ TODO: dates ]",
-    logoSrc: "/assets/sprites/progsu-1-logo.png",
+    id: "progsu-director",
+    role: "Director of Analysis",
+    dates: "March 2026 to Present",
+    description:
+      "Built a centralized member database tracking 100+ students against participation requirements across events, workshops, and competitions. Automated compliance checks cut onboarding to active status time by 35%.",
+    logoSrc: "/assets/sprites/progsu-logo.png",
   },
   {
-    id: "progsu-2",
-    role: "[ TODO: progsu entry-2 role ]",
-    dates: "[ TODO: dates ]",
-    logoSrc: "/assets/sprites/progsu-2-logo.png",
+    id: "progsu-reporting",
+    role: "Reporting and Dashboards",
+    dates: "March 2026 to Present",
+    description:
+      "Created reporting workflows and performance dashboards for executive leadership covering budget burn, revenue tracking, sponsor pipeline, and expense categorization. Cut event review and strategic planning time by 40%.",
+    logoSrc: "/assets/sprites/progsu-logo.png",
   },
 ];
 
 const CYBER_ENTRIES: OrgEntry[] = [
   {
-    id: "cyber-1",
-    role: "[ TODO: cyber entry-1 role ]",
-    dates: "[ TODO: dates ]",
-    logoSrc: "/assets/sprites/cyber-1-logo.png",
+    id: "cyber-vp",
+    role: "Vice President",
+    dates: "December 2025 to Present",
+    description:
+      "Lead planning of 3+ cybersecurity workshops per semester by coordinating with industry speakers, sustaining 50+ attendees per session and growing club engagement by 20% after the leadership transition.",
+    logoSrc: "/assets/sprites/cyber-logo.png",
   },
   {
-    id: "cyber-2",
-    role: "[ TODO: cyber entry-2 role ]",
-    dates: "[ TODO: dates ]",
-    logoSrc: "/assets/sprites/cyber-2-logo.png",
+    id: "cyber-ncl",
+    role: "NCL Competitor",
+    dates: "Spring 2026",
+    description:
+      "Ranked top 10% individually (724 of 7,006) and top 6% in team play (224 of 3,638) at NCL Spring 2026. Covered OSINT, cryptography, network and log analysis, forensics, web exploitation, and enumeration.",
+    logoSrc: "/assets/sprites/cyber-logo.png",
   },
 ];
 
@@ -56,10 +65,8 @@ function OrgEntryCard({ entry }: { entry: OrgEntry }) {
       <div className="flex flex-col">
         <h3 className="text-base font-semibold text-white">{entry.role}</h3>
         <p className="text-xs text-white/50">{entry.dates}</p>
-        <p className="mt-2 text-sm text-white/60">
-          <span className="text-white/40">
-            [ TODO: description for {entry.id} ]
-          </span>
+        <p className="mt-2 text-sm leading-relaxed text-white/70">
+          {entry.description}
         </p>
       </div>
     </article>
@@ -77,10 +84,11 @@ export default function OrganizationsPage({ onBack }: Props) {
             <p className="text-xs uppercase tracking-[0.3em] text-white/50">
               Organization
             </p>
-            <h2 className="mt-2 text-3xl sm:text-4xl font-semibold">ProgSU</h2>
+            <h2 className="mt-2 text-3xl sm:text-4xl font-semibold lowercase">
+              progsu
+            </h2>
           </header>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {/* TODO: progsu entry-1, entry-2 */}
             {PROGSU_ENTRIES.map((e) => (
               <OrgEntryCard key={e.id} entry={e} />
             ))}
@@ -95,11 +103,10 @@ export default function OrganizationsPage({ onBack }: Props) {
               Organization
             </p>
             <h2 className="mt-2 text-3xl sm:text-4xl font-semibold">
-              Cybersecurity Club
+              GSU Cybersecurity Club
             </h2>
           </header>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {/* TODO: cyber entry-1, entry-2 */}
             {CYBER_ENTRIES.map((e) => (
               <OrgEntryCard key={e.id} entry={e} />
             ))}
