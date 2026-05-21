@@ -41,13 +41,16 @@ export default function HomePage({ onNavigate }: Props) {
     <main className="relative h-full w-full overflow-y-auto bg-black text-white">
       <PurpleAura />
 
-      <div className="relative z-10 flex min-h-full max-w-sm flex-col gap-8 px-8 py-12 text-xs sm:px-12 sm:py-16">
-        <header className="space-y-3">
+      <div className="relative z-10 flex min-h-full max-w-2xl flex-col gap-8 px-8 py-12 text-xs sm:px-12 sm:py-16">
+        <header className="space-y-4">
           <h1 className="text-base font-semibold tracking-tight">
             Abrar Tahir Sarwar
           </h1>
 
-          <p className="text-xs leading-relaxed text-white/70">
+          <p
+            className="text-xs text-white/75"
+            style={{ lineHeight: 1.65 }}
+          >
             Hey, I&apos;m Abrar. I&apos;m Asian American, born and raised in
             Georgia in a pretty diverse family. Outside of work I draw, read,
             hit the gym, game, and spend as much time as I can hiking and
@@ -59,9 +62,14 @@ export default function HomePage({ onNavigate }: Props) {
             them. If you&apos;ve got hiking spots to share, let&apos;s talk.
           </p>
 
-          <ul className="flex flex-col gap-1 pt-1 text-[11px] text-white/55">
-            {SOCIALS.map((s) => (
-              <li key={s.label}>
+          <ul className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-[11px] text-white/55">
+            {SOCIALS.map((s, i) => (
+              <li key={s.label} className="flex items-center gap-3">
+                {i > 0 && (
+                  <span aria-hidden className="text-white/25">
+                    ·
+                  </span>
+                )}
                 <a
                   href={s.href}
                   className="hover:text-white focus:outline-none focus-visible:text-white focus-visible:underline"
@@ -81,7 +89,7 @@ export default function HomePage({ onNavigate }: Props) {
           aria-label="Sections"
           className="flex flex-col items-start gap-3"
         >
-          <div className="flex w-full flex-col gap-2">
+          <div className="flex w-full max-w-sm flex-col gap-2">
             {MAIN_TILES.map((tile) => (
               <button
                 key={tile.id}
