@@ -13,8 +13,13 @@ export default function IntroVideo({ onComplete }: Props) {
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
+    v.muted = false;
     v.play().catch(() => {
-      // Browser may silently mute or refuse. Skip button is the escape hatch.
+      // Browser refused autoplay with sound. Retry muted so it at least plays.
+      v.muted = true;
+      v.play().catch(() => {
+        // If even muted play is refused, the Skip button is the escape hatch.
+      });
     });
   }, []);
 
@@ -22,7 +27,9 @@ export default function IntroVideo({ onComplete }: Props) {
     <div className="fixed inset-0 z-40 bg-black">
       <video
         ref={videoRef}
+        autoPlay
         playsInline
+        preload="auto"
         onEnded={onComplete}
         className="h-full w-full object-cover"
       >
