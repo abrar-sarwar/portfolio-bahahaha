@@ -8,11 +8,12 @@ import ProjectsPage from "@/components/ProjectsPage";
 import OrganizationsPage from "@/components/OrganizationsPage";
 import FunPage from "@/components/FunPage";
 import type { Direction, SubView, View } from "@/lib/sections";
+import { RETURN_TO_KEY } from "@/lib/projects";
 
 const INTRO_STORAGE_KEY = "intro-seen";
 
 export default function Page() {
-  const [view, setView] = useState<View>("intro");
+  const [view, setView] = useState<View | null>(null);
   const [direction, setDirection] = useState<Direction>("forward");
   const hasMounted = useRef(false);
 
@@ -20,12 +21,20 @@ export default function Page() {
     if (hasMounted.current) return;
     hasMounted.current = true;
     try {
+      const returnTo = sessionStorage.getItem(RETURN_TO_KEY);
+      if (returnTo === "projects") {
+        sessionStorage.removeItem(RETURN_TO_KEY);
+        setView("projects");
+        return;
+      }
       if (sessionStorage.getItem(INTRO_STORAGE_KEY) === "1") {
         setView("home");
+        return;
       }
     } catch {
       // sessionStorage may throw in privacy modes; ignore.
     }
+    setView("intro");
   }, []);
 
   const completeIntro = useCallback(() => {
@@ -48,28 +57,20 @@ export default function Page() {
     setView("home");
   }, []);
 
-  const renderView = () => {
-    switch (view) {
-      case "intro":
-        return <IntroVideo onComplete={completeIntro} />;
-      case "home":
-        return <HomePage onNavigate={goToSubView} />;
-      case "projects":
-        return <ProjectsPage onBack={goHome} />;
-      case "organizations":
-        return <OrganizationsPage onBack={goHome} />;
-      case "fun":
-        return <FunPage onBack={goHome} />;
-    }
-  };
+  if (view === null) {
+    return <div className="h-screen w-screen bg-black" />;
+  }
 
   if (view === "intro") {
-    return renderView();
+    return <IntroVideo onComplete={completeIntro} />;
   }
 
   return (
     <SectionTransition viewKey={view} direction={direction}>
-      {renderView()}
+      {view === "home" && <HomePage onNavigate={goToSubView} />}
+      {view === "projects" && <ProjectsPage onBack={goHome} />}
+      {view === "organizations" && <OrganizationsPage onBack={goHome} />}
+      {view === "fun" && <FunPage onBack={goHome} />}
     </SectionTransition>
   );
 }
