@@ -59,7 +59,7 @@ export default function HomePage({ onNavigate }: Props) {
         ))}
       </nav>
 
-      <div className="relative z-10 grid grid-cols-1 gap-10 px-8 pb-16 pt-8 sm:px-12 sm:pt-12 md:grid-cols-[minmax(0,1fr)_auto] md:items-start md:gap-16">
+      <div className="relative z-10 grid min-h-[calc(100vh-5rem)] grid-cols-1 gap-10 px-8 pb-12 pt-8 sm:px-12 sm:pt-12 md:grid-cols-[minmax(0,1fr)_auto] md:items-end md:gap-16">
         <section className="max-w-2xl space-y-4 text-xs">
           <h1 className="text-base font-semibold tracking-tight">
             Abrar Tahir Sarwar
