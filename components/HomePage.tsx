@@ -40,7 +40,7 @@ function PurpleAura() {
 
 export default function HomePage({ onNavigate }: Props) {
   return (
-    <main className="relative h-full w-full overflow-y-auto bg-black text-white">
+    <main className="relative h-full w-full overflow-hidden bg-black text-white">
       <PurpleAura />
 
       <nav
@@ -59,63 +59,66 @@ export default function HomePage({ onNavigate }: Props) {
         ))}
       </nav>
 
-      <div className="relative z-10 grid min-h-[calc(100vh-5rem)] grid-cols-1 gap-10 px-8 pb-12 pt-8 sm:px-12 sm:pt-12 md:grid-cols-[minmax(0,1fr)_auto] md:items-end md:gap-16">
-        <section className="max-w-2xl space-y-4 text-xs">
-          <h1 className="text-base font-semibold tracking-tight">
-            Abrar Tahir Sarwar
-          </h1>
+      <section className="relative z-10 max-w-2xl space-y-4 px-8 pt-2 text-xs sm:px-12">
+        <h1 className="text-base font-semibold tracking-tight">
+          Abrar Tahir Sarwar
+        </h1>
 
-          <p
-            className="text-xs text-white/75"
-            style={{ lineHeight: 1.65 }}
-          >
-            Hey, I&apos;m Abrar. I&apos;m Asian American, born and raised in
-            Georgia in a pretty diverse family. Outside of work I draw, read,
-            hit the gym, game, and spend as much time as I can hiking and
-            finding weird corners of the world to explore. On the career side,
-            I&apos;ve been into CS and cybersecurity since I was the kid setting
-            up Minecraft LAN servers for my friends and fixing the TV whenever
-            it cut out at home. Long term I want to be a solutions architect,
-            building systems that actually solve problems for the people using
-            them. If you&apos;ve got hiking spots to share, let&apos;s talk.
-          </p>
+        <p
+          className="text-xs text-white/75"
+          style={{ lineHeight: 1.65 }}
+        >
+          Hey, I&apos;m Abrar. I&apos;m Asian American, born and raised in
+          Georgia in a pretty diverse family. Outside of work I draw, read,
+          hit the gym, game, and spend as much time as I can hiking and
+          finding weird corners of the world to explore. On the career side,
+          I&apos;ve been into CS and cybersecurity since I was the kid setting
+          up Minecraft LAN servers for my friends and fixing the TV whenever
+          it cut out at home. Long term I want to be a solutions architect,
+          building systems that actually solve problems for the people using
+          them. If you&apos;ve got hiking spots to share, let&apos;s talk.
+        </p>
 
-          <ul className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-[11px] text-white/55">
-            {SOCIALS.map((s, i) => (
-              <li key={s.label} className="flex items-center gap-3">
-                {i > 0 && (
-                  <span aria-hidden className="text-white/25">
-                    ·
-                  </span>
-                )}
-                <a
-                  href={s.href}
-                  className="hover:text-white focus:outline-none focus-visible:text-white focus-visible:underline"
-                  target={s.href.startsWith("http") ? "_blank" : undefined}
-                  rel={s.href.startsWith("http") ? "noreferrer noopener" : undefined}
-                >
-                  {s.text}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <ul className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-[11px] text-white/55">
+          {SOCIALS.map((s, i) => (
+            <li key={s.label} className="flex items-center gap-3">
+              {i > 0 && (
+                <span aria-hidden className="text-white/25">
+                  ·
+                </span>
+              )}
+              <a
+                href={s.href}
+                className="hover:text-white focus:outline-none focus-visible:text-white focus-visible:underline"
+                target={s.href.startsWith("http") ? "_blank" : undefined}
+                rel={s.href.startsWith("http") ? "noreferrer noopener" : undefined}
+              >
+                {s.text}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
 
-        <aside className="relative justify-self-start md:justify-self-end">
+      <aside
+        className="pointer-events-none absolute bottom-0 right-0 z-0"
+        style={{ transform: "translateY(30%)" }}
+      >
+        <div className="relative">
           <SpriteSlot
             src="/assets/sprites/abrarmainscreen.png"
             alt="Abrar"
             fallbackLabel="abrarmainscreen.png"
-            className="h-64 w-auto select-none object-contain sm:h-80 md:h-[22rem]"
+            className="h-[32rem] w-auto select-none object-contain sm:h-[40rem] md:h-[44rem]"
           />
           <SpriteSlot
             src="/assets/sprites/BAM.png"
-            alt="BAM accent"
+            alt="BAM"
             fallbackLabel="BAM"
-            className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rotate-12 select-none object-contain sm:-right-8 sm:-top-8 sm:h-32 sm:w-32"
+            className="pointer-events-none absolute -left-20 -top-4 h-24 w-24 -rotate-6 select-none object-contain sm:-left-28 sm:-top-6 sm:h-32 sm:w-32"
           />
-        </aside>
-      </div>
+        </div>
+      </aside>
     </main>
   );
 }
