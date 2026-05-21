@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import SpriteSlot from "./SpriteSlot";
 import TypingText from "./TypingText";
@@ -104,10 +105,20 @@ function PurpleAura() {
 }
 
 export default function HomePage({ onNavigate }: Props) {
+  // Drive the entrance via a state flip on the next frame instead of the
+  // initial/animate props, because <AnimatePresence initial={false}> in
+  // SectionTransition propagates "skip initial" down to descendant motion
+  // components. A state change after mount is a regular update that
+  // AnimatePresence can't intercept, so variants actually run.
+  const [stage, setStage] = useState<"hidden" | "visible">("hidden");
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setStage("visible"));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
   return (
     <motion.main
-      initial="hidden"
-      animate="visible"
+      animate={stage}
       variants={containerVariants}
       className="relative h-full w-full overflow-hidden bg-black text-white"
     >
@@ -170,7 +181,7 @@ export default function HomePage({ onNavigate }: Props) {
         <motion.div variants={itemVariants}>
           <TypingText
             text={BIO_TEXT}
-            speed={12}
+            speed={5}
             className="text-xs text-white/75"
             style={{ lineHeight: 1.65 }}
           />
