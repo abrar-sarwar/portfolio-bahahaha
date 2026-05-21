@@ -1,6 +1,10 @@
 "use client";
 
+import { useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import BackButton from "./BackButton";
+import SpriteSlot from "./SpriteSlot";
+import VideoModal from "./VideoModal";
 
 type Props = {
   onBack: () => void;
@@ -53,6 +57,8 @@ function RoleBlock({ role }: { role: RoleNote }) {
 }
 
 export default function OrganizationsPage({ onBack }: Props) {
+  const [videoOpen, setVideoOpen] = useState(false);
+
   return (
     <main className="flex h-full w-full flex-col overflow-y-auto text-white">
       <BackButton onClick={onBack} />
@@ -62,9 +68,24 @@ export default function OrganizationsPage({ onBack }: Props) {
           <p className="text-xs uppercase tracking-[0.3em] text-white/50">
             Organization
           </p>
-          <h2 className="mt-2 text-3xl sm:text-4xl font-semibold lowercase">
-            progsu
-          </h2>
+
+          <button
+            type="button"
+            onClick={() => setVideoOpen(true)}
+            aria-label="Play progsu video"
+            className="group mt-2 flex items-center gap-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+          >
+            <SpriteSlot
+              src="/assets/sprites/progsu.png"
+              alt="progsu logo"
+              fallbackLabel="progsu"
+              className="h-14 w-14 shrink-0 rounded-md object-contain transition group-hover:scale-105"
+            />
+            <h2 className="text-3xl font-semibold lowercase tracking-tight transition group-hover:text-violet-200 sm:text-4xl">
+              progsu
+            </h2>
+          </button>
+
           <p
             className="mt-4 text-sm text-white/80"
             style={{ lineHeight: 1.7 }}
@@ -73,6 +94,7 @@ export default function OrganizationsPage({ onBack }: Props) {
             students and growing. It exists to help students land internships
             and grow into the development world together.
           </p>
+
           <div className="mt-8 space-y-6">
             {PROGSU_ROLES.map((r) => (
               <RoleBlock key={r.role} role={r} />
@@ -105,6 +127,16 @@ export default function OrganizationsPage({ onBack }: Props) {
           </div>
         </div>
       </section>
+
+      <AnimatePresence>
+        {videoOpen && (
+          <VideoModal
+            src="/assets/videos/progsuvideo.mp4"
+            onClose={() => setVideoOpen(false)}
+            volume={0.5}
+          />
+        )}
+      </AnimatePresence>
     </main>
   );
 }
