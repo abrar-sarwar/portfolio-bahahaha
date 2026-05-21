@@ -61,17 +61,9 @@ export default function HomePage({ onNavigate }: Props) {
 
       <div className="relative z-10 grid grid-cols-1 gap-10 px-8 pb-16 pt-8 sm:px-12 sm:pt-12 md:grid-cols-[minmax(0,1fr)_auto] md:items-start md:gap-16">
         <section className="max-w-2xl space-y-4 text-xs">
-          <div className="relative inline-block">
-            <h1 className="text-base font-semibold tracking-tight">
-              Abrar Tahir Sarwar
-            </h1>
-            <SpriteSlot
-              src="/assets/sprites/BAM.png"
-              alt="BAM accent"
-              fallbackLabel="BAM"
-              className="pointer-events-none absolute -right-12 -top-3 h-10 w-10 rotate-12 select-none object-contain sm:-right-14 sm:h-12 sm:w-12"
-            />
-          </div>
+          <h1 className="text-base font-semibold tracking-tight">
+            Abrar Tahir Sarwar
+          </h1>
 
           <p
             className="text-xs text-white/75"
@@ -109,12 +101,18 @@ export default function HomePage({ onNavigate }: Props) {
           </ul>
         </section>
 
-        <aside className="justify-self-start md:justify-self-end">
+        <aside className="relative justify-self-start md:justify-self-end">
           <SpriteSlot
             src="/assets/sprites/abrarmainscreen.png"
             alt="Abrar"
             fallbackLabel="abrarmainscreen.png"
             className="h-64 w-auto select-none object-contain sm:h-80 md:h-[22rem]"
+          />
+          <SpriteSlot
+            src="/assets/sprites/BAM.png"
+            alt="BAM accent"
+            fallbackLabel="BAM"
+            className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rotate-12 select-none object-contain sm:-right-8 sm:-top-8 sm:h-32 sm:w-32"
           />
         </aside>
       </div>
