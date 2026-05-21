@@ -1,75 +1,54 @@
 "use client";
 
 import BackButton from "./BackButton";
-import SpriteSlot from "./SpriteSlot";
 
 type Props = {
   onBack: () => void;
 };
 
-type OrgEntry = {
-  id: string;
+type RoleNote = {
   role: string;
   dates: string;
-  description: string;
-  logoSrc: string;
+  note: string;
 };
 
-const PROGSU_ENTRIES: OrgEntry[] = [
+const PROGSU_ROLES: RoleNote[] = [
   {
-    id: "progsu-director",
     role: "Director of Analysis",
     dates: "March 2026 to Present",
-    description:
-      "Built a centralized member database tracking 100+ students against participation requirements across events, workshops, and competitions. Automated compliance checks cut onboarding to active status time by 35%.",
-    logoSrc: "/assets/sprites/progsu-logo.png",
-  },
-  {
-    id: "progsu-reporting",
-    role: "Reporting and Dashboards",
-    dates: "March 2026 to Present",
-    description:
-      "Created reporting workflows and performance dashboards for executive leadership covering budget burn, revenue tracking, sponsor pipeline, and expense categorization. Cut event review and strategic planning time by 40%.",
-    logoSrc: "/assets/sprites/progsu-logo.png",
+    note: "Built a member database tracking 100+ students against participation requirements and shipped executive reporting dashboards covering budget burn, revenue, sponsor pipeline, and expenses. Onboarding to active status time down 35%, event review time down 40%.",
   },
 ];
 
-const CYBER_ENTRIES: OrgEntry[] = [
+const CYBER_ROLES: RoleNote[] = [
   {
-    id: "cyber-vp",
     role: "Vice President",
     dates: "December 2025 to Present",
-    description:
-      "Lead planning of 3+ cybersecurity workshops per semester by coordinating with industry speakers, sustaining 50+ attendees per session and growing club engagement by 20% after the leadership transition.",
-    logoSrc: "/assets/sprites/cyber-logo.png",
+    note: "Run planning for 3+ cybersecurity workshops a semester, coordinating speakers and sustaining 50+ attendees per session. Club engagement up 20% after the leadership transition.",
   },
   {
-    id: "cyber-ncl",
     role: "NCL Competitor",
     dates: "Spring 2026",
-    description:
-      "Ranked top 10% individually (724 of 7,006) and top 6% in team play (224 of 3,638) at NCL Spring 2026. Covered OSINT, cryptography, network and log analysis, forensics, web exploitation, and enumeration.",
-    logoSrc: "/assets/sprites/cyber-logo.png",
+    note: "Top 10% individually (724 of 7,006) and top 6% in team play (224 of 3,638) across OSINT, cryptography, network and log analysis, forensics, web exploitation, and enumeration.",
   },
 ];
 
-function OrgEntryCard({ entry }: { entry: OrgEntry }) {
+function RoleBlock({ role }: { role: RoleNote }) {
   return (
-    <article className="flex gap-4 rounded-xl border border-white/10 bg-black/30 p-4">
-      <SpriteSlot
-        src={entry.logoSrc}
-        alt={`${entry.role} logo`}
-        fallbackLabel="Logo"
-        className="h-16 w-16 shrink-0 rounded-lg"
-      />
-      <div className="flex flex-col">
-        <h3 className="text-base font-semibold text-white">{entry.role}</h3>
-        <p className="text-xs text-white/50">{entry.dates}</p>
-        <p className="mt-2 text-sm leading-relaxed text-white/70">
-          {entry.description}
-        </p>
-      </div>
-    </article>
+    <div className="space-y-1">
+      <p className="text-sm font-medium text-white">
+        {role.role}
+        <span className="ml-2 text-xs font-normal text-white/50">
+          {role.dates}
+        </span>
+      </p>
+      <p
+        className="text-xs text-white/70"
+        style={{ lineHeight: 1.65 }}
+      >
+        {role.note}
+      </p>
+    </div>
   );
 }
 
@@ -78,37 +57,50 @@ export default function OrganizationsPage({ onBack }: Props) {
     <main className="flex h-full w-full flex-col overflow-y-auto text-white">
       <BackButton onClick={onBack} />
 
-      <section className="flex-1 bg-progsu px-6 py-16">
-        <div className="mx-auto max-w-5xl">
-          <header className="mb-8">
-            <p className="text-xs uppercase tracking-[0.3em] text-white/50">
-              Organization
-            </p>
-            <h2 className="mt-2 text-3xl sm:text-4xl font-semibold lowercase">
-              progsu
-            </h2>
-          </header>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {PROGSU_ENTRIES.map((e) => (
-              <OrgEntryCard key={e.id} entry={e} />
+      <section className="flex-1 bg-progsu px-8 py-16 sm:px-12">
+        <div className="mx-auto max-w-2xl">
+          <p className="text-xs uppercase tracking-[0.3em] text-white/50">
+            Organization
+          </p>
+          <h2 className="mt-2 text-3xl sm:text-4xl font-semibold lowercase">
+            progsu
+          </h2>
+          <p
+            className="mt-4 text-sm text-white/80"
+            style={{ lineHeight: 1.7 }}
+          >
+            progsu is the biggest club at Georgia State, with over 1,500
+            students and growing. It exists to help students land internships
+            and grow into the development world together.
+          </p>
+          <div className="mt-8 space-y-6">
+            {PROGSU_ROLES.map((r) => (
+              <RoleBlock key={r.role} role={r} />
             ))}
           </div>
         </div>
       </section>
 
-      <section className="flex-1 bg-cyber px-6 py-16">
-        <div className="mx-auto max-w-5xl">
-          <header className="mb-8">
-            <p className="text-xs uppercase tracking-[0.3em] text-white/50">
-              Organization
-            </p>
-            <h2 className="mt-2 text-3xl sm:text-4xl font-semibold">
-              GSU Cybersecurity Club
-            </h2>
-          </header>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {CYBER_ENTRIES.map((e) => (
-              <OrgEntryCard key={e.id} entry={e} />
+      <section className="flex-1 bg-cyber px-8 py-16 sm:px-12">
+        <div className="mx-auto max-w-2xl">
+          <p className="text-xs uppercase tracking-[0.3em] text-white/50">
+            Organization
+          </p>
+          <h2 className="mt-2 text-3xl sm:text-4xl font-semibold">
+            GSU Cybersecurity Club
+          </h2>
+          <p
+            className="mt-4 text-sm text-white/80"
+            style={{ lineHeight: 1.7 }}
+          >
+            The Cybersecurity Club focuses on what cybersecurity actually looks
+            like inside companies. How to handle threats, how to prevent them
+            from getting worse, and how to think like both defender and
+            attacker.
+          </p>
+          <div className="mt-8 space-y-6">
+            {CYBER_ROLES.map((r) => (
+              <RoleBlock key={r.role} role={r} />
             ))}
           </div>
         </div>
