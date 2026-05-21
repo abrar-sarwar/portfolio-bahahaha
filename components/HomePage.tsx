@@ -1,14 +1,16 @@
 "use client";
 
+import SpriteSlot from "./SpriteSlot";
 import type { SubView } from "@/lib/sections";
 
 type Props = {
   onNavigate: (view: SubView) => void;
 };
 
-const MAIN_TILES: { id: SubView; label: string }[] = [
+const NAV_LINKS: { id: SubView; label: string }[] = [
   { id: "projects", label: "Projects" },
   { id: "organizations", label: "Organizations" },
+  { id: "fun", label: "Fun" },
 ];
 
 const SOCIALS = [
@@ -41,11 +43,35 @@ export default function HomePage({ onNavigate }: Props) {
     <main className="relative h-full w-full overflow-y-auto bg-black text-white">
       <PurpleAura />
 
-      <div className="relative z-10 flex min-h-full max-w-2xl flex-col gap-8 px-8 py-12 text-xs sm:px-12 sm:py-16">
-        <header className="space-y-4">
-          <h1 className="text-base font-semibold tracking-tight">
-            Abrar Tahir Sarwar
-          </h1>
+      <nav
+        aria-label="Sections"
+        className="relative z-20 flex items-center justify-end gap-6 px-8 py-5 text-xs uppercase tracking-[0.25em] sm:px-12"
+      >
+        {NAV_LINKS.map((link) => (
+          <button
+            key={link.id}
+            type="button"
+            onClick={() => onNavigate(link.id)}
+            className="text-white/55 transition hover:text-violet-300 focus:outline-none focus-visible:text-violet-300 focus-visible:underline"
+          >
+            {link.label}
+          </button>
+        ))}
+      </nav>
+
+      <div className="relative z-10 grid grid-cols-1 gap-10 px-8 pb-16 pt-8 sm:px-12 sm:pt-12 md:grid-cols-[minmax(0,1fr)_auto] md:items-start md:gap-16">
+        <section className="max-w-2xl space-y-4 text-xs">
+          <div className="relative inline-block">
+            <h1 className="text-base font-semibold tracking-tight">
+              Abrar Tahir Sarwar
+            </h1>
+            <SpriteSlot
+              src="/assets/sprites/BAM.png"
+              alt="BAM accent"
+              fallbackLabel="BAM"
+              className="pointer-events-none absolute -right-12 -top-3 h-10 w-10 rotate-12 select-none object-contain sm:-right-14 sm:h-12 sm:w-12"
+            />
+          </div>
 
           <p
             className="text-xs text-white/75"
@@ -81,38 +107,16 @@ export default function HomePage({ onNavigate }: Props) {
               </li>
             ))}
           </ul>
-        </header>
-
-        <div className="flex-1" />
-
-        <section
-          aria-label="Sections"
-          className="flex flex-col items-start gap-3"
-        >
-          <div className="flex w-full max-w-sm flex-col gap-2">
-            {MAIN_TILES.map((tile) => (
-              <button
-                key={tile.id}
-                type="button"
-                onClick={() => onNavigate(tile.id)}
-                className="group flex w-full items-center justify-between rounded-md border border-white/15 bg-white/[0.03] px-3 py-2 text-left text-xs transition hover:border-violet-400/60 hover:bg-violet-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
-              >
-                <span className="font-medium tracking-tight">{tile.label}</span>
-                <span className="text-white/40 transition group-hover:translate-x-1 group-hover:text-violet-200">
-                  →
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => onNavigate("fun")}
-            className="text-[10px] uppercase tracking-[0.3em] text-white/40 transition hover:text-violet-300 focus:outline-none focus-visible:text-violet-300"
-          >
-            · fun ·
-          </button>
         </section>
+
+        <aside className="justify-self-start md:justify-self-end">
+          <SpriteSlot
+            src="/assets/sprites/abrarmainscreen.png"
+            alt="Abrar"
+            fallbackLabel="abrarmainscreen.png"
+            className="h-64 w-auto select-none object-contain sm:h-80 md:h-[22rem]"
+          />
+        </aside>
       </div>
     </main>
   );
