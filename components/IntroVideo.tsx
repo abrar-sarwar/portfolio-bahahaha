@@ -13,14 +13,25 @@ export default function IntroVideo({ onComplete }: Props) {
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
-    v.muted = false;
-    v.play().catch(() => {
-      // Browser refused autoplay with sound. Retry muted so it at least plays.
-      v.muted = true;
-      v.play().catch(() => {
-        // If even muted play is refused, the Skip button is the escape hatch.
-      });
-    });
+
+    // Start muted so browsers actually let it autoplay (no play button overlay).
+    v.muted = true;
+    v.play().catch(() => {});
+
+    // The moment the user interacts anywhere, unmute. Any click, tap, or key.
+    const unmute = () => {
+      v.muted = false;
+      v.volume = 1;
+      document.removeEventListener("pointerdown", unmute);
+      document.removeEventListener("keydown", unmute);
+    };
+    document.addEventListener("pointerdown", unmute, { once: true });
+    document.addEventListener("keydown", unmute, { once: true });
+
+    return () => {
+      document.removeEventListener("pointerdown", unmute);
+      document.removeEventListener("keydown", unmute);
+    };
   }, []);
 
   return (
@@ -28,6 +39,7 @@ export default function IntroVideo({ onComplete }: Props) {
       <video
         ref={videoRef}
         autoPlay
+        muted
         playsInline
         preload="auto"
         onEnded={onComplete}
