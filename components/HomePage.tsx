@@ -146,21 +146,22 @@ export default function HomePage({ onNavigate }: Props) {
             type="button"
             onClick={() => onNavigate("fun")}
             aria-label="Fun"
+            inherit={false}
             animate={{
               rotate: [0, -6, 6, -4, 4, 0],
-              scale: [1, 1.12, 1, 1.08, 1],
+              scale: [1, 1.12, 1, 1.08, 1, 1],
               color: [
                 "rgba(255,255,255,0.55)",
                 "rgb(244, 114, 182)",
                 "rgb(167, 139, 250)",
                 "rgb(244, 114, 182)",
+                "rgba(255,255,255,0.7)",
                 "rgba(255,255,255,0.55)",
               ],
             }}
             transition={{
-              duration: 1.8,
+              duration: 2.8,
               repeat: Infinity,
-              repeatDelay: 2.2,
               ease: "easeInOut",
             }}
             className="origin-center focus:outline-none focus-visible:underline"
