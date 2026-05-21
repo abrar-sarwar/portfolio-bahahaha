@@ -10,8 +10,6 @@ import FunPage from "@/components/FunPage";
 import type { Direction, SubView, View } from "@/lib/sections";
 import { RETURN_TO_KEY } from "@/lib/projects";
 
-const INTRO_STORAGE_KEY = "intro-seen";
-
 export default function Page() {
   const [view, setView] = useState<View | null>(null);
   const [direction, setDirection] = useState<Direction>("forward");
@@ -27,19 +25,17 @@ export default function Page() {
         setView("projects");
         return;
       }
-      if (sessionStorage.getItem(INTRO_STORAGE_KEY) === "1") {
-        setView("home");
-        return;
-      }
     } catch {
-      // sessionStorage may throw in privacy modes; ignore.
+      // ignore privacy-mode failures
     }
+    // Intro plays on every fresh page load (no skip-on-refresh gating).
     setView("intro");
   }, []);
 
   const completeIntro = useCallback(() => {
+    // Reset the typing-animation flag so the bio types fresh after the intro.
     try {
-      sessionStorage.setItem(INTRO_STORAGE_KEY, "1");
+      sessionStorage.removeItem("bio-typed");
     } catch {
       // ignore
     }
