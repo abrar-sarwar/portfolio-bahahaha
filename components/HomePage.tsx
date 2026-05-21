@@ -101,20 +101,21 @@ export default function HomePage({ onNavigate }: Props) {
       </section>
 
       <aside className="pointer-events-none absolute bottom-0 right-4 z-0 sm:right-8 md:right-12">
-        <SpriteSlot
-          src="/assets/sprites/abrarmainscreen.png"
-          alt="Abrar"
-          fallbackLabel="abrarmainscreen.png"
-          className="block h-80 w-auto select-none object-contain sm:h-96 md:h-[26rem]"
-        />
+        <div className="relative">
+          <SpriteSlot
+            src="/assets/sprites/abrarmainscreen.png"
+            alt="Abrar"
+            fallbackLabel="abrarmainscreen.png"
+            className="block h-80 w-auto select-none object-contain sm:h-96 md:h-[26rem]"
+          />
+          <SpriteSlot
+            src="/assets/sprites/BAM.png"
+            alt="BAM"
+            fallbackLabel="BAM"
+            className="pointer-events-none absolute -left-16 -top-4 h-20 w-20 -rotate-12 select-none object-contain sm:-left-20 sm:-top-6 sm:h-24 sm:w-24"
+          />
+        </div>
       </aside>
-
-      <SpriteSlot
-        src="/assets/sprites/BAM.png"
-        alt="BAM"
-        fallbackLabel="BAM"
-        className="pointer-events-none absolute bottom-10 left-8 z-10 h-20 w-20 -rotate-12 select-none object-contain sm:left-12 sm:h-24 sm:w-24"
-      />
     </main>
   );
 }
