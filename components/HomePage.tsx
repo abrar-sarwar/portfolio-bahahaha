@@ -104,21 +104,20 @@ export default function HomePage({ onNavigate }: Props) {
         className="pointer-events-none absolute bottom-0 right-0 z-0"
         style={{ transform: "translateY(30%)" }}
       >
-        <div className="relative">
-          <SpriteSlot
-            src="/assets/sprites/abrarmainscreen.png"
-            alt="Abrar"
-            fallbackLabel="abrarmainscreen.png"
-            className="h-[32rem] w-auto select-none object-contain sm:h-[40rem] md:h-[44rem]"
-          />
-          <SpriteSlot
-            src="/assets/sprites/BAM.png"
-            alt="BAM"
-            fallbackLabel="BAM"
-            className="pointer-events-none absolute -left-20 -top-4 h-24 w-24 -rotate-6 select-none object-contain sm:-left-28 sm:-top-6 sm:h-32 sm:w-32"
-          />
-        </div>
+        <SpriteSlot
+          src="/assets/sprites/abrarmainscreen.png"
+          alt="Abrar"
+          fallbackLabel="abrarmainscreen.png"
+          className="h-80 w-auto select-none object-contain sm:h-96 md:h-[30rem]"
+        />
       </aside>
+
+      <SpriteSlot
+        src="/assets/sprites/BAM.png"
+        alt="BAM"
+        fallbackLabel="BAM"
+        className="pointer-events-none absolute bottom-10 left-8 z-10 h-20 w-20 -rotate-12 select-none object-contain sm:left-12 sm:h-24 sm:w-24"
+      />
     </main>
   );
 }
