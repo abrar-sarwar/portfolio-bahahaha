@@ -21,8 +21,6 @@ const VIDEO_HTML = `
   class="h-full w-full object-cover"
 >
   <source src="/assets/videos/opening.mp4" type="video/mp4" />
-  <source src="/assets/videos/opening.webm" type="video/webm" />
-  <source src="/assets/videos/opening.mov" type="video/quicktime" />
   <track kind="captions" srclang="en" label="English captions" />
 </video>
 `;
