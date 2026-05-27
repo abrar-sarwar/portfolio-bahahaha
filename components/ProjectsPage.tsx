@@ -166,7 +166,7 @@ export default function ProjectsPage({ onBack }: Props) {
           <img key={src} src={src} alt="" />
         ))}
         {preloadVideos.map((src) => (
-          <video key={src} src={src} preload="none" muted playsInline />
+          <video key={src} src={src} preload="auto" muted playsInline />
         ))}
       </div>
 

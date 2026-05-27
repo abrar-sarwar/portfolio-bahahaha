@@ -803,7 +803,7 @@ export default function HomePage({ onNavigate }: Props) {
 
       {/* Preload Gojo's video so the click feels instant. */}
       <div aria-hidden className="pointer-events-none absolute h-0 w-0 overflow-hidden opacity-0">
-        <video src={GOJO_VIDEO_SRC} preload="none" muted playsInline />
+        <video src={GOJO_VIDEO_SRC} preload="auto" muted playsInline />
       </div>
 
       <AnimatePresence>

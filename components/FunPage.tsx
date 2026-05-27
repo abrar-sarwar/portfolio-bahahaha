@@ -366,7 +366,7 @@ export default function FunPage({ onBack }: Props) {
       {/* Preload videos so playback is instant. */}
       <div aria-hidden className="pointer-events-none absolute h-0 w-0 overflow-hidden opacity-0">
         {Object.values(VIDEO_FOR).map((src) => (
-          <video key={src} src={src} preload="none" muted playsInline />
+          <video key={src} src={src} preload="auto" muted playsInline />
         ))}
       </div>
 
