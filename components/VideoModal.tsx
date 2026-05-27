@@ -14,17 +14,21 @@ type Props = {
 // time, preventing Safari's native play overlay. We then unmute and set the
 // volume from a useEffect that runs inside the user's click gesture window.
 function videoHtml(src: string): string {
+  // Use src="" directly on <video> rather than a child <source>. Mobile
+  // Safari sometimes never runs source-selection on dynamically inserted
+  // <source> children, leaving videoWidth stuck at 0 even after the file
+  // is fully cached. src on the video element triggers the load path
+  // reliably.
   return `
     <video
+      src="${src}"
       autoplay
       muted
       playsinline
       preload="auto"
       disablepictureinpicture
       class="max-h-[85vh] max-w-[90vw] rounded-lg shadow-2xl"
-    >
-      <source src="${src}" type="video/mp4" />
-    </video>
+    ></video>
   `;
 }
 
