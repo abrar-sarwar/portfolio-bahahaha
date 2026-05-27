@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 
 type Props = {
   src: string;
   onClose: () => void;
   volume?: number;
+  credit?: string;
 };
 
 // dangerouslySetInnerHTML so the `muted` attribute lives in the DOM at parse
@@ -27,8 +28,24 @@ function videoHtml(src: string): string {
   `;
 }
 
-export default function VideoModal({ src, onClose, volume = 0.5 }: Props) {
+export default function VideoModal({
+  src,
+  onClose,
+  volume = 0.5,
+  credit,
+}: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // `started` flips on the video's `playing` event so the credit line only
+  // appears once playback actually begins — matches the "once it's played"
+  // intent of the credits.
+  const [started, setStarted] = useState(false);
+
+  // Memoize the innerHTML object so the dangerouslySetInnerHTML prop is
+  // referentially stable across credit-state re-renders. Defensive — keeps
+  // React's reconciler from ever re-running the innerHTML assignment, which
+  // would tear down the <video> element and lose the un-muted state we set
+  // imperatively below.
+  const innerHtml = useMemo(() => ({ __html: videoHtml(src) }), [src]);
 
   useEffect(() => {
     const c = containerRef.current;
@@ -48,9 +65,15 @@ export default function VideoModal({ src, onClose, volume = 0.5 }: Props) {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
+    const onEnded = () => onClose();
+    const onPlaying = () => setStarted(true);
     document.addEventListener("keydown", onKey);
+    v.addEventListener("ended", onEnded);
+    v.addEventListener("playing", onPlaying);
     return () => {
       document.removeEventListener("keydown", onKey);
+      v.removeEventListener("ended", onEnded);
+      v.removeEventListener("playing", onPlaying);
     };
   }, [onClose, volume]);
 
@@ -65,12 +88,37 @@ export default function VideoModal({ src, onClose, volume = 0.5 }: Props) {
       aria-modal="true"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm"
     >
+      {/* Video container — kept EXACTLY as the original (no wrapper). Any
+          structural change here risks breaking audio: a re-render that
+          re-runs the dangerouslySetInnerHTML assignment would replace the
+          <video> element with a fresh one that's still muted. */}
       <div
         ref={containerRef}
         onClick={(e) => e.stopPropagation()}
         className="contents"
-        dangerouslySetInnerHTML={{ __html: videoHtml(src) }}
+        dangerouslySetInnerHTML={innerHtml}
       />
+
+      {/* Credit — absolutely positioned at the bottom of the backdrop so it
+          never touches the video container or the layout flow above. */}
+      {credit && (
+        <div className="pointer-events-none absolute bottom-[6vh] left-1/2 -translate-x-1/2">
+          <AnimatePresence>
+            {started && (
+              <motion.p
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 4 }}
+                transition={{ duration: 0.35, ease: "easeOut" }}
+                className="whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.32em] text-white/65"
+                style={{ textShadow: "0 0 10px rgba(0,0,0,0.6)" }}
+              >
+                video made by {credit}
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
     </motion.div>
   );
 }

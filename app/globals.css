@@ -27,3 +27,65 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ----- Organizations sections ---------------------------------------------
+   Each section is a full-bleed "page" with its own animated gradient.
+   Two layers per section: a stationary radial accent for depth, plus a
+   400%-sized linear gradient that breathes via background-position.
+   Cadences are offset (12s vs 14s) so the two sections never sync up.
+   --------------------------------------------------------------------------- */
+
+.org-section-progsu {
+  background:
+    radial-gradient(ellipse 60% 55% at 80% 18%, rgba(168, 139, 250, 0.28), transparent 65%),
+    linear-gradient(135deg, #2d1b4e, #1a0f2e, #4c1d95, #0a0a0f);
+  background-size: 100% 100%, 400% 400%;
+  background-position: center, 0% 50%;
+  animation: progsuShift 12s ease-in-out infinite;
+  /* Inset glow gives the edges a soft violet halo from inside the section. */
+  box-shadow: inset 0 0 80px rgba(168, 139, 250, 0.12);
+}
+
+.org-section-cyber {
+  background:
+    radial-gradient(ellipse 60% 55% at 18% 82%, rgba(96, 165, 250, 0.22), transparent 65%),
+    linear-gradient(135deg, #0a1929, #1e3a5f, #0f2540, #1a2f4e);
+  background-size: 100% 100%, 400% 400%;
+  background-position: center, 0% 50%;
+  animation: cyberShift 14s ease-in-out infinite;
+  box-shadow: inset 0 0 80px rgba(96, 165, 250, 0.1);
+}
+
+/* Only the linear-gradient layer animates; the radial stays anchored. */
+@keyframes progsuShift {
+  0%, 100% { background-position: center, 0% 50%; }
+  50%     { background-position: center, 100% 50%; }
+}
+
+@keyframes cyberShift {
+  0%, 100% { background-position: center, 0% 50%; }
+  50%     { background-position: center, 100% 50%; }
+}
+
+/* ----- Jotaro walk ---------------------------------------------------------
+   Leisurely left-to-right crawl across the bottom of the home page. Linear
+   timing so the cadence is steady (a sprint with ease curves would feel
+   wrong for a walking sprite). Reduced-motion users get him hidden so the
+   page doesn't pin him to the right edge mid-loop.
+   --------------------------------------------------------------------------- */
+@keyframes jotaroWalk {
+  0%   { transform: translateX(-200px); }
+  100% { transform: translateX(calc(100vw + 200px)); }
+}
+
+.jotaro-walk {
+  animation: jotaroWalk 30s linear infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jotaro-walk {
+    animation: none;
+    display: none;
+  }
+}

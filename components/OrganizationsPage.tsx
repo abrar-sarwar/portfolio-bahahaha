@@ -10,121 +10,105 @@ type Props = {
   onBack: () => void;
 };
 
-type RoleNote = {
-  role: string;
-  dates: string;
-  note: string;
-};
-
-const PROGSU_ROLES: RoleNote[] = [
-  {
-    role: "Director of Analysis",
-    dates: "March 2026 to Present",
-    note: "Built a member database tracking 100+ students against participation requirements and shipped executive reporting dashboards covering budget burn, revenue, sponsor pipeline, and expenses. Onboarding to active status time down 35%, event review time down 40%.",
-  },
-];
-
-const CYBER_ROLES: RoleNote[] = [
-  {
-    role: "Vice President",
-    dates: "December 2025 to Present",
-    note: "Run planning for 3+ cybersecurity workshops a semester, coordinating speakers and sustaining 50+ attendees per session. Club engagement up 20% after the leadership transition.",
-  },
-  {
-    role: "NCL Competitor",
-    dates: "Spring 2026",
-    note: "Top 10% individually (724 of 7,006) and top 6% in team play (224 of 3,638) across OSINT, cryptography, network and log analysis, forensics, web exploitation, and enumeration.",
-  },
-];
-
-function RoleBlock({ role }: { role: RoleNote }) {
-  return (
-    <div className="space-y-1">
-      <p className="text-sm font-medium text-white">
-        {role.role}
-        <span className="ml-2 text-xs font-normal text-white/50">
-          {role.dates}
-        </span>
-      </p>
-      <p
-        className="text-xs text-white/70"
-        style={{ lineHeight: 1.65 }}
-      >
-        {role.note}
-      </p>
-    </div>
-  );
-}
-
 export default function OrganizationsPage({ onBack }: Props) {
   const [videoOpen, setVideoOpen] = useState(false);
 
   return (
-    <main className="flex h-full w-full flex-col overflow-y-auto text-white">
+    // overflow-y-auto so very short viewports can still scroll past content;
+    // flex-1 on each section splits the available height 50/50 when the page
+    // fits the viewport so progsu + cyber are both visible together.
+    <main
+      className="flex h-full w-full flex-col overflow-y-auto text-white"
+      style={{ backgroundColor: "#0a0a0f" }}
+    >
       <BackButton onClick={onBack} />
 
-      <section className="flex-1 bg-progsu px-8 py-16 sm:px-12">
-        <div className="mx-auto max-w-2xl">
-          <p className="text-xs uppercase tracking-[0.3em] text-white/50">
-            Organization
-          </p>
-
-          <button
-            type="button"
-            onClick={() => setVideoOpen(true)}
-            aria-label="Play progsu video"
-            className="group mt-2 flex items-center gap-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
-          >
-            <SpriteSlot
-              src="/assets/sprites/progsu.png"
-              alt="progsu logo"
-              fallbackLabel="progsu"
-              className="h-14 w-14 shrink-0 rounded-md object-contain transition group-hover:scale-105"
-            />
-            <h2 className="text-3xl font-semibold lowercase tracking-tight transition group-hover:text-violet-200 sm:text-4xl">
-              progsu
+      {/* ---------------- progsu (top half) ---------------- */}
+      <section className="org-section-progsu flex flex-1 flex-col justify-center px-6 py-8 sm:px-12 sm:py-10">
+        <div className="mx-auto w-full max-w-2xl">
+          {/* Sprite stays the video trigger; the "progsu" word is now a
+              hyperlink out to progsu.com. Wrapped in a `group` so hovering
+              either still cues the other (sprite scales, text shifts color),
+              matching the original coordinated hover. */}
+          <div className="group flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setVideoOpen(true)}
+              aria-label="Play progsu video"
+              className="focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+            >
+              <SpriteSlot
+                src="/assets/sprites/progsu.png"
+                alt="progsu logo"
+                fallbackLabel="progsu"
+                className="h-11 w-11 shrink-0 rounded-md object-contain transition group-hover:scale-105 sm:h-12 sm:w-12"
+              />
+            </button>
+            <h2 className="text-[22px] font-medium lowercase tracking-tight sm:text-[26px]">
+              <a
+                href="https://www.progsu.com"
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-white transition group-hover:text-violet-200 hover:text-violet-200 focus:outline-none focus-visible:text-violet-200 focus-visible:underline"
+              >
+                progsu
+              </a>
             </h2>
-          </button>
+          </div>
 
           <p
-            className="mt-4 text-sm text-white/80"
-            style={{ lineHeight: 1.7 }}
+            className="mt-4 text-[13.5px] sm:text-[14.5px]"
+            style={{ color: "rgba(255, 255, 255, 0.88)", lineHeight: 1.7 }}
           >
-            progsu is the biggest club at Georgia State, with over 1,500
-            students and growing. It exists to help students land internships
-            and grow into the development world together.
+            progsu is a super awesome cool club that encourages students around
+            atlanta to build and create a culture towards their unique style
+            of character! Ever since I joined progsu I have been amazed with
+            the amount of encouragement and respect progsu have towards their
+            community and it means so much towards my colleagues! As a eboard
+            member of progsu I&apos;m proud to say I&apos;m working on great
+            amazing things like hacklanta! progcast! something I can&apos;t
+            discuss yet! (you can ask{" "}
+            <a
+              href="https://www.linkedin.com/company/alphoraapp/"
+              target="_blank"
+              rel="noreferrer noopener"
+              className="text-violet-200 underline-offset-2 hover:underline focus:outline-none focus-visible:underline"
+            >
+              jared
+            </a>
+            ) I can go on and on for days
+            talking about how much I love progsu and how much it has impacted
+            my life thus far but one thing I have to say is that this is the
+            club that cares about you! if you&apos;d love to see some of the
+            most amazing people that works well in a team, click the progsu
+            button to view some of stuff we do :)
           </p>
-
-          <div className="mt-8 space-y-6">
-            {PROGSU_ROLES.map((r) => (
-              <RoleBlock key={r.role} role={r} />
-            ))}
-          </div>
         </div>
       </section>
 
-      <section className="flex-1 bg-cyber px-8 py-16 sm:px-12">
-        <div className="mx-auto max-w-2xl">
-          <p className="text-xs uppercase tracking-[0.3em] text-white/50">
-            Organization
-          </p>
-          <h2 className="mt-2 text-3xl sm:text-4xl font-semibold">
+      {/* ---------------- GSU Cybersecurity Club (bottom half) ---------------- */}
+      <section className="org-section-cyber flex flex-1 flex-col justify-center px-6 py-8 sm:px-12 sm:py-10">
+        <div className="mx-auto w-full max-w-2xl">
+          <h2 className="text-[22px] font-medium tracking-tight text-white sm:text-[26px]">
             GSU Cybersecurity Club
           </h2>
+
           <p
-            className="mt-4 text-sm text-white/80"
-            style={{ lineHeight: 1.7 }}
+            className="mt-4 text-[13.5px] sm:text-[14.5px]"
+            style={{ color: "rgba(255, 255, 255, 0.88)", lineHeight: 1.7 }}
           >
-            The Cybersecurity Club focuses on what cybersecurity actually looks
-            like inside companies. How to handle threats, how to prevent them
-            from getting worse, and how to think like both defender and
-            attacker.
+            This is a club I&apos;d love to say is secret and mysterious, this
+            is actually the first ever club I joined at GSU and first ever
+            eboard position I took up on! Working with this club brings in new
+            ways to network and show the cybersecurity skill set that is
+            essential for students to learn within the core of protection!
+            Think about it like this, cybersecurity just means to be realll
+            careful and thats all you gotta really know from the basic of it
+            lol. Think of it like this now, In this world of AI it&apos;s so
+            easy to leak your API keys when they should be treated as if
+            it&apos;s the last donut left in the fridge. YOU GOTTA PROTECT IT!
+            and that&apos;s exactly it. period.
           </p>
-          <div className="mt-8 space-y-6">
-            {CYBER_ROLES.map((r) => (
-              <RoleBlock key={r.role} role={r} />
-            ))}
-          </div>
         </div>
       </section>
 
