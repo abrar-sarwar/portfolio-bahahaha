@@ -54,12 +54,6 @@ export default function VideoModal({
     if (!v) return;
 
     v.volume = volume;
-    // Safari (especially mobile) sometimes skips initializing the <source>
-    // when a video element arrives via innerHTML — networkState gets stuck
-    // and videoWidth stays 0 even after the file is fully cached. An
-    // explicit load() kicks the source-selection algorithm and is a no-op
-    // when loading is already in progress.
-    v.load();
     // Try unmuted first; we should have the click gesture context that opened
     // the modal. If the browser still refuses, fall back to silent playback.
     v.muted = false;
