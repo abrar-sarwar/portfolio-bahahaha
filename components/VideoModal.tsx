@@ -88,14 +88,14 @@ export default function VideoModal({
       aria-modal="true"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm"
     >
-      {/* Video container — kept EXACTLY as the original (no wrapper). Any
-          structural change here risks breaking audio: a re-render that
-          re-runs the dangerouslySetInnerHTML assignment would replace the
-          <video> element with a fresh one that's still muted. */}
+      {/* Video container — a normal flex item that shrinks to the video's
+          intrinsic size. Originally used `display: contents` to flatten the
+          wrapper, but mobile Safari refuses to actually fetch the video
+          source when the immediate parent is `display: contents`. */}
       <div
         ref={containerRef}
         onClick={(e) => e.stopPropagation()}
-        className="contents"
+        className="flex items-center justify-center"
         dangerouslySetInnerHTML={innerHtml}
       />
 
