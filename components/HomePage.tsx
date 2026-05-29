@@ -259,10 +259,11 @@ export default function HomePage({ onNavigate }: Props) {
   };
 
   return (
+    <>
     <motion.main
       animate={stage}
       variants={containerVariants}
-      className="relative h-full w-full overflow-hidden bg-black text-white"
+      className="relative hidden h-full w-full overflow-hidden bg-black text-white sm:block"
     >
       <PurpleAura />
 
@@ -806,16 +807,303 @@ export default function HomePage({ onNavigate }: Props) {
         <video src={GOJO_VIDEO_SRC} preload="none" muted playsInline />
       </div>
 
-      <AnimatePresence>
-        {gojoVideoOpen && (
-          <VideoModal
-            src={GOJO_VIDEO_SRC}
-            onClose={() => setGojoVideoOpen(false)}
-            volume={0.6}
-            credit="goaten"
-          />
-        )}
-      </AnimatePresence>
     </motion.main>
+
+    {/* ----------------------------------------------------------------------
+        MOBILE LAYOUT — a clean vertical scroll that keeps the personality
+        (sprites, eclipse, disc, portrait) but stacks everything so nothing
+        overlaps the copy. Hidden on sm+ where the desktop collage takes over.
+        --------------------------------------------------------------------- */}
+    <section
+      aria-label="Abrar — intro"
+      className="relative flex min-h-svh w-full flex-col items-center overflow-hidden bg-black px-5 pb-14 pt-6 text-white sm:hidden"
+    >
+      <PurpleAura />
+
+      {/* Quick section jumps */}
+      <nav
+        aria-label="Sections"
+        className="relative z-10 flex w-full items-center justify-center gap-5 text-[11px] uppercase tracking-[0.24em] text-white/55"
+      >
+        {NAV_LINKS.map((link) => (
+          <button
+            key={link.id}
+            type="button"
+            onClick={() => onNavigate(link.id)}
+            className="py-1 transition-colors hover:text-violet-300"
+          >
+            {link.label}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => onNavigate("fun")}
+          className="py-1 text-pink-300 transition-colors hover:text-violet-300"
+        >
+          Fun
+        </button>
+      </nav>
+
+      {/* Eclipse — tap to play the Griffith stinger */}
+      <button
+        type="button"
+        onClick={playGriffith}
+        aria-label="Play Griffith"
+        className="relative z-10 mt-6 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
+      >
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10"
+          style={{
+            background:
+              "radial-gradient(circle, rgba(255,80,30,0.5) 0%, rgba(255,140,40,0.28) 40%, transparent 72%)",
+            filter: "blur(16px)",
+            transform: "scale(1.8)",
+          }}
+        />
+        <SpriteSlot
+          src="/assets/sprites/eclipse.png"
+          alt="Eclipse"
+          fallbackLabel="Eclipse"
+          className="block h-16 w-auto select-none object-contain"
+        />
+      </button>
+
+      {/* Name */}
+      <div
+        aria-label="ABRAR"
+        className="relative z-10 mt-5 flex items-end justify-center"
+      >
+        {NAME_SPRITES.map((letter, i) => (
+          <div
+            key={i}
+            className={
+              i === 0 ? "" : i === 1 ? "-ml-3" : i === 2 ? "-ml-5" : "-ml-1"
+            }
+          >
+            <div className={letter.offsetClass}>
+              <SpriteSlot
+                src={letter.src}
+                alt={letter.alt}
+                fallbackLabel={letter.alt}
+                className={`block w-auto select-none object-contain ${letter.sizeClass} ${
+                  "extraClass" in letter ? letter.extraClass : ""
+                }`}
+              />
+            </div>
+          </div>
+        ))}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/assets/sprites/money.gif"
+          alt=""
+          aria-hidden
+          draggable={false}
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).style.display = "none";
+          }}
+          className="ml-2 block h-9 w-auto select-none"
+        />
+      </div>
+
+      {/* Portrait + Gojo (tap Gojo to play his video) */}
+      <div className="relative z-10 mt-3 flex items-end justify-center gap-1">
+        <button
+          type="button"
+          onClick={() => setGojoVideoOpen(true)}
+          aria-label="Play Gojo video"
+          className="relative -mr-4 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+        >
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -z-10"
+            style={{
+              background:
+                "radial-gradient(closest-side, rgba(196,181,253,0.55) 0%, rgba(167,139,250,0.3) 42%, transparent 72%)",
+              filter: "blur(20px)",
+            }}
+          />
+          <span
+            aria-hidden
+            className="absolute -top-7 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/20 bg-[rgba(10,10,15,0.7)] px-2.5 py-1 text-[9px] font-medium uppercase tracking-[0.2em] text-violet-100 backdrop-blur"
+          >
+            Naw I&apos;d Win
+          </span>
+          <SpriteSlot
+            src="/assets/sprites/gojo.png"
+            alt="Gojo"
+            fallbackLabel="Gojo"
+            className="relative block h-36 w-auto select-none object-contain [filter:drop-shadow(0_0_6px_rgba(196,181,253,0.9))]"
+          />
+        </button>
+
+        <div className="relative">
+          <SpriteSlot
+            src="/assets/sprites/abrarmainscreen.png"
+            alt="Abrar"
+            fallbackLabel="abrarmainscreen.png"
+            className="block h-52 w-auto select-none object-contain"
+          />
+          <div className="pointer-events-none absolute -right-2 top-4">
+            <SpriteSlot
+              src="/assets/sprites/BAM.png"
+              alt="BAM"
+              fallbackLabel="BAM"
+              className="h-14 w-14 select-none object-contain"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Bio */}
+      <div className="relative z-10 mt-6 w-full max-w-md">
+        <TypingText
+          text={BIO_TEXT}
+          speed={5}
+          className="text-left text-[15px] text-white/85"
+          style={{ lineHeight: 1.7 }}
+        />
+      </div>
+
+      {/* Favorite song disc */}
+      <button
+        type="button"
+        onClick={toggleFavoriteSong}
+        aria-label={songPlaying ? "Pause favorite song" : "Play favorite song"}
+        className="relative z-10 mt-7 flex flex-col items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+      >
+        <motion.div
+          animate={{ rotate: songPlaying ? 360 : 0 }}
+          transition={
+            songPlaying
+              ? { duration: 4, repeat: Infinity, ease: "linear" }
+              : { duration: 0.4, ease: "easeOut" }
+          }
+          className="relative"
+        >
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -z-10 rounded-full"
+            style={{
+              background:
+                "radial-gradient(closest-side, rgba(196,181,253,0.4), transparent 70%)",
+              filter: "blur(12px)",
+              transform: "scale(1.4)",
+            }}
+          />
+          <SpriteSlot
+            src="/assets/sprites/disc.png"
+            alt="Favorite song disc"
+            fallbackLabel="disc"
+            className="block h-16 w-16 select-none object-contain"
+          />
+        </motion.div>
+        <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/70">
+          {songPlaying ? "click to pause" : "play my favorite song"}
+        </span>
+        {songPlaying && (
+          <span className="text-[11px] italic text-violet-200/90">
+            L&apos;Amour Toujours — Gigi D&apos;Agostino
+          </span>
+        )}
+      </button>
+
+      {/* Contact links */}
+      <ul className="relative z-10 mt-8 w-full max-w-md space-y-2">
+        {SOCIALS.map((s) => (
+          <li key={s.label}>
+            <a
+              href={s.href}
+              target={s.href.startsWith("http") ? "_blank" : undefined}
+              rel={
+                s.href.startsWith("http") ? "noreferrer noopener" : undefined
+              }
+              className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 transition-colors hover:border-violet-300/50 hover:bg-white/[0.06]"
+            >
+              <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-violet-200/80">
+                {s.label}
+              </span>
+              <span className="truncate text-sm text-white/80">{s.text}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+
+      {/* Schedule CTA */}
+      <a
+        href={CALENDLY_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="relative z-10 mt-5 flex w-full max-w-md items-center justify-center gap-2 rounded-lg border border-white/25 px-5 py-3 text-sm text-white/90 transition-colors hover:border-white hover:bg-white hover:text-black"
+      >
+        <span>schedule a chat with me :)</span>
+        <span aria-hidden>→</span>
+      </a>
+
+      {/* Character cameo strip — keeps the fun without crowding the copy */}
+      <div
+        aria-hidden
+        className="relative z-10 mt-10 flex w-full items-end justify-center gap-1"
+      >
+        {SIDE_CHARS.map((c) => (
+          <SpriteSlot
+            key={c.alt}
+            src={c.src}
+            alt={c.alt}
+            fallbackLabel={c.alt}
+            className={`block h-24 w-auto select-none object-contain ${c.extraClass}`}
+          />
+        ))}
+      </div>
+
+      {/* Scroll cue */}
+      <button
+        type="button"
+        onClick={() => onNavigate("projects")}
+        aria-label="Scroll down to projects"
+        className="relative z-10 mt-6 flex flex-col items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+      >
+        <span
+          className="text-[10px] font-medium uppercase tracking-[0.32em]"
+          style={{
+            color: "rgba(255,255,255,0.78)",
+            textShadow: "0 0 10px rgba(167,139,250,0.55)",
+          }}
+        >
+          Scroll
+        </span>
+        <motion.svg
+          aria-hidden
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          animate={{ y: [0, 6, 0] }}
+          transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+          style={{
+            color: "#c4b5fd",
+            filter: "drop-shadow(0 0 8px rgba(167,139,250,0.7))",
+          }}
+        >
+          <path d="M6 9l6 6 6-6" />
+        </motion.svg>
+      </button>
+    </section>
+
+    <AnimatePresence>
+      {gojoVideoOpen && (
+        <VideoModal
+          src={GOJO_VIDEO_SRC}
+          onClose={() => setGojoVideoOpen(false)}
+          volume={0.6}
+          credit="goaten"
+        />
+      )}
+    </AnimatePresence>
+    </>
   );
 }

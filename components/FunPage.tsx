@@ -217,7 +217,7 @@ export default function FunPage({ onBack }: Props) {
 
   return (
     <main
-      className="relative h-full w-full overflow-hidden bg-black text-white"
+      className="relative h-full w-full overflow-hidden bg-black text-white max-sm:h-auto max-sm:min-h-svh max-sm:overflow-visible"
       style={cursorStyle(equipped)}
     >
       <BackButton onClick={onBack} />
@@ -232,7 +232,7 @@ export default function FunPage({ onBack }: Props) {
         }}
       />
 
-      <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-4 px-6 py-6 sm:gap-5 sm:py-8">
+      <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-4 px-6 py-6 sm:gap-5 sm:py-8 max-sm:min-h-svh max-sm:py-16">
         {/* Headline above the photo — swaps with the equipped weapon. */}
         <div className="flex h-10 items-center justify-center sm:h-12">
           <AnimatePresence mode="wait" initial={false}>
@@ -249,6 +249,12 @@ export default function FunPage({ onBack }: Props) {
             </motion.h2>
           </AnimatePresence>
         </div>
+
+        {/* Touch hint — the desktop version cues this with a custom cursor,
+            which phones don't have, so spell it out instead. */}
+        <p className="text-center text-[11px] uppercase tracking-[0.24em] text-white/40 sm:hidden">
+          Tap an item, then tap me
+        </p>
 
         <div className="flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-10">
           <WeaponColumn

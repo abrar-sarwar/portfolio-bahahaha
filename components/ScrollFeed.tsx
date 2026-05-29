@@ -34,10 +34,14 @@ export default function ScrollFeed({ initial = "home" }: Props) {
   const scrollToPanel = (panel: Panel) => {
     const scroller = scrollerRef.current;
     if (!scroller) return;
-    scroller.scrollTo({
-      top: PANEL_INDEX[panel] * scroller.clientHeight,
-      behavior: "smooth",
-    });
+    // Scroll to the panel's actual offset rather than index * viewport height.
+    // On desktop every panel is exactly one viewport tall so the two are
+    // equivalent, but on mobile panels grow to fit their content, so we must
+    // use the real laid-out position.
+    const panels = scroller.querySelectorAll<HTMLElement>(".scroll-feed-panel");
+    const target = panels[PANEL_INDEX[panel]];
+    if (!target) return;
+    scroller.scrollTo({ top: target.offsetTop, behavior: "smooth" });
   };
 
   // HomePage's nav + the SCROLL arrow call onNavigate(view); we route that
@@ -51,7 +55,19 @@ export default function ScrollFeed({ initial = "home" }: Props) {
     if (!scroller) return;
 
     // Jump to the initial panel without animation, before triggers register.
-    scroller.scrollTop = PANEL_INDEX[initial] * scroller.clientHeight;
+    const initialEl = scroller.querySelectorAll<HTMLElement>(
+      ".scroll-feed-panel",
+    )[PANEL_INDEX[initial]];
+    if (initialEl) scroller.scrollTop = initialEl.offsetTop;
+
+    // On phones we drop the GSAP scroll-pinning + parallax entirely: each
+    // panel grows to fit its content and the page scrolls naturally. Running
+    // the desktop triggers here would fade panels out (autoAlpha: 0) and clip
+    // the taller mobile layouts, so we bail before registering them.
+    const isMobile =
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 639px)").matches;
+    if (isMobile) return;
 
     const ctx = gsap.context(() => {
       const panels = gsap.utils.toArray<HTMLElement>(".scroll-feed-panel");
@@ -103,33 +119,33 @@ export default function ScrollFeed({ initial = "home" }: Props) {
   return (
     <div
       ref={rootRef}
-      className="relative h-screen w-screen overflow-hidden bg-black"
+      className="relative h-svh w-screen overflow-hidden bg-black"
     >
       <div
         ref={scrollerRef}
-        className="h-full w-full overflow-y-auto overflow-x-hidden"
+        className="relative h-full w-full overflow-y-auto overflow-x-hidden"
         style={{ scrollBehavior: "smooth" }}
       >
-        <section className="scroll-feed-panel relative h-full w-full overflow-hidden">
-          <div className="scroll-feed-inner relative h-full w-full will-change-transform">
+        <section className="scroll-feed-panel relative h-full w-full overflow-hidden max-sm:h-auto max-sm:min-h-svh max-sm:overflow-visible">
+          <div className="scroll-feed-inner relative h-full w-full will-change-transform max-sm:h-auto max-sm:min-h-svh max-sm:will-change-auto">
             <HomePage onNavigate={handleNavigate} />
           </div>
         </section>
 
-        <section className="scroll-feed-panel relative h-full w-full overflow-hidden">
-          <div className="scroll-feed-inner relative h-full w-full will-change-transform">
+        <section className="scroll-feed-panel relative h-full w-full overflow-hidden max-sm:h-auto max-sm:min-h-svh max-sm:overflow-visible">
+          <div className="scroll-feed-inner relative h-full w-full will-change-transform max-sm:h-auto max-sm:min-h-svh max-sm:will-change-auto">
             <ProjectsPage onBack={handleBackToTop} />
           </div>
         </section>
 
-        <section className="scroll-feed-panel relative h-full w-full overflow-hidden">
-          <div className="scroll-feed-inner relative h-full w-full will-change-transform">
+        <section className="scroll-feed-panel relative h-full w-full overflow-hidden max-sm:h-auto max-sm:min-h-svh max-sm:overflow-visible">
+          <div className="scroll-feed-inner relative h-full w-full will-change-transform max-sm:h-auto max-sm:min-h-svh max-sm:will-change-auto">
             <OrganizationsPage onBack={handleBackToTop} />
           </div>
         </section>
 
-        <section className="scroll-feed-panel relative h-full w-full overflow-hidden">
-          <div className="scroll-feed-inner relative h-full w-full will-change-transform">
+        <section className="scroll-feed-panel relative h-full w-full overflow-hidden max-sm:h-auto max-sm:min-h-svh max-sm:overflow-visible">
+          <div className="scroll-feed-inner relative h-full w-full will-change-transform max-sm:h-auto max-sm:min-h-svh max-sm:will-change-auto">
             <FunPage onBack={handleBackToTop} />
 
             {/* End-of-feed CTA — sits inside the Fun panel's wrapper so it

@@ -18,6 +18,9 @@ type Props = {
 
 type ViewKey = ProjectSlug | "main";
 
+const PROJECTS_INTRO =
+  "This is where I'm doing all sorts of unique new stuff by pushing myself to work on things to build that “experience” ykwim? Top is the most recent and bottom is oldest. Most of my projects are poured from how I view them from someone else, for example my project “CounterStack” a project that is mainly casino theme which brings me that in light of what they can view as, feel free to look at all of them! I'd love feedback :)";
+
 export default function ProjectsPage({ onBack }: Props) {
   const [selected, setSelected] = useState<ProjectSlug | null>(null);
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
@@ -64,10 +67,96 @@ export default function ProjectsPage({ onBack }: Props) {
   );
 
   return (
-    <main className="relative h-full w-full overflow-hidden bg-black text-white">
+    <main className="relative h-full w-full overflow-hidden bg-black text-white max-sm:h-auto max-sm:min-h-svh max-sm:overflow-visible">
       <BackButton onClick={onBack} />
 
       <BackgroundLayer src={backgroundSrc} viewKey={viewKey} />
+
+      {/* ----------------------------------------------------------------------
+          MOBILE LAYOUT — stacked, scrollable column. The character portrait
+          becomes a tappable hero and each project is a full-width card that
+          expands inline to reveal its detail. Hidden on sm+ where the desktop
+          collage (absolute character + side list + center panel) takes over.
+          --------------------------------------------------------------------- */}
+      <div className="relative z-20 mx-auto flex w-full max-w-lg flex-col px-5 pb-16 pt-20 sm:hidden">
+        <p className="text-[10px] font-medium uppercase tracking-[0.34em] text-violet-300/85">
+          Project archive
+        </p>
+        <h1
+          className="mt-2 text-[26px] font-medium tracking-tight"
+          style={{ textShadow: "0 2px 12px rgba(0,0,0,0.6)" }}
+        >
+          Projects
+        </h1>
+        <p
+          className="mt-3 text-[14px] text-white/85"
+          style={{ lineHeight: 1.7, textShadow: "0 1px 6px rgba(0,0,0,0.6)" }}
+        >
+          {PROJECTS_INTRO}
+        </p>
+
+        {/* Tappable character hero — plays the current view's video. */}
+        <button
+          type="button"
+          onClick={onCharacterClick}
+          aria-label={`Play ${character.alt} video`}
+          className="mt-6 flex flex-col items-center gap-2 self-center focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={character.img}
+            alt={character.alt}
+            draggable={false}
+            className="block h-44 w-auto select-none object-contain"
+            style={{
+              filter:
+                "drop-shadow(0 8px 24px rgba(0,0,0,0.55)) drop-shadow(0 0 24px rgba(167,139,250,0.25))",
+            }}
+          />
+          <span className="text-[10px] uppercase tracking-[0.28em] text-violet-200/80">
+            tap to play
+          </span>
+        </button>
+
+        {/* Project list — tap a card to expand its detail inline. */}
+        <div className="mt-6 flex flex-col gap-3">
+          {PROJECTS.map((p, i) => (
+            <div key={p.slug}>
+              <ProjectCard
+                project={p}
+                index={i}
+                isActive={selected === p.slug}
+                onClick={() =>
+                  setSelected(selected === p.slug ? null : p.slug)
+                }
+              />
+              <AnimatePresence initial={false}>
+                {selected === p.slug && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-2 rounded-lg border border-violet-300/25 bg-[rgba(10,10,15,0.6)] px-4 py-4 backdrop-blur">
+                      <p className="text-[10px] font-medium uppercase tracking-[0.3em] text-violet-300">
+                        {p.tag}
+                      </p>
+                      <p
+                        className="mt-2 text-[14px] text-white/85"
+                        style={{ lineHeight: 1.7 }}
+                      >
+                        {p.description}
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* "Stage transition" sweep — a violet diagonal flash on project enter. */}
       <AnimatePresence>
@@ -116,7 +205,6 @@ export default function ProjectsPage({ onBack }: Props) {
         projects={PROJECTS}
         selected={selected}
         onSelect={setSelected}
-        hideOnMobile={selected !== null}
       />
 
       {/* Shanks — only the MAIN projects view. Each project gets its own
@@ -240,7 +328,7 @@ function CharacterPortrait({
         transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
         whileHover={{ scale: 1.02, y: -2 }}
         whileTap={{ scale: 0.985 }}
-        className="absolute bottom-0 left-0 z-10 origin-bottom-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+        className="absolute bottom-0 left-0 z-10 origin-bottom-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 max-sm:hidden"
         style={{
           filter:
             "drop-shadow(0 8px 24px rgba(0,0,0,0.55)) drop-shadow(0 0 28px rgba(167,139,250,0.25))",
@@ -271,19 +359,15 @@ function ProjectListPanel({
   projects,
   selected,
   onSelect,
-  hideOnMobile,
 }: {
   projects: Project[];
   selected: ProjectSlug | null;
   onSelect: (slug: ProjectSlug) => void;
-  hideOnMobile: boolean;
 }) {
   return (
     <aside
       aria-label="Projects"
-      className={`absolute right-4 top-1/2 z-20 w-[260px] -translate-y-1/2 flex-col gap-3 sm:right-8 sm:flex sm:w-[340px] md:right-12 md:w-[360px] ${
-        hideOnMobile ? "hidden" : "flex"
-      }`}
+      className="absolute right-4 top-1/2 z-20 hidden w-[260px] -translate-y-1/2 flex-col gap-3 sm:right-8 sm:flex sm:w-[340px] md:right-12 md:w-[360px]"
     >
       <p
         className="pb-1 pl-1 text-[10px] uppercase tracking-[0.4em]"
@@ -430,7 +514,7 @@ function DetailPanel({
   onBack: () => void;
 }) {
   return (
-    <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-4 sm:px-8">
+    <div className="pointer-events-none absolute inset-0 z-20 hidden items-center justify-center px-4 sm:flex sm:px-8">
       <motion.div
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
@@ -628,7 +712,7 @@ function ProjectDecorations({ slug }: { slug: ProjectSlug }) {
 
 function IntroPanel() {
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-[5%] z-20 flex justify-center px-4 sm:bottom-[6%] sm:px-8">
+    <div className="pointer-events-none absolute inset-x-0 bottom-[5%] z-20 hidden justify-center px-4 sm:flex sm:bottom-[6%] sm:px-8">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -657,13 +741,7 @@ function IntroPanel() {
             lineHeight: 1.65,
           }}
         >
-          This is where I&apos;m doing all sorts of unique new stuff by pushing
-          myself to work on things to build that &ldquo;experience&rdquo;
-          ykwim? Top is the most recent and bottom is oldest. Most of my
-          projects are poured from how I view them from someone else, for
-          example my project &ldquo;CounterStack&rdquo; a project that is
-          mainly casino theme which brings me that in light of what they can
-          view as, feel free to look at all of them! I&apos;d love feedback :)
+          {PROJECTS_INTRO}
         </p>
       </motion.div>
     </div>

@@ -18,13 +18,13 @@ export default function OrganizationsPage({ onBack }: Props) {
     // flex-1 on each section splits the available height 50/50 when the page
     // fits the viewport so progsu + cyber are both visible together.
     <main
-      className="flex h-full w-full flex-col overflow-y-auto text-white"
+      className="flex h-full w-full flex-col overflow-y-auto text-white max-sm:h-auto max-sm:overflow-visible"
       style={{ backgroundColor: "#0a0a0f" }}
     >
       <BackButton onClick={onBack} />
 
       {/* ---------------- progsu (top half) ---------------- */}
-      <section className="org-section-progsu flex flex-1 flex-col justify-center px-6 py-8 sm:px-12 sm:py-10">
+      <section className="org-section-progsu flex flex-col justify-center px-6 py-20 sm:flex-1 sm:px-12 sm:py-10 max-sm:min-h-svh">
         <div className="mx-auto w-full max-w-2xl">
           {/* Sprite stays the video trigger; the "progsu" word is now a
               hyperlink out to progsu.com. Wrapped in a `group` so hovering
@@ -57,7 +57,7 @@ export default function OrganizationsPage({ onBack }: Props) {
           </div>
 
           <p
-            className="mt-4 text-[13.5px] sm:text-[14.5px]"
+            className="mt-4 text-[15px] sm:text-[14.5px]"
             style={{ color: "rgba(255, 255, 255, 0.88)", lineHeight: 1.7 }}
           >
             progsu is a super awesome cool club that encourages students around
@@ -87,14 +87,14 @@ export default function OrganizationsPage({ onBack }: Props) {
       </section>
 
       {/* ---------------- GSU Cybersecurity Club (bottom half) ---------------- */}
-      <section className="org-section-cyber flex flex-1 flex-col justify-center px-6 py-8 sm:px-12 sm:py-10">
+      <section className="org-section-cyber flex flex-col justify-center px-6 py-20 sm:flex-1 sm:px-12 sm:py-10 max-sm:min-h-svh">
         <div className="mx-auto w-full max-w-2xl">
           <h2 className="text-[22px] font-medium tracking-tight text-white sm:text-[26px]">
             GSU Cybersecurity Club
           </h2>
 
           <p
-            className="mt-4 text-[13.5px] sm:text-[14.5px]"
+            className="mt-4 text-[15px] sm:text-[14.5px]"
             style={{ color: "rgba(255, 255, 255, 0.88)", lineHeight: 1.7 }}
           >
             This is a club I&apos;d love to say is secret and mysterious, this
