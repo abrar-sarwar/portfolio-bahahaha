@@ -100,6 +100,8 @@ export const PROJECT_CHARACTERS: Record<
     alt: "Abrar as Dante (NetWraith)",
     scale: 1.15,
     offsetX: -56,
+    credit: "dev",
+    creditLabel: "edited by",
   },
   tripwire: {
     img: "/assets/sprites/sukuna.png",

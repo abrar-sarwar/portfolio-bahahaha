@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import BackButton from "./BackButton";
 import VideoModal from "./VideoModal";
 import {
@@ -427,11 +427,95 @@ function ProjectListPanel({
   selected: ProjectSlug | null;
   onSelect: (slug: ProjectSlug) => void;
 }) {
+  const asideRef = useRef<HTMLElement | null>(null);
+  const reduce = useReducedMotion();
+  // Which project the pointer is aimed at. Starts on the newest (top).
+  const [pointer, setPointer] = useState(0);
+  const [arrowTop, setArrowTop] = useState<number | null>(null);
+
+  // Keep the pointer aligned when a card is selected directly.
+  useEffect(() => {
+    if (!selected) return;
+    const idx = projects.findIndex((p) => p.slug === selected);
+    if (idx >= 0) setPointer(idx);
+  }, [selected, projects]);
+
+  // Park the arrow at the vertical center of the pointed card. Remeasured on
+  // pointer change and on resize so it always lines up with the taskbar.
+  useEffect(() => {
+    const measure = () => {
+      const aside = asideRef.current;
+      if (!aside) return;
+      const el = aside.querySelector(
+        `[data-pc-index="${pointer}"]`,
+      ) as HTMLElement | null;
+      if (el) setArrowTop(el.offsetTop + el.offsetHeight / 2);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [pointer, projects.length]);
+
+  // Step the arrow down the list (newest -> ... -> CounterStack -> wrap) and
+  // select wherever it lands. First click selects the newest it already aims at.
+  const advance = () => {
+    if (!selected) {
+      onSelect(projects[pointer].slug);
+      return;
+    }
+    const next = (pointer + 1) % projects.length;
+    setPointer(next);
+    onSelect(projects[next].slug);
+  };
+
   return (
     <aside
+      ref={asideRef}
       aria-label="Projects"
-      className="absolute right-4 top-1/2 z-20 hidden w-[260px] -translate-y-1/2 flex-col gap-1.5 sm:right-8 sm:flex sm:w-[340px] md:right-12 md:w-[360px]"
+      className="absolute right-4 top-1/2 z-30 hidden w-[260px] -translate-y-1/2 flex-col gap-1.5 sm:right-8 sm:flex sm:w-[340px] md:right-12 md:w-[360px]"
     >
+      {/* Movable pointer to the left of the taskbar. Click to step it from the
+          newest project down to CounterStack. */}
+      <motion.button
+        type="button"
+        onClick={advance}
+        aria-label="Point at the next project"
+        initial={false}
+        animate={{ top: arrowTop ?? 0, opacity: arrowTop === null ? 0 : 1 }}
+        transition={{ type: "spring", stiffness: 360, damping: 30 }}
+        className="absolute right-full z-30 mr-3 flex -translate-y-1/2 items-center gap-2 focus:outline-none focus-visible:opacity-80"
+      >
+        {pointer === 0 && (
+          <span
+            className="whitespace-nowrap text-[9px] font-medium uppercase tracking-[0.24em] text-white/55"
+            style={{ textShadow: "0 0 8px rgba(0,0,0,0.7)" }}
+          >
+            newest
+          </span>
+        )}
+        {/* A gentle nudge toward the taskbar so the projects catch the eye. */}
+        <motion.span
+          className="inline-flex"
+          animate={reduce ? undefined : { x: [0, 6, 0] }}
+          transition={{ duration: 1.3, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <svg
+            width="26"
+            height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+            style={{ filter: "drop-shadow(0 0 8px rgba(255,255,255,0.45))" }}
+          >
+            <path d="M4 12h14M13 6l6 6-6 6" />
+          </svg>
+        </motion.span>
+      </motion.button>
+
       <p
         className="pb-1 pl-1 text-[10px] uppercase tracking-[0.4em]"
         style={{
@@ -476,6 +560,7 @@ function ProjectCard({
       type="button"
       onClick={onClick}
       aria-pressed={isActive}
+      data-pc-index={index}
       initial={{ opacity: 0, x: 30 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{

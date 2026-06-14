@@ -28,6 +28,16 @@ const mono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Abrar Sarwar | Professional",
   description: "The professional profile of Abrar Sarwar.",
+  icons: {
+    icon: [
+      { url: "/assets/sprites/professionalimage-favicon-16.png?v=6", sizes: "16x16", type: "image/png" },
+      { url: "/assets/sprites/professionalimage-favicon-32.png?v=6", sizes: "32x32", type: "image/png" },
+      { url: "/assets/sprites/professionalimage-favicon.png?v=6", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/assets/sprites/professionalimage-favicon.png?v=6", type: "image/png" },
+    ],
+  },
 };
 
 export default function ProfessionalLayout({

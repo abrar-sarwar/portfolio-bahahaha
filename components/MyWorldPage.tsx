@@ -405,6 +405,18 @@ export default function MyWorldPage() {
               <h3 className="mt-3 text-2xl font-medium tracking-tight text-white">
                 {activeLocation.label}
               </h3>
+              {activeLocation.image && (
+                <motion.img
+                  key={`${activeLocation.slug}-img`}
+                  src={activeLocation.image}
+                  alt={activeLocation.label}
+                  draggable={false}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.7, ease: EASE, delay: 0.15 }}
+                  className="mt-5 aspect-[4/3] w-full select-none rounded-xl border border-white/12 object-cover"
+                />
+              )}
               <div className="mt-5 space-y-4">
                 {activeLocation.content.map((para, i) => (
                   <p
@@ -429,6 +441,8 @@ export default function MyWorldPage() {
             src={DIO_VIDEO_SRC}
             onClose={handleDioVideoClose}
             volume={0.8}
+            credit="cilliam"
+            creditLabel="edit by"
             // worldmp4 is only 480x480 — force a big square so it fills the
             // screen instead of sitting tiny at native resolution.
             videoClass="h-[min(82vh,92vw)] w-[min(82vh,92vw)]"
@@ -443,6 +457,8 @@ export default function MyWorldPage() {
             src={GAROU_VIDEO_SRC}
             onClose={() => setGarouVideoOpen(false)}
             volume={0.8}
+            credit="syu.ae"
+            creditLabel="edit by"
             videoClass="h-[min(82vh,92vw)] w-[min(82vh,92vw)]"
           />
         )}

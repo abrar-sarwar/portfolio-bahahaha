@@ -44,6 +44,8 @@ export type WorldLocation = {
   // Panel body, one string per paragraph. The panel heading is `label`, so
   // this is just the story text. Placeholder for now (see banner below).
   content: string[];
+  // Optional photo shown in the panel, fades in on select.
+  image?: string;
 };
 
 export const WORLD_REGIONS: WorldRegion[] = [
@@ -95,9 +97,11 @@ export const WORLD_LOCATIONS: WorldLocation[] = [
     lat: 33.749,
     lng: -84.388,
     highlight: { source: "states", name: "Georgia" },
+    image: "/assets/sprites/georgia.jpg",
     content: [
-      "Placeholder copy for Georgia. Florbex quanto the wibbly sprocket, lorem ipsum but make it sillier. Replace this whole block when the real story is ready.",
-      "More filler so the panel is not empty: zonk, frizzle, bloop, the cat sat on the keyboard and produced this very paragraph. None of it is true yet.",
+      "I was born and raised right here in Georgia, and it's been an exciting time growing up through everything happening in Atlanta. I always lived out in the countryside where life moved slow and quiet, but as my college years went on that slowly changed, and I found myself spending more and more time in the city. That's where I like to be now, right in the middle of all the action.",
+      "The people here are genuinely nice though, and the mountain views never get old. I always try to take solo trips around different parts of Georgia hoping to find more to it, but it kinda feels like every area is the same thing. This is also where I met so many of my friends, so it holds a lot for me. Honestly the place can be wicked at times, but just know it would make a dope GTA map.",
+      "So come through and visit, but don't come here to stay, because Atlanta is full, bro, please.",
     ],
   },
   {
@@ -107,9 +111,11 @@ export const WORLD_LOCATIONS: WorldLocation[] = [
     lat: 36.1627,
     lng: -86.7816,
     highlight: { source: "states", name: "Tennessee" },
+    image: "/assets/sprites/tennessee.jpg",
     content: [
-      "Placeholder copy for Tennessee. Wibble wobble, a paragraph of pure nonsense waiting to be evicted by the real thing.",
-      "Second filler paragraph. Quibble snorf glimmer, etc. Swap me out whenever.",
+      "This is the best place for cowboys and all kinds of country stuff to get into. You got Gatlinburg and Pigeon Forge, which are a fun time to head around and explore, checking out cool parks and just seeing what's out there. Come through with your family for this one, it's that kind of place.",
+      "Honestly I visit Tennessee a lot because my friend of over 7 years lives here, so I always swing by just because, why not. There's something about having a spot you can keep coming back to that makes it feel like a second home. He's planning to get married and I'm gonna be his best man, which is pretty awesome.",
+      "I haven't been to Nashville or Memphis yet, and I'd kinda try to avoid them, though I'd maybe pull up to Nashville just for the In-N-Out, lol.",
     ],
   },
   {
@@ -119,9 +125,11 @@ export const WORLD_LOCATIONS: WorldLocation[] = [
     lat: 35.7796,
     lng: -78.6382,
     highlight: { source: "states", name: "North Carolina" },
+    image: "/assets/sprites/northcarolina.jpg.webp",
     content: [
-      "Placeholder copy for North Carolina. Splonk the doodle, frabjous and meaningless, here purely to fill space.",
-      "Another throwaway paragraph so the scroll has something to do. Real words coming soon.",
+      "I've been here a couple times but only really around the Charlotte area, so I can't say I've seen all of it. Honestly it feels like a cleaner Atlanta than Atlanta itself, like a greener version with more mountains and woods to wander through. Everything just feels a little more open and easy to breathe in.",
+      "I'd actually love to live there one day, mostly because it just looks healthier than living in Atlanta, lol. I'm heading back soon to catch the J. Cole concert at the Spectrum, so I'm pretty hype about that.",
+      "And when you go, make sure you hit Carowinds, because you might get your ass fried for not riding the Fury. It's okay I was also too scared to ride it as well.",
     ],
   },
   {
@@ -131,9 +139,11 @@ export const WORLD_LOCATIONS: WorldLocation[] = [
     lat: 40.7128,
     lng: -74.006,
     highlight: { source: "states", name: "New York" },
+    image: "/assets/sprites/newyork.jpg",
     content: [
-      "Placeholder copy for New York. Bibble bobble zoom, a stand-in sentence with no actual content.",
-      "Filler paragraph number two. Yadda yadda flibbertigibbet. Replace at will.",
+      "I've been coming here since I was a kid, which was always decent because my auntie lives out here, so I had a reason to keep coming back. I made a trip for New Year's too, since I'm the type to always watch the ball drop on TV and figured I'd finally see it for real. The food alone is worth the trip though, so dope, I'd come back just to eat my way through it again.",
+      "The Statue of Liberty is always nice to catch even from far away, and it never really loses that feeling. One thing I gotta say is it smells exactly like downtown Atlanta, so it felt weirdly familiar the second I got there, lol. And I gotta say it, go Knicks, because that game was pretty insane ngl. I've got like 3 friends living here too, so every now and then we link up and hang out when I'm around.",
+      "I might pull back up for Anime NYC, but maybe not. RIP NYC after that Knicks game though. :( ",
     ],
   },
 
@@ -145,9 +155,11 @@ export const WORLD_LOCATIONS: WorldLocation[] = [
     lat: 33.6844,
     lng: 73.0479,
     highlight: { source: "countries", name: "Pakistan" },
+    image: "/assets/sprites/pakistan.jpg",
     content: [
-      "Placeholder copy for Pakistan. Glorp the wandle, a nonsense paragraph keeping the seat warm for the real one.",
-      "Second filler line. Snizzle frump, gibberish on purpose. Swap whenever the story is ready.",
+      "Pakistan is where my dad's side of the family is from, and going there honestly felt rushed because everything about it moved at a rush. There was sand everywhere and people riding motorcycles through all of it. I still remember pulling out of the airport in a van that had the goofiest horn ever, and man it was so annoying, lol.",
+      "I came to visit my dad's family who haven't moved over to America yet, and they were so welcoming the whole time. Meeting them was a blessing, and I'd do anything for them, especially after the way they took care of us. And the food, bro, I lowkey gained like 20 pounds before I even left.",
+      "I wouldn't go back by myself, but after my dad glazed about it for so long, it was such a nice time to finally see it for real. It was a lot of fun, and I'm glad I got to experience it.",
     ],
   },
   {
@@ -157,9 +169,11 @@ export const WORLD_LOCATIONS: WorldLocation[] = [
     lat: -6.2088,
     lng: 106.8456,
     highlight: { source: "countries", name: "Indonesia" },
+    image: "/assets/sprites/indonesia.webp",
     content: [
-      "Placeholder copy for Indonesia. Floofle the marblewicket, lorem-ish drivel meant to be deleted.",
-      "More placeholder so it scrolls. Zib zob zub. Real words land here later.",
+      "This is the area where my mother is from, and being here for a week really showed me the way she grew up. At first it looks like a utopia, but once you head outside the city of Jakarta it can honestly look a little scary. There's a lot that comes at your eyes here, but Jakarta itself felt like it carried a lot of Japanese influence, and you can feel that culture in everything, especially since most of it is pretty cheap.",
+      "I still remember how long it took to get between the train stations, but it was so worth it because I was able to see where my grandma was. I just wish I'd had the chance to learn more about my mom's life growing up.",
+      "I'm gonna come back to bring new hope to my mother's family, and my goal is to buy a house there one day for them to live in.",
     ],
   },
   {
@@ -170,9 +184,10 @@ export const WORLD_LOCATIONS: WorldLocation[] = [
     lat: 41.0082,
     lng: 28.9784,
     highlight: { source: "countries", name: "Turkey" },
+    image: "/assets/sprites/turkey.jpg",
     content: [
-      "Placeholder copy for Turkey, centered on Istanbul. Quonk the bibblesnap, a placeholder paragraph and nothing more.",
-      "Filler two. Wuzzle frindle. Replace this with the real account when ready.",
+      "Turkey is known for having one of the biggest international airports out there, and it's kind of insane how the whole area feels when you're in it. I gotta be honest though, every single time I visit it has that rainy mood to it, even after coming through like 4 times now. The Blue Mosque was still under construction while I was there, which was a little bummer.",
+      "This is also the area where I first got to meet my mom's side of the family. I'd never met them before, but they had a chance to come through while traveling outside of Indonesia, so it all kind of lined up. It was still an incredible time, especially since we got to hop on a cruise and make our way out to Cat Island! :3 ",
     ],
   },
   {
@@ -182,9 +197,11 @@ export const WORLD_LOCATIONS: WorldLocation[] = [
     lat: 24.7136,
     lng: 46.6753,
     highlight: { source: "countries", name: "Saudi Arabia" },
+    image: "/assets/sprites/saudiarabia.jpg",
     content: [
-      "Placeholder copy for Saudi Arabia. Glimber the snorfwidget, total gibberish standing in for the truth.",
-      "Second placeholder paragraph. Boop beep blorp. Swap me out.",
+      "Saudi Arabia is honestly the most beautiful place in the world to me, and the most holy too. Every single time I come here I find myself thinking I need to come back just to feel free again. Even though I always end up hungry whenever I'm here, that's just part of the journey, sitting in a car for 3 hours and then walking at least 10k plus steps after. It's an honest adventure, the kind that feels like it was made for us as humanity.",
+      "The clock tower alone has like 73 floors to enter from, and it really felt like a way into heaven looking up at it. I still can't believe the architecture out here, it's got like 7 different hotels all built together, which I guess is just the culture but it's wild. I will say prepare for the heat though, because it's so hot with sand and wind breeze going everywhere, you can lowkey farm aura out there.",
+      "I felt at peace here, and I'll always say that about going for umrah. I need to be there for hajj soon too, inshallah. I genuinely wish everyone in this world could experience this kind of greatness for themselves.",
     ],
   },
   {
@@ -194,9 +211,11 @@ export const WORLD_LOCATIONS: WorldLocation[] = [
     lat: 3.139,
     lng: 101.6869,
     highlight: { source: "countries", name: "Malaysia" },
+    image: "/assets/sprites/malaysia.png",
     content: [
-      "Placeholder copy for Malaysia. Wibblethwack the donglebean, filler text awaiting its replacement.",
-      "More nonsense for the scroll. Frizz fram floom. Real copy soon.",
+      "I was only here for one day, but it honestly felt like I'd been there a year because of how much greatness came out of it. For one, the towers and buildings out here are beautiful, and the whole area of technology just felt right, like everything was built with intention. My dad's friend lived here too, and after so long the two of them finally reconnected, which was such a wholesome thing to witness.",
+      "Walking around, it just gives you that feeling of the future, like you stepped into what's coming next. I don't even know why, but at one point I had to stop and take a selfie with one of the buildings because it was just that beautiful for the area.",
+      "One day honestly wasn't enough though, so I definitely need to come back and stay way longer next time.",
     ],
   },
   {
@@ -206,9 +225,11 @@ export const WORLD_LOCATIONS: WorldLocation[] = [
     lat: 38.7223,
     lng: -9.1393,
     highlight: { source: "countries", name: "Portugal" },
+    image: "/assets/sprites/portugal.jpg",
     content: [
-      "Placeholder copy for Portugal. Snibble the quaverflux, a paragraph of cheerful nonsense holding the spot.",
-      "Filler paragraph two. Plonk wibble zint. Replace whenever the real words arrive.",
+      "I came here on a solo trip to meet a friend I'd gotten pretty close with on Discord, and I figured why not just go out and actually meet her. It ended up being such an amazing time. I didn't get to see all of Portugal, but I feel like Porto pretty much summed up what the whole place is about.",
+      "The beaches were a little insane, and from what I saw there were green mountains just outside the city. Going around just feels so European, like the peak of life where I could honestly stay forever. Riding the boats, walking from one area to the next, and their train system was pretty dope compared to New York, lol. There's always some festival going on with music keeping the city in good vibes.",
+      "She made the whole trip unforgettable, and I'll never forget her, she holds a close tie to my heart that I will never let go of. I'd go back again fosho in a heartbeat. :) ",
     ],
   },
 ];
