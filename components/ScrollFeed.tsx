@@ -16,6 +16,9 @@ if (typeof window !== "undefined") {
 
 export type Panel = "home" | "projects" | "organizations" | "fun";
 
+// Order of the feed: Main -> Projects -> Organizations -> Fun. My World lives
+// on its own /myworld route, not in this feed. To slot a new section in later,
+// add it here and drop a matching panel <section> in the same position below.
 const PANEL_INDEX: Record<Panel, number> = {
   home: 0,
   projects: 1,
@@ -47,7 +50,12 @@ export default function ScrollFeed({ initial = "home" }: Props) {
   // HomePage's nav + the SCROLL arrow call onNavigate(view); we route that
   // into a smooth scroll instead of a page-level view switch. BackButton
   // inside any section calls onBack → smooth scroll back to the home panel.
-  const handleNavigate = (view: SubView) => scrollToPanel(view);
+  // My World is its own route, so it never resolves to a feed panel; HomePage
+  // routes there directly. Everything else scrolls within the feed.
+  const handleNavigate = (view: SubView) => {
+    if (view === "myworld") return;
+    scrollToPanel(view);
+  };
   const handleBackToTop = () => scrollToPanel("home");
 
   useEffect(() => {

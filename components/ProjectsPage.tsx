@@ -8,9 +8,13 @@ import {
   PROJECTS,
   PROJECTS_MAIN_BACKGROUND,
   PROJECT_CHARACTERS,
+  PROJECT_ACCENTS,
   type Project,
   type ProjectSlug,
 } from "@/lib/projects";
+
+// rgba() from an "r,g,b" accent triplet.
+const accentRgba = (glow: string, a: number) => `rgba(${glow}, ${a})`;
 
 type Props = {
   onBack: () => void;
@@ -27,6 +31,7 @@ export default function ProjectsPage({ onBack }: Props) {
 
   const viewKey: ViewKey = selected ?? "main";
   const character = PROJECT_CHARACTERS[viewKey];
+  const accent = PROJECT_ACCENTS[viewKey];
   const selectedProject =
     selected != null ? PROJECTS.find((p) => p.slug === selected) ?? null : null;
 
@@ -79,7 +84,10 @@ export default function ProjectsPage({ onBack }: Props) {
           collage (absolute character + side list + center panel) takes over.
           --------------------------------------------------------------------- */}
       <div className="relative z-20 mx-auto flex w-full max-w-lg flex-col px-5 pb-16 pt-20 sm:hidden">
-        <p className="text-[10px] font-medium uppercase tracking-[0.34em] text-violet-300/85">
+        <p
+          className="text-[10px] font-medium uppercase tracking-[0.34em]"
+          style={{ color: accent.text }}
+        >
           Project archive
         </p>
         <h1
@@ -100,20 +108,27 @@ export default function ProjectsPage({ onBack }: Props) {
           type="button"
           onClick={onCharacterClick}
           aria-label={`Play ${character.alt} video`}
-          className="mt-6 flex flex-col items-center gap-2 self-center focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+          className="mt-6 flex flex-col items-center gap-2 self-center focus:outline-none focus-visible:ring-2"
+          style={{ ["--tw-ring-color" as string]: accent.text }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={character.img}
             alt={character.alt}
             draggable={false}
-            className="block h-44 w-auto select-none object-contain"
+            className={`block w-auto select-none object-contain ${
+              character.scale ? "h-52" : "h-44"
+            } ${character.gear5 ? "gear5-bounce" : ""}`}
             style={{
-              filter:
-                "drop-shadow(0 8px 24px rgba(0,0,0,0.55)) drop-shadow(0 0 24px rgba(167,139,250,0.25))",
+              filter: character.gear5
+                ? "drop-shadow(1.4px 0 0 #fff) drop-shadow(-1.4px 0 0 #fff) drop-shadow(0 1.4px 0 #fff) drop-shadow(0 -1.4px 0 #fff) drop-shadow(0 0 14px rgba(255,255,255,0.6))"
+                : `drop-shadow(0 8px 24px rgba(0,0,0,0.55)) drop-shadow(0 0 24px ${accentRgba(accent.glow, 0.3)})`,
             }}
           />
-          <span className="text-[10px] uppercase tracking-[0.28em] text-violet-200/80">
+          <span
+            className="text-[10px] uppercase tracking-[0.28em]"
+            style={{ color: accent.text, opacity: 0.85 }}
+          >
             tap to play
           </span>
         </button>
@@ -139,12 +154,18 @@ export default function ProjectsPage({ onBack }: Props) {
                     transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
                     className="overflow-hidden"
                   >
-                    <div className="mt-2 rounded-lg border border-violet-300/25 bg-[rgba(10,10,15,0.6)] px-4 py-4 backdrop-blur">
-                      <p className="text-[10px] font-medium uppercase tracking-[0.3em] text-violet-300">
+                    <div
+                      className="mt-2 rounded-lg border bg-[rgba(10,10,15,0.6)] px-5 py-5 backdrop-blur"
+                      style={{ borderColor: accentRgba(PROJECT_ACCENTS[p.slug].glow, 0.3) }}
+                    >
+                      <p
+                        className="text-[10px] font-medium uppercase tracking-[0.3em]"
+                        style={{ color: PROJECT_ACCENTS[p.slug].text }}
+                      >
                         {p.tag}
                       </p>
                       <p
-                        className="mt-2 text-[14px] text-white/85"
+                        className="mt-2 whitespace-pre-line text-[14px] text-white/85"
                         style={{ lineHeight: 1.7 }}
                       >
                         {p.description}
@@ -169,8 +190,7 @@ export default function ProjectsPage({ onBack }: Props) {
             transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             className="pointer-events-none absolute inset-0 z-[15]"
             style={{
-              background:
-                "linear-gradient(120deg, transparent 30%, rgba(167,139,250,0.18) 47%, rgba(196,181,253,0.45) 50%, rgba(167,139,250,0.18) 53%, transparent 70%)",
+              background: `linear-gradient(120deg, transparent 30%, ${accentRgba(accent.glow, 0.18)} 47%, ${accentRgba(accent.glow, 0.5)} 50%, ${accentRgba(accent.glow, 0.18)} 53%, transparent 70%)`,
               mixBlendMode: "screen",
             }}
           />
@@ -197,6 +217,7 @@ export default function ProjectsPage({ onBack }: Props) {
 
       <CharacterPortrait
         character={character}
+        accent={accent}
         onClick={onCharacterClick}
         compact={selected !== null}
       />
@@ -266,6 +287,7 @@ export default function ProjectsPage({ onBack }: Props) {
             onClose={() => setPlayingVideo(null)}
             volume={0.6}
             credit={character.credit}
+            creditLabel={character.creditLabel}
           />
         )}
       </AnimatePresence>
@@ -298,10 +320,19 @@ function BackgroundLayer({ src, viewKey }: { src: string; viewKey: ViewKey }) {
 
 function CharacterPortrait({
   character,
+  accent,
   onClick,
   compact,
 }: {
-  character: { img: string; alt: string; video: string };
+  character: {
+    img: string;
+    alt: string;
+    video: string;
+    scale?: number;
+    offsetX?: number;
+    gear5?: boolean;
+  };
+  accent: { text: string; glow: string };
   onClick: () => void;
   compact: boolean;
 }) {
@@ -328,10 +359,11 @@ function CharacterPortrait({
         transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
         whileHover={{ scale: 1.02, y: -2 }}
         whileTap={{ scale: 0.985 }}
-        className="absolute bottom-0 left-0 z-10 origin-bottom-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 max-sm:hidden"
+        className="absolute bottom-0 left-0 z-10 origin-bottom-left cursor-pointer focus:outline-none focus-visible:ring-2 max-sm:hidden"
         style={{
-          filter:
-            "drop-shadow(0 8px 24px rgba(0,0,0,0.55)) drop-shadow(0 0 28px rgba(167,139,250,0.25))",
+          ["--tw-ring-color" as string]: accent.text,
+          left: character.offsetX ? `${character.offsetX}px` : undefined,
+          filter: `drop-shadow(0 8px 24px rgba(0,0,0,0.55)) drop-shadow(0 0 28px ${accentRgba(accent.glow, 0.3)})`,
         }}
       >
         {/* Ground glow so the character feels planted on the floor. */}
@@ -339,16 +371,47 @@ function CharacterPortrait({
           aria-hidden
           className="pointer-events-none absolute -bottom-4 left-1/2 -z-10 h-24 w-3/4 -translate-x-1/2 rounded-[50%] blur-2xl"
           style={{
-            background:
-              "radial-gradient(closest-side, rgba(167,139,250,0.5), transparent 70%)",
+            background: `radial-gradient(closest-side, ${accentRgba(accent.glow, 0.5)}, transparent 70%)`,
           }}
         />
+        {/* Gear 5 — pulsing white aura behind the figure. */}
+        {character.gear5 && (
+          <span
+            aria-hidden
+            className="gear5-aura pointer-events-none absolute inset-0 -z-10"
+            style={{
+              background:
+                "radial-gradient(closest-side, rgba(255,255,255,0.55), rgba(255,255,255,0.12) 55%, transparent 72%)",
+              filter: "blur(16px)",
+            }}
+          />
+        )}
         {/* eslint-disable-next-line @next/next/no-img-element */}
+        {/* Sized by width, but capped to the viewport height so the head is
+            never clipped by the page's overflow-hidden. A per-character scale
+            widens the portrait; the max-height keeps the whole figure on screen. */}
         <img
           src={character.img}
           alt={character.alt}
           draggable={false}
-          className={`block h-auto select-none object-contain ${widthClass}`}
+          className={`block h-auto max-h-[86svh] select-none object-contain ${widthClass} ${
+            character.gear5 ? "gear5-bounce" : ""
+          }`}
+          style={{
+            ...(character.scale
+              ? {
+                  width: `min(${Math.round(46 * character.scale)}vw, ${Math.round(
+                    640 * character.scale,
+                  )}px)`,
+                }
+              : {}),
+            ...(character.gear5
+              ? {
+                  filter:
+                    "drop-shadow(1.6px 0 0 #fff) drop-shadow(-1.6px 0 0 #fff) drop-shadow(0 1.6px 0 #fff) drop-shadow(0 -1.6px 0 #fff) drop-shadow(0 0 16px rgba(255,255,255,0.6))",
+                }
+              : {}),
+          }}
         />
       </motion.button>
     </AnimatePresence>
@@ -367,12 +430,12 @@ function ProjectListPanel({
   return (
     <aside
       aria-label="Projects"
-      className="absolute right-4 top-1/2 z-20 hidden w-[260px] -translate-y-1/2 flex-col gap-3 sm:right-8 sm:flex sm:w-[340px] md:right-12 md:w-[360px]"
+      className="absolute right-4 top-1/2 z-20 hidden w-[260px] -translate-y-1/2 flex-col gap-1.5 sm:right-8 sm:flex sm:w-[340px] md:right-12 md:w-[360px]"
     >
       <p
         className="pb-1 pl-1 text-[10px] uppercase tracking-[0.4em]"
         style={{
-          color: "rgba(196, 181, 253, 0.85)",
+          color: "rgba(255, 255, 255, 0.65)",
           textShadow: "0 0 12px rgba(0,0,0,0.6)",
         }}
       >
@@ -385,6 +448,7 @@ function ProjectListPanel({
           index={i}
           isActive={selected === p.slug}
           onClick={() => onSelect(p.slug)}
+          showThumb={false}
         />
       ))}
     </aside>
@@ -396,12 +460,17 @@ function ProjectCard({
   index,
   isActive,
   onClick,
+  showThumb = true,
 }: {
   project: Project;
   index: number;
   isActive: boolean;
   onClick: () => void;
+  // Right-side taskbar hides the thumbnail to keep cards short, so more
+  // projects fit. The mobile list keeps thumbs (default true).
+  showThumb?: boolean;
 }) {
+  const accent = PROJECT_ACCENTS[project.slug];
   return (
     <motion.button
       type="button"
@@ -416,19 +485,21 @@ function ProjectCard({
       }}
       whileHover={{ scale: 1.015, x: -2 }}
       whileTap={{ scale: 0.985 }}
-      className="group relative flex w-full items-center gap-3 overflow-hidden rounded-lg border p-3 text-left transition-colors duration-200 focus:outline-none"
+      className={`group relative flex w-full items-center gap-3 overflow-hidden rounded-lg border text-left transition-colors duration-200 focus:outline-none ${
+        showThumb ? "p-3" : "px-3 py-2"
+      }`}
       style={{
         backgroundColor: isActive
-          ? "rgba(168, 139, 250, 0.18)"
+          ? accentRgba(accent.glow, 0.18)
           : "rgba(10, 10, 15, 0.55)",
         borderColor: isActive
-          ? "rgba(168, 139, 250, 0.7)"
+          ? accentRgba(accent.glow, 0.7)
           : "rgba(255, 255, 255, 0.1)",
         borderWidth: 0.5,
         backdropFilter: "blur(8px)",
         WebkitBackdropFilter: "blur(8px)",
         boxShadow: isActive
-          ? "0 0 24px rgba(167, 139, 250, 0.25), inset 0 0 12px rgba(167,139,250,0.08)"
+          ? `0 0 24px ${accentRgba(accent.glow, 0.3)}, inset 0 0 12px ${accentRgba(accent.glow, 0.1)}`
           : undefined,
       }}
     >
@@ -436,38 +507,40 @@ function ProjectCard({
       <span
         className="shrink-0 font-mono text-[10px] tabular-nums"
         style={{
-          color: isActive ? "#c4b5fd" : "rgba(255,255,255,0.4)",
+          color: isActive ? accent.text : "rgba(255,255,255,0.4)",
           letterSpacing: "0.1em",
         }}
       >
         {String(index + 1).padStart(2, "0")}
       </span>
 
-      {/* Thumb */}
-      <div
-        className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md"
-        style={{
-          borderWidth: 0.5,
-          borderStyle: "solid",
-          borderColor: isActive
-            ? "rgba(168, 139, 250, 0.55)"
-            : "rgba(255, 255, 255, 0.12)",
-        }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={project.spriteSrc}
-          alt=""
-          draggable={false}
-          className="absolute inset-0 h-full w-full select-none object-cover"
-        />
-      </div>
+      {/* Thumb — hidden in the right-side taskbar to keep cards compact. */}
+      {showThumb && (
+        <div
+          className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md"
+          style={{
+            borderWidth: 0.5,
+            borderStyle: "solid",
+            borderColor: isActive
+              ? accentRgba(accent.glow, 0.55)
+              : "rgba(255, 255, 255, 0.12)",
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={project.spriteSrc}
+            alt=""
+            draggable={false}
+            className="absolute inset-0 h-full w-full select-none object-cover"
+          />
+        </div>
+      )}
 
       <div className="min-w-0 flex-1">
         <div
           className="truncate text-sm font-medium tracking-tight"
           style={{
-            color: isActive ? "#ddd6fe" : "rgba(255,255,255,0.92)",
+            color: isActive ? accent.text : "rgba(255,255,255,0.92)",
           }}
         >
           {project.title}
@@ -475,9 +548,8 @@ function ProjectCard({
         <div
           className="mt-0.5 truncate text-[10px] uppercase tracking-[0.18em]"
           style={{
-            color: isActive
-              ? "rgba(196, 181, 253, 0.85)"
-              : "rgba(255, 255, 255, 0.5)",
+            color: isActive ? accent.text : "rgba(255, 255, 255, 0.5)",
+            opacity: isActive ? 0.85 : 1,
           }}
         >
           {project.tag}
@@ -491,8 +563,7 @@ function ProjectCard({
           layoutId="project-active-accent"
           className="absolute right-0 top-0 h-full w-[2px]"
           style={{
-            background:
-              "linear-gradient(180deg, transparent, #c4b5fd, transparent)",
+            background: `linear-gradient(180deg, transparent, ${accent.text}, transparent)`,
           }}
           transition={{ type: "spring", stiffness: 380, damping: 28 }}
         />
@@ -513,6 +584,7 @@ function DetailPanel({
   project: Project;
   onBack: () => void;
 }) {
+  const accent = PROJECT_ACCENTS[project.slug];
   return (
     <div className="pointer-events-none absolute inset-0 z-20 hidden items-center justify-center px-4 sm:flex sm:px-8">
       <motion.div
@@ -520,19 +592,19 @@ function DetailPanel({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 14 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
-        className="pointer-events-auto w-[min(92vw,_520px)]"
+        className="pointer-events-auto max-h-[86vh] w-[min(94vw,_640px)] overflow-y-auto"
         style={{
           // Subtle scrim — keeps copy legible without putting a hard card box
           // around it. Wide soft fade rather than a clipped rectangle.
           background:
-            "radial-gradient(ellipse 95% 80% at 50% 50%, rgba(8,8,14,0.78), rgba(8,8,14,0.45) 60%, transparent 95%)",
-          padding: "1.75rem 0.5rem",
+            "radial-gradient(ellipse 95% 85% at 50% 50%, rgba(8,8,14,0.82), rgba(8,8,14,0.5) 62%, transparent 96%)",
+          padding: "2.25rem 1.25rem",
         }}
       >
         <motion.button
           type="button"
           onClick={onBack}
-          whileHover={{ x: -3, color: "#ddd6fe" }}
+          whileHover={{ x: -3, color: accent.text }}
           transition={{ duration: 0.15 }}
           className="mb-5 inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.34em] focus:outline-none"
           style={{
@@ -547,7 +619,7 @@ function DetailPanel({
         <p
           className="text-[11px] font-medium uppercase tracking-[0.32em]"
           style={{
-            color: "#c4b5fd",
+            color: accent.text,
             textShadow: "0 0 14px rgba(0,0,0,0.7)",
           }}
         >
@@ -560,20 +632,34 @@ function DetailPanel({
             textShadow: "0 2px 12px rgba(0,0,0,0.55)",
           }}
         >
-          {project.title}
+          {project.repoUrl ? (
+            <a
+              href={project.repoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="pointer-events-auto inline-flex items-center gap-2 underline-offset-[6px] transition-colors hover:underline focus:outline-none focus-visible:underline"
+              title="Open the repository"
+            >
+              {project.title}
+              <span aria-hidden className="text-[0.7em]" style={{ color: accent.text }}>
+                ↗
+              </span>
+            </a>
+          ) : (
+            project.title
+          )}
         </h2>
 
         <span
           aria-hidden
           className="mt-4 block h-px w-12"
           style={{
-            background:
-              "linear-gradient(90deg, rgba(196,181,253,0.7), transparent)",
+            background: `linear-gradient(90deg, ${accentRgba(accent.glow, 0.7)}, transparent)`,
           }}
         />
 
         <p
-          className="mt-4 text-[14.5px] sm:text-[15px]"
+          className="mt-4 whitespace-pre-line text-[14.5px] sm:text-[15px]"
           style={{
             color: "rgba(255,255,255,0.9)",
             lineHeight: 1.7,
@@ -655,6 +741,19 @@ function ProjectDecorations({ slug }: { slug: ProjectSlug }) {
   const sizeClass = "h-24 sm:h-32 md:h-40";
 
   switch (slug) {
+    case "netwraith":
+      // NetWraith's bottom-right mascot — Dante.
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="/assets/sprites/dantebottomright.gif"
+          alt=""
+          aria-hidden
+          draggable={false}
+          onError={onErr}
+          className={`${slotClass} pointer-events-none w-auto select-none object-contain ${sizeClass}`}
+        />
+      );
     case "tripwire":
       // TripWire now uses ichigoglint as its mascot (static — no hover swap).
       return (

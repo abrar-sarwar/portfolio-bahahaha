@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import SpriteSlot from "./SpriteSlot";
+import SpinningGlobe from "./SpinningGlobe";
 import TypingText from "./TypingText";
 import VideoModal from "./VideoModal";
+import ProfessionalEntry from "./ProfessionalEntry";
+import { RETURN_TO_KEY } from "@/lib/projects";
 import type { SubView } from "@/lib/sections";
 
 const GOJO_VIDEO_SRC = "/assets/videos/idwin.mp4";
@@ -28,7 +32,7 @@ const SOCIALS = [
 ];
 
 const BIO_TEXT =
-  "Hey, I'm Abrar. I'm Asian American, born and raised in Georgia in a pretty diverse family. Outside of work I draw, read, hit the gym, game, and spend as much time as I can hiking and finding weird corners of the world to explore. On the career side, I've been into CS and cybersecurity since I was the kid setting up Minecraft LAN servers for my friends and fixing the TV whenever it cut out at home. Long term I want to be a solutions architect, building systems that actually solve problems for the people using them. If you've got hiking spots to share, let's talk.";
+  "Hey, I'm Abrar. I'm Asian American, born and raised in Georgia in a pretty diverse family. Outside of work I draw, read, hit the gym, game, and spend as much time as I can adventuring and finding weird corners of the world to explore. On the career side, I've been into CS and cybersecurity since I was the kid setting up Minecraft LAN servers for my friends and fixing the TV whenever it cut out at home. Long term I want to be a solutions architect, building systems that actually solve problems for the people using them. If you've got adventures to share, let's talk.";
 
 const containerVariants = {
   hidden: { clipPath: "circle(0% at 50% 50%)" },
@@ -210,6 +214,20 @@ function PurpleAura() {
 }
 
 export default function HomePage({ onNavigate }: Props) {
+  const router = useRouter();
+  // My World is its own page now. Stash a return hint so coming back skips the
+  // intro and lands on the home feed.
+  const goToMyWorld = () => {
+    try {
+      sessionStorage.setItem(RETURN_TO_KEY, "home");
+    } catch {
+      // ignore privacy-mode failures
+    }
+    router.push("/myworld");
+  };
+  const handleNav = (id: SubView) =>
+    id === "myworld" ? goToMyWorld() : onNavigate(id);
+
   // Drive the entrance via a state flip on the next frame instead of the
   // initial/animate props, because <AnimatePresence initial={false}> in
   // SectionTransition propagates "skip initial" down to descendant motion
@@ -326,10 +344,32 @@ export default function HomePage({ onNavigate }: Props) {
         aria-hidden
       />
 
-      {/* Favorite-song disc — sits in the upper-right quadrant, below and to
-          the right of the eclipse with enough air between them that they
-          don't read as a single unit. Click toggles play/pause; the disc
-          spins while playing and the track name slides in underneath. */}
+      {/* Favorite-song disc + the My World globe sit side by side in the
+          upper-right quadrant, below and to the right of the eclipse. The
+          globe ("explore me") opens the My World page; the disc toggles the
+          song and spins while playing with the track name underneath. */}
+      <div className="absolute right-14 top-28 z-30 flex items-start gap-5 sm:right-[18%] sm:top-32 md:right-[20%]">
+      {/* Explore me — spinning globe → /myworld. */}
+      <motion.button
+        type="button"
+        onClick={goToMyWorld}
+        aria-label="Explore My World"
+        initial={{ opacity: 0, scale: 0.6, y: -8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ delay: 1.35, type: "spring", stiffness: 280, damping: 18 }}
+        whileHover={{ scale: 1.07 }}
+        whileTap={{ scale: 0.94 }}
+        className="flex cursor-pointer flex-col items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+      >
+        <SpinningGlobe spin={7} className="h-14 w-14 sm:h-16 sm:w-16 md:h-20 md:w-20" />
+        <span
+          className="text-[8px] font-medium uppercase tracking-[0.14em] text-white/72 sm:text-[9px]"
+          style={{ textShadow: "0 0 8px rgba(150,180,255,0.6)" }}
+        >
+          explore me
+        </span>
+      </motion.button>
+
       <motion.button
         type="button"
         onClick={toggleFavoriteSong}
@@ -346,7 +386,7 @@ export default function HomePage({ onNavigate }: Props) {
         }}
         whileHover={{ scale: 1.06 }}
         whileTap={{ scale: 0.94 }}
-        className="absolute right-8 top-28 z-30 flex cursor-pointer flex-col items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 sm:right-[14%] sm:top-32 md:right-[16%]"
+        className="flex cursor-pointer flex-col items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
       >
         <motion.div
           animate={{ rotate: songPlaying ? 360 : 0 }}
@@ -408,6 +448,7 @@ export default function HomePage({ onNavigate }: Props) {
           </AnimatePresence>
         </div>
       </motion.button>
+      </div>
 
       <audio
         ref={favoriteSongRef}
@@ -480,7 +521,7 @@ export default function HomePage({ onNavigate }: Props) {
             whileHover={{ scale: 1.06, x: -2 }}
             transition={{ type: "spring", stiffness: 480, damping: 22 }}
             type="button"
-            onClick={() => onNavigate(link.id)}
+            onClick={() => handleNav(link.id)}
             className="px-2 py-1 text-white/60 transition-colors duration-150 hover:text-violet-300 focus:outline-none focus-visible:text-violet-300 focus-visible:underline"
           >
             {link.label}
@@ -626,7 +667,7 @@ export default function HomePage({ onNavigate }: Props) {
       <motion.button
         type="button"
         onClick={() => onNavigate("projects")}
-        aria-label="Scroll down to projects"
+        aria-label="Scroll down to Projects"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.4, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
@@ -807,6 +848,14 @@ export default function HomePage({ onNavigate }: Props) {
         <video src={GOJO_VIDEO_SRC} preload="none" muted playsInline />
       </div>
 
+      {/* Professional page entry — bottom-right corner of the main page. Sits
+          above the Jotaro walk lane (z above it). Note: the Abrar + Gojo portrait
+          also lives bottom-right (bottom-0 right-4/8/12); this is nudged to the
+          far corner so the two read as separate. TODO: fine-tune exact position. */}
+      <div className="absolute bottom-[1%] right-[1.5%] z-[40]">
+        <ProfessionalEntry />
+      </div>
+
     </motion.main>
 
     {/* ----------------------------------------------------------------------
@@ -829,7 +878,7 @@ export default function HomePage({ onNavigate }: Props) {
           <button
             key={link.id}
             type="button"
-            onClick={() => onNavigate(link.id)}
+            onClick={() => handleNav(link.id)}
             className="py-1 transition-colors hover:text-violet-300"
           >
             {link.label}
@@ -965,12 +1014,24 @@ export default function HomePage({ onNavigate }: Props) {
         />
       </div>
 
-      {/* Favorite song disc */}
+      {/* My World globe + favorite song disc, side by side */}
+      <div className="relative z-10 mt-7 flex items-start justify-center gap-8">
+      <button
+        type="button"
+        onClick={goToMyWorld}
+        aria-label="Explore My World"
+        className="flex flex-col items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+      >
+        <SpinningGlobe spin={7} className="h-16 w-16" />
+        <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/70">
+          explore me
+        </span>
+      </button>
       <button
         type="button"
         onClick={toggleFavoriteSong}
         aria-label={songPlaying ? "Pause favorite song" : "Play favorite song"}
-        className="relative z-10 mt-7 flex flex-col items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+        className="flex flex-col items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
       >
         <motion.div
           animate={{ rotate: songPlaying ? 360 : 0 }}
@@ -1007,6 +1068,7 @@ export default function HomePage({ onNavigate }: Props) {
           </span>
         )}
       </button>
+      </div>
 
       {/* Contact links */}
       <ul className="relative z-10 mt-8 w-full max-w-md space-y-2">
@@ -1040,6 +1102,13 @@ export default function HomePage({ onNavigate }: Props) {
         <span aria-hidden>→</span>
       </a>
 
+      {/* Professional page entry. In-flow and right-aligned (self-end) on mobile
+          so it reads as bottom-right of the content without overlapping the
+          stacked copy or the schedule CTA above. TODO: fine-tune position. */}
+      <div className="relative z-10 mt-8 self-end">
+        <ProfessionalEntry />
+      </div>
+
       {/* Character cameo strip — keeps the fun without crowding the copy */}
       <div
         aria-hidden
@@ -1060,7 +1129,7 @@ export default function HomePage({ onNavigate }: Props) {
       <button
         type="button"
         onClick={() => onNavigate("projects")}
-        aria-label="Scroll down to projects"
+        aria-label="Scroll down to Projects"
         className="relative z-10 mt-6 flex flex-col items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
       >
         <span

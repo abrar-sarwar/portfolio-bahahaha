@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import type { Project } from "@/lib/projects";
+import { PROJECT_ACCENTS, type Project } from "@/lib/projects";
 import SpriteSlot from "./SpriteSlot";
 
 type Props = {
@@ -11,6 +11,7 @@ type Props = {
 
 export default function ProjectDetail({ project }: Props) {
   const router = useRouter();
+  const accent = PROJECT_ACCENTS[project.slug];
 
   const backToIndex = () => {
     router.push("/");
@@ -38,7 +39,22 @@ export default function ProjectDetail({ project }: Props) {
             Project
           </p>
           <h1 className="mt-2 text-4xl sm:text-5xl font-semibold tracking-tight">
-            {project.title}
+            {project.repoUrl ? (
+              <a
+                href={project.repoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-3 underline-offset-[6px] transition-colors hover:underline focus:outline-none focus-visible:underline"
+                title="Open the repository"
+              >
+                {project.title}
+                <span aria-hidden className="text-2xl" style={{ color: accent.text }}>
+                  ↗
+                </span>
+              </a>
+            ) : (
+              project.title
+            )}
           </h1>
           <p className="mt-3 text-sm uppercase tracking-[0.2em] text-white/55">
             {project.tag}
@@ -47,7 +63,7 @@ export default function ProjectDetail({ project }: Props) {
 
         <section className="mb-12">
           <p
-            className="text-sm text-white/80"
+            className="whitespace-pre-line text-sm text-white/80"
             style={{ lineHeight: 1.7 }}
           >
             {project.description}
@@ -80,15 +96,33 @@ export default function ProjectDetail({ project }: Props) {
           <h2 className="mb-4 text-xs uppercase tracking-[0.3em] text-white/40">
             Link
           </h2>
-          <button
-            type="button"
-            onClick={() => {
-              // TODO: {project.linkLabel}
-            }}
-            className="inline-flex items-center gap-2 rounded-md border border-white/20 px-4 py-2 text-xs uppercase tracking-wider text-white/70 hover:border-white/60 hover:text-white"
-          >
-            {project.linkLabel === "demo link" ? "Live Demo →" : "GitHub →"}
-          </button>
+          {project.repoUrl ? (
+            <a
+              href={project.repoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-md border border-white/20 px-4 py-2 text-xs uppercase tracking-wider text-white/70 transition-colors hover:text-white"
+              style={{ ["--tw-border-opacity" as string]: "1" }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = accent.text;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "";
+              }}
+            >
+              {project.linkLabel === "demo link" ? "Live Demo →" : "GitHub →"}
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                // TODO: {project.linkLabel}
+              }}
+              className="inline-flex items-center gap-2 rounded-md border border-white/20 px-4 py-2 text-xs uppercase tracking-wider text-white/70 hover:border-white/60 hover:text-white"
+            >
+              {project.linkLabel === "demo link" ? "Live Demo →" : "GitHub →"}
+            </button>
+          )}
         </section>
       </article>
     </motion.main>

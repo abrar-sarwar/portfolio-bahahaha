@@ -17,9 +17,9 @@ export default function Page() {
     hasMounted.current = true;
     try {
       const returnTo = sessionStorage.getItem(RETURN_TO_KEY);
-      if (returnTo === "projects") {
+      if (returnTo === "projects" || returnTo === "home") {
         sessionStorage.removeItem(RETURN_TO_KEY);
-        setInitialPanel("projects");
+        setInitialPanel(returnTo);
         setView("feed");
         return;
       }

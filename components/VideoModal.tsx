@@ -8,12 +8,18 @@ type Props = {
   onClose: () => void;
   volume?: number;
   credit?: string;
+  // Lead-in shown before the credit name. Defaults to "video made by"; pass
+  // e.g. "edit by" for videos that are edits rather than originals.
+  creditLabel?: string;
+  // Tailwind sizing for the <video>. Defaults to capping at the viewport;
+  // override (e.g. force a definite size) to upscale small-resolution clips.
+  videoClass?: string;
 };
 
 // dangerouslySetInnerHTML so the `muted` attribute lives in the DOM at parse
 // time, preventing Safari's native play overlay. We then unmute and set the
 // volume from a useEffect that runs inside the user's click gesture window.
-function videoHtml(src: string): string {
+function videoHtml(src: string, sizeClass: string): string {
   return `
     <video
       autoplay
@@ -21,7 +27,7 @@ function videoHtml(src: string): string {
       playsinline
       preload="auto"
       disablepictureinpicture
-      class="max-h-[85vh] max-w-[90vw] rounded-lg shadow-2xl"
+      class="${sizeClass} rounded-lg shadow-2xl"
     >
       <source src="${src}" type="video/mp4" />
     </video>
@@ -33,6 +39,8 @@ export default function VideoModal({
   onClose,
   volume = 0.5,
   credit,
+  creditLabel = "video made by",
+  videoClass = "max-h-[85vh] max-w-[90vw]",
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   // `started` flips on the video's `playing` event so the credit line only
@@ -45,7 +53,10 @@ export default function VideoModal({
   // React's reconciler from ever re-running the innerHTML assignment, which
   // would tear down the <video> element and lose the un-muted state we set
   // imperatively below.
-  const innerHtml = useMemo(() => ({ __html: videoHtml(src) }), [src]);
+  const innerHtml = useMemo(
+    () => ({ __html: videoHtml(src, videoClass) }),
+    [src, videoClass],
+  );
 
   useEffect(() => {
     const c = containerRef.current;
@@ -113,7 +124,7 @@ export default function VideoModal({
                 className="whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.32em] text-white/65"
                 style={{ textShadow: "0 0 10px rgba(0,0,0,0.6)" }}
               >
-                video made by {credit}
+                {creditLabel} {credit}
               </motion.p>
             )}
           </AnimatePresence>

@@ -1,4 +1,10 @@
-export type View = "intro" | "home" | "projects" | "organizations" | "fun";
+export type View =
+  | "intro"
+  | "home"
+  | "myworld"
+  | "projects"
+  | "organizations"
+  | "fun";
 
 export type SubView = Exclude<View, "intro" | "home">;
 

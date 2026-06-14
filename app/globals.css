@@ -2,6 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Gear 5 — a bouncy white idle for the Luffy portrait, plus a breathing white
+   aura. Cartoon-rubber energy without being distracting. */
+@keyframes gear5-bounce {
+  0%,
+  100% {
+    transform: translateY(0) scaleY(1);
+  }
+  50% {
+    transform: translateY(-8px) scaleY(1.02);
+  }
+}
+@keyframes gear5-aura {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.07);
+  }
+}
+.gear5-bounce {
+  animation: gear5-bounce 2.4s ease-in-out infinite;
+  transform-origin: bottom center;
+  will-change: transform;
+}
+.gear5-aura {
+  animation: gear5-aura 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gear5-bounce,
+  .gear5-aura {
+    animation: none;
+  }
+}
+
 html,
 body {
   margin: 0;
@@ -87,5 +124,292 @@ body {
   .jotaro-walk {
     animation: none;
     display: none;
+  }
+}
+
+/* ----- Professional page ---------------------------------------------------
+   Black and white editorial. A warm white canvas with near black ink type and
+   a cool, abstract monochrome background: a slowly rotating conic sheen, soft
+   drifting grayscale orbs, a faint grid, and grain. Everything respects the
+   global reduced-motion reset above (and the explicit rules below).
+   --------------------------------------------------------------------------- */
+.pro-root {
+  --pro-bg: #f4f2ec; /* warm white canvas */
+  --pro-ink: #0b0b0c; /* near black, headlines */
+  --pro-text: #2a2a2c; /* body */
+  --pro-muted: #6c6a64; /* labels */
+  --pro-line: rgba(11, 11, 12, 0.14); /* hairlines */
+  --pro-panel: rgba(255, 255, 255, 0.6);
+  background-color: var(--pro-bg);
+  color: var(--pro-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Thin monochrome scrollbar. */
+.pro-root {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(11, 11, 12, 0.4) transparent;
+}
+.pro-root::-webkit-scrollbar {
+  width: 10px;
+}
+.pro-root::-webkit-scrollbar-thumb {
+  background-color: rgba(11, 11, 12, 0.35);
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Rotating conic sheen: the main abstract motion, grayscale and soft. */
+.pro-sheen {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(60px);
+  will-change: transform;
+  animation: proSpin 44s linear infinite;
+}
+@keyframes proSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.pro-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  will-change: transform;
+}
+.pro-orb-a {
+  animation: proDriftA 28s ease-in-out infinite;
+}
+.pro-orb-b {
+  animation: proDriftB 34s ease-in-out infinite;
+}
+
+@keyframes proDriftA {
+  0%,
+  100% {
+    transform: translate3d(-6%, -4%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(9%, 7%, 0) scale(1.16);
+  }
+}
+@keyframes proDriftB {
+  0%,
+  100% {
+    transform: translate3d(7%, 9%, 0) scale(1.08);
+  }
+  50% {
+    transform: translate3d(-9%, -7%, 0) scale(0.9);
+  }
+}
+
+/* Animated dot field: a tiled dot matrix revealed through a soft circular mask
+   that drifts across the page, so a pool of dots glides around like a spotlight.
+   Monochrome, subtle, and cheap (mask-position only). */
+/* Two dot layers: a base field across the whole page (clearly visible), plus a
+   brighter pool that drifts around like a spotlight for motion. */
+.pro-dots,
+.pro-dots-spot {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(
+    rgba(11, 11, 12, 0.92) 1.5px,
+    transparent 1.9px
+  );
+  background-size: 24px 24px;
+}
+.pro-dots {
+  opacity: 0.55;
+  /* Fade the field toward the edges so it frames rather than boxes. */
+  -webkit-mask-image: radial-gradient(135% 105% at 50% 0%, #000 45%, transparent 95%);
+  mask-image: radial-gradient(135% 105% at 50% 0%, #000 45%, transparent 95%);
+  animation: proDotsDrift 30s linear infinite;
+  will-change: background-position;
+}
+.pro-dots-spot {
+  opacity: 0.6;
+  -webkit-mask-image: radial-gradient(circle at center, #000 0%, transparent 50%);
+  mask-image: radial-gradient(circle at center, #000 0%, transparent 50%);
+  -webkit-mask-size: 110% 110%;
+  mask-size: 110% 110%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  animation: proDots 22s ease-in-out infinite alternate;
+  will-change: mask-position, -webkit-mask-position;
+}
+@keyframes proDotsDrift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 48px 72px;
+  }
+}
+@keyframes proDots {
+  0% {
+    -webkit-mask-position: 8% 18%;
+    mask-position: 8% 18%;
+  }
+  50% {
+    -webkit-mask-position: 78% 42%;
+    mask-position: 78% 42%;
+  }
+  100% {
+    -webkit-mask-position: 32% 82%;
+    mask-position: 32% 82%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pro-sheen,
+  .pro-orb-a,
+  .pro-orb-b,
+  .pro-dots,
+  .pro-dots-spot {
+    animation: none;
+  }
+}
+
+/* ----- My World globe markers ----------------------------------------------
+   Floating name labels globe.gl positions on the sphere, centered over the
+   highlighted shape they belong to (region in step 1, location in step 2).
+   The glowing landmass shape itself is the main affordance; these labels just
+   name it. Centered on the lat/lng via translate(-50%, -50%). Monochrome.
+   --------------------------------------------------------------------------- */
+.mw-marker {
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  user-select: none;
+  font-family: inherit;
+}
+
+.mw-marker .mw-label {
+  display: inline-block;
+  white-space: nowrap;
+  text-transform: uppercase;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(10, 10, 15, 0.7);
+  backdrop-filter: blur(6px);
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+/* Region labels (step 1) read a touch bigger than location labels. */
+.mw-region .mw-label {
+  padding: 4px 13px;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.mw-location .mw-label {
+  padding: 3px 10px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.mw-marker:hover .mw-label {
+  border-color: rgba(255, 255, 255, 0.9);
+  color: #fff;
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.3);
+}
+
+/* The selected location's label stays lit. */
+.mw-selected .mw-label {
+  border-color: #fff;
+  color: #fff;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.45);
+}
+
+/* Hover tooltip. globe.gl (float-tooltip) renders the label inside
+   .float-tooltip-kap and follows the cursor. Neutralize that container's
+   default dark chrome (injected at runtime, hence !important) so our own
+   monochrome pill is the only thing shown. */
+.float-tooltip-kap {
+  padding: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  color: #fff !important;
+}
+
+.float-tooltip-kap .mw-tooltip {
+  white-space: nowrap;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  padding: 4px 11px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(10, 10, 15, 0.85);
+  color: #fff;
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(6px);
+}
+
+/* ----- My World: dio lockdown FX -------------------------------------------
+   While the dio sequence plays the globe is locked. Trying to touch it fires
+   a brief glitch flash; a pulsing ring of light wraps the whole view.
+   --------------------------------------------------------------------------- */
+@keyframes mwGlitchFlicker {
+  0%   { opacity: 0; }
+  8%   { opacity: 0.95; }
+  18%  { opacity: 0.25; }
+  30%  { opacity: 0.9; }
+  44%  { opacity: 0.35; }
+  60%  { opacity: 0.72; }
+  78%  { opacity: 0.14; }
+  100% { opacity: 0; }
+}
+
+@keyframes mwGlitchShift {
+  0%   { transform: translate3d(0, 0, 0); clip-path: inset(0 0 88% 0); }
+  20%  { transform: translate3d(-8px, 0, 0); clip-path: inset(24% 0 50% 0); }
+  40%  { transform: translate3d(8px, 0, 0); clip-path: inset(58% 0 22% 0); }
+  60%  { transform: translate3d(-5px, 0, 0); clip-path: inset(40% 0 38% 0); }
+  80%  { transform: translate3d(6px, 0, 0); clip-path: inset(74% 0 8% 0); }
+  100% { transform: translate3d(0, 0, 0); clip-path: inset(0 0 90% 0); }
+}
+
+.mw-glitch {
+  animation: mwGlitchFlicker 0.5s linear forwards;
+}
+.mw-glitch-bar {
+  mix-blend-mode: screen;
+  animation: mwGlitchShift 0.5s steps(2, end) forwards;
+}
+.mw-glitch-scan {
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.07) 0,
+    rgba(255, 255, 255, 0.07) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+@keyframes mwGlobeGlow {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.05); }
+}
+.mw-globe-glow {
+  animation: mwGlobeGlow 2.4s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mw-glitch,
+  .mw-glitch-bar {
+    animation-duration: 1ms;
+  }
+  .mw-globe-glow {
+    animation: none;
+    opacity: 0.7;
   }
 }
