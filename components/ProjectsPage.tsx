@@ -673,7 +673,7 @@ function DetailPanel({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 14 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
-        className="pointer-events-auto h-[88vh] w-[min(92vw,_660px)] overflow-y-auto rounded-2xl border border-white/10"
+        className="pointer-events-auto max-h-[88vh] w-[min(92vw,_660px)] overflow-y-auto rounded-2xl border border-white/10"
         style={{
           backgroundColor: "rgba(10,10,15,0.85)",
           backdropFilter: "blur(14px)",
