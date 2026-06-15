@@ -1125,10 +1125,9 @@ export default function HomePage({ onNavigate }: Props) {
         <span aria-hidden>→</span>
       </a>
 
-      {/* Professional page entry. In-flow and right-aligned (self-end) on mobile
-          so it reads as bottom-right of the content without overlapping the
-          stacked copy or the schedule CTA above. TODO: fine-tune position. */}
-      <div className="relative z-10 mt-8 self-end">
+      {/* Professional page entry. In-flow and centered on mobile so it sits
+          under the stacked copy and the schedule CTA without crowding either. */}
+      <div className="relative z-10 mt-8 self-center">
         <ProfessionalEntry />
       </div>
 
