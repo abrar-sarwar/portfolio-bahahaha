@@ -48,14 +48,15 @@ export default function ScrollFeed({ initial = "home" }: Props) {
   };
 
   // HomePage's nav + the SCROLL arrow call onNavigate(view); we route that
-  // into a smooth scroll instead of a page-level view switch. BackButton
-  // inside any section calls onBack → smooth scroll back to the home panel.
-  // My World is its own route, so it never resolves to a feed panel; HomePage
-  // routes there directly. Everything else scrolls within the feed.
+  // into a smooth scroll instead of a page-level view switch. My World is its
+  // own route, so it never resolves to a feed panel; HomePage routes there
+  // directly. Everything else scrolls within the feed. There is no back button
+  // in the feed panels — you simply scroll back up to home.
   const handleNavigate = (view: SubView) => {
     if (view === "myworld") return;
     scrollToPanel(view);
   };
+  // Used only by the single end-of-feed CTA at the very bottom of the Fun panel.
   const handleBackToTop = () => scrollToPanel("home");
 
   useEffect(() => {
@@ -142,19 +143,19 @@ export default function ScrollFeed({ initial = "home" }: Props) {
 
         <section className="scroll-feed-panel relative h-full w-full overflow-hidden max-sm:h-auto max-sm:min-h-svh max-sm:overflow-visible">
           <div className="scroll-feed-inner relative h-full w-full will-change-transform max-sm:h-auto max-sm:min-h-svh max-sm:will-change-auto">
-            <ProjectsPage onBack={handleBackToTop} />
+            <ProjectsPage />
           </div>
         </section>
 
         <section className="scroll-feed-panel relative h-full w-full overflow-hidden max-sm:h-auto max-sm:min-h-svh max-sm:overflow-visible">
           <div className="scroll-feed-inner relative h-full w-full will-change-transform max-sm:h-auto max-sm:min-h-svh max-sm:will-change-auto">
-            <OrganizationsPage onBack={handleBackToTop} />
+            <OrganizationsPage />
           </div>
         </section>
 
         <section className="scroll-feed-panel relative h-full w-full overflow-hidden max-sm:h-auto max-sm:min-h-svh max-sm:overflow-visible">
           <div className="scroll-feed-inner relative h-full w-full will-change-transform max-sm:h-auto max-sm:min-h-svh max-sm:will-change-auto">
-            <FunPage onBack={handleBackToTop} />
+            <FunPage />
 
             {/* End-of-feed CTA — sits inside the Fun panel's wrapper so it
                 fades in with the panel. Click smooth-scrolls back to home.

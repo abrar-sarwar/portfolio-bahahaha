@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import BackButton from "./BackButton";
 import VideoModal from "./VideoModal";
 import {
   PROJECTS,
@@ -16,16 +15,12 @@ import {
 // rgba() from an "r,g,b" accent triplet.
 const accentRgba = (glow: string, a: number) => `rgba(${glow}, ${a})`;
 
-type Props = {
-  onBack: () => void;
-};
-
 type ViewKey = ProjectSlug | "main";
 
 const PROJECTS_INTRO =
   "This is where I'm doing all sorts of unique new stuff by pushing myself to work on things to build that “experience” ykwim? Top is the most recent and bottom is oldest. Most of my projects are poured from how I view them from someone else, for example my project “CounterStack” a project that is mainly casino theme which brings me that in light of what they can view as, feel free to look at all of them! I'd love feedback :)";
 
-export default function ProjectsPage({ onBack }: Props) {
+export default function ProjectsPage() {
   const [selected, setSelected] = useState<ProjectSlug | null>(null);
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
 
@@ -73,8 +68,6 @@ export default function ProjectsPage({ onBack }: Props) {
 
   return (
     <main className="relative h-full w-full overflow-hidden bg-black text-white max-sm:h-auto max-sm:min-h-svh max-sm:overflow-visible">
-      <BackButton onClick={onBack} />
-
       <BackgroundLayer src={backgroundSrc} viewKey={viewKey} />
 
       {/* ----------------------------------------------------------------------
@@ -670,6 +663,9 @@ function DetailPanel({
   onBack: () => void;
 }) {
   const accent = PROJECT_ACCENTS[project.slug];
+  // A tight, centered card in the middle of the stage. Its own solid backdrop
+  // keeps the copy readable so it reads as a contained panel rather than naked
+  // text floating over the character or the taskbar.
   return (
     <div className="pointer-events-none absolute inset-0 z-20 hidden items-center justify-center px-4 sm:flex sm:px-8">
       <motion.div
@@ -677,13 +673,13 @@ function DetailPanel({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 14 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
-        className="pointer-events-auto max-h-[86vh] w-[min(94vw,_640px)] overflow-y-auto"
+        className="pointer-events-auto h-[88vh] w-[min(92vw,_660px)] overflow-y-auto rounded-2xl border border-white/10"
         style={{
-          // Subtle scrim — keeps copy legible without putting a hard card box
-          // around it. Wide soft fade rather than a clipped rectangle.
-          background:
-            "radial-gradient(ellipse 95% 85% at 50% 50%, rgba(8,8,14,0.82), rgba(8,8,14,0.5) 62%, transparent 96%)",
-          padding: "2.25rem 1.25rem",
+          backgroundColor: "rgba(10,10,15,0.85)",
+          backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
+          padding: "2.25rem 2rem",
         }}
       >
         <motion.button

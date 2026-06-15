@@ -2,15 +2,10 @@
 
 import { useState } from "react";
 import { AnimatePresence } from "framer-motion";
-import BackButton from "./BackButton";
 import SpriteSlot from "./SpriteSlot";
 import VideoModal from "./VideoModal";
 
-type Props = {
-  onBack: () => void;
-};
-
-export default function OrganizationsPage({ onBack }: Props) {
+export default function OrganizationsPage() {
   const [videoOpen, setVideoOpen] = useState(false);
 
   return (
@@ -21,8 +16,6 @@ export default function OrganizationsPage({ onBack }: Props) {
       className="flex h-full w-full flex-col overflow-y-auto text-white max-sm:h-auto max-sm:overflow-visible"
       style={{ backgroundColor: "#0a0a0f" }}
     >
-      <BackButton onClick={onBack} />
-
       {/* ---------------- progsu (top half) ---------------- */}
       <section className="org-section-progsu flex flex-col justify-center px-6 py-20 sm:flex-1 sm:px-12 sm:py-10 max-sm:min-h-svh">
         <div className="mx-auto w-full max-w-2xl">

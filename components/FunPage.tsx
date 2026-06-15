@@ -2,12 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactElement } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import BackButton from "./BackButton";
 import VideoModal from "./VideoModal";
-
-type Props = {
-  onBack: () => void;
-};
 
 type Weapon = "gun" | "fist" | "heart" | "sword";
 type ZoneId = "body" | "face" | "heart";
@@ -181,7 +176,7 @@ function WeaponColumn({
   );
 }
 
-export default function FunPage({ onBack }: Props) {
+export default function FunPage() {
   const [equipped, setEquipped] = useState<Weapon | null>(null);
   const [playing, setPlaying] = useState<Weapon | null>(null);
 
@@ -220,8 +215,6 @@ export default function FunPage({ onBack }: Props) {
       className="relative h-full w-full overflow-hidden bg-black text-white max-sm:h-auto max-sm:min-h-svh max-sm:overflow-visible"
       style={cursorStyle(equipped)}
     >
-      <BackButton onClick={onBack} />
-
       {/* Ambient purple glow to match the rest of the site. */}
       <div
         aria-hidden

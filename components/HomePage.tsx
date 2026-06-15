@@ -477,7 +477,30 @@ export default function HomePage({ onNavigate }: Props) {
         className="pointer-events-none absolute bottom-0 left-0 z-0 hidden items-end gap-1 pl-2 sm:flex sm:gap-2 sm:pl-4"
       >
         {SIDE_CHARS.map((c) => (
-          <motion.div key={c.alt} variants={charVariants}>
+          <motion.div
+            key={c.alt}
+            variants={charVariants}
+            className="flex flex-col items-center"
+          >
+            {c.alt === "Mori" && (
+              <div
+                className="mb-2 text-center leading-tight"
+                style={{ textShadow: "0 1px 6px rgba(0,0,0,0.85)" }}
+              >
+                <div className="font-display text-[11px] font-semibold uppercase tracking-[0.22em] text-white sm:text-[12px]">
+                  MAX PR
+                </div>
+                <div className="font-mono text-[10px] text-white/85 sm:text-[11px]">
+                  BP: 325
+                </div>
+                <div className="font-mono text-[10px] text-white/85 sm:text-[11px]">
+                  SQT: 275
+                </div>
+                <div className="font-mono text-[10px] text-white/85 sm:text-[11px]">
+                  DL: 405
+                </div>
+              </div>
+            )}
             <SpriteSlot
               src={c.src}
               alt={c.alt}

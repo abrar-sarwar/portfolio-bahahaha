@@ -99,7 +99,7 @@ export const PROJECT_CHARACTERS: Record<
     video: "/assets/videos/netwraithvideo.mp4",
     alt: "Abrar as Dante (NetWraith)",
     scale: 1.15,
-    offsetX: -56,
+    offsetX: -120,
     credit: "dev",
     creditLabel: "edited by",
   },
