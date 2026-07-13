@@ -5,12 +5,21 @@ import { useRouter } from "next/navigation";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { SplitText } from "gsap/SplitText";
+import { ScrambleTextPlugin } from "gsap/ScrambleTextPlugin";
 import ProfessionalBackground from "@/components/ProfessionalBackground";
 import { RETURN_TO_KEY } from "@/lib/projects";
 import { ABOUT, LINKS, PROFILE, PROJECTS } from "@/lib/professional";
 
 const DISPLAY = "font-[family-name:var(--font-pro-display)]";
 const MONO = "font-[family-name:var(--font-pro-mono)]";
+
+// The "decode" motif: mono labels scramble into place like text being
+// decrypted. Character set stays terminal-flavored to match the security work.
+const SCRAMBLE_CHARS = "01<>#/+*";
+
+// Ticker content: every tag across the selected projects, deduped in order.
+const STACK = Array.from(new Set(PROJECTS.flatMap((p) => p.tags)));
 
 // useLayoutEffect on the client, useEffect on the server, so the GSAP "from"
 // start states are set before paint without tripping the SSR warning.
@@ -56,11 +65,11 @@ function SectionLabel({ index, title }: { index: string; title: string }) {
       </span>
       <span
         aria-hidden
-        className="h-px flex-1 max-w-[3rem]"
+        className="pro-label-line h-px flex-1 max-w-[3rem] origin-left"
         style={{ background: "var(--pro-ink)", opacity: 0.5 }}
       />
       <span
-        className={`${MONO} text-[11px] uppercase tracking-[0.34em] text-[color:var(--pro-muted)]`}
+        className={`${MONO} pro-scramble text-[11px] uppercase tracking-[0.34em] text-[color:var(--pro-muted)]`}
       >
         {title}
       </span>
@@ -74,6 +83,10 @@ export default function ProfessionalPage() {
   const rootRef = useRef<HTMLElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const photoRef = useRef<HTMLImageElement | null>(null);
+  const heroTitleRef = useRef<HTMLHeadingElement | null>(null);
+  const heroMetaRef = useRef<HTMLParagraphElement | null>(null);
+  const progressRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
 
   // Return to the home feed without replaying the intro video.
   const goBack = useCallback(() => {
@@ -85,26 +98,36 @@ export default function ProfessionalPage() {
     router.push("/");
   }, [router]);
 
-  // GSAP opening + scroll choreography. The ink overlay holds the name and an
-  // accent line, then wipes up to reveal the page; the hero lines rise out of
-  // their masks; the photo eases in and breathes. Project cards rise and settle
-  // as they scroll into view. Reduced-motion users skip all of it.
+  // GSAP choreography. The ink overlay holds the name then wipes up; the hero
+  // headline rises character by character; the meta line decrypts; the portrait
+  // eases in, breathes, and drifts on scroll. Section labels decode as they
+  // enter, project cards deal in and tilt under the cursor, contact pills are
+  // magnetic. Reduced-motion users skip all of it.
   useIso(() => {
     if (reduce) {
       if (overlayRef.current) overlayRef.current.style.display = "none";
       return;
     }
-    gsap.registerPlugin(ScrollTrigger);
+    gsap.registerPlugin(ScrollTrigger, SplitText, ScrambleTextPlugin);
+    const finePointer = window.matchMedia("(pointer: fine)").matches;
+    let split: SplitText | null = null;
+    const removers: Array<() => void> = [];
+
     const ctx = gsap.context(() => {
+      // ---- Opening -----------------------------------------------------
+      if (heroTitleRef.current) {
+        split = new SplitText(heroTitleRef.current, { type: "words,chars" });
+      }
       const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-      tl.set(".pro-hero-rise", { yPercent: 118 })
-        // The overlay holds for a beat: name fades in, accent line draws.
-        .from(".pro-overlay-mark", {
-          opacity: 0,
-          y: 14,
-          duration: 0.8,
-          ease: "power2.out",
-        })
+      tl.set(".pro-hero-rise", { yPercent: 118 });
+      if (split) tl.set(split.chars, { yPercent: 120 });
+      // The overlay holds for a beat: name fades in, accent line draws.
+      tl.from(".pro-overlay-mark", {
+        opacity: 0,
+        y: 14,
+        duration: 0.8,
+        ease: "power2.out",
+      })
         .fromTo(
           ".pro-overlay-line",
           { scaleX: 0 },
@@ -121,19 +144,43 @@ export default function ProfessionalPage() {
           overlayRef.current,
           { yPercent: -100, duration: 1.1, ease: "power4.inOut" },
           2.45,
-        )
-        // Hero rises out of its masks.
-        .to(
-          ".pro-hero-rise",
-          { yPercent: 0, duration: 1.1, stagger: 0.14 },
-          2.75,
-        )
+        );
+      // Headline rises character by character out of its mask.
+      if (split) {
+        tl.to(
+          split.chars,
+          { yPercent: 0, duration: 0.9, stagger: 0.032, ease: "power3.out" },
+          2.7,
+        );
+      }
+      // Remaining hero lines rise out of their masks.
+      tl.to(
+        ".pro-hero-rise",
+        { yPercent: 0, duration: 1.1, stagger: 0.14 },
+        2.85,
+      )
         // Photo eases in.
         .from(
           photoRef.current,
           { autoAlpha: 0, xPercent: 10, duration: 1.4 },
-          2.9,
+          2.95,
         );
+      // Meta line decrypts as it arrives.
+      if (heroMetaRef.current) {
+        tl.to(
+          heroMetaRef.current,
+          {
+            duration: 1.5,
+            ease: "none",
+            scrambleText: {
+              text: PROFILE.meta,
+              chars: SCRAMBLE_CHARS,
+              speed: 0.4,
+            },
+          },
+          3.05,
+        );
+      }
 
       // A slow, ongoing float so the portrait feels alive.
       gsap.to(photoRef.current, {
@@ -143,6 +190,70 @@ export default function ProfessionalPage() {
         repeat: -1,
         yoyo: true,
         delay: 4.6,
+      });
+
+      // Portrait parallax: it lags gently behind the hero as you scroll away.
+      gsap.to(photoRef.current, {
+        yPercent: 12,
+        ease: "none",
+        scrollTrigger: {
+          trigger: ".pro-hero",
+          scroller: rootRef.current,
+          start: "top top",
+          end: "bottom top",
+          scrub: true,
+        },
+      });
+
+      // Scroll progress hairline across the top of the page.
+      gsap.to(progressRef.current, {
+        scaleX: 1,
+        ease: "none",
+        scrollTrigger: {
+          trigger: contentRef.current,
+          scroller: rootRef.current,
+          start: "top top",
+          end: "bottom bottom",
+          scrub: 0.4,
+        },
+      });
+
+      // Section label hairlines draw in; label titles decode.
+      gsap.utils.toArray<HTMLElement>(".pro-label-line").forEach((line) => {
+        gsap.from(line, {
+          scaleX: 0,
+          duration: 0.8,
+          ease: "power2.inOut",
+          scrollTrigger: {
+            trigger: line,
+            scroller: rootRef.current,
+            start: "top 88%",
+            once: true,
+          },
+        });
+      });
+      gsap.utils.toArray<HTMLElement>(".pro-scramble").forEach((el) => {
+        const text = el.textContent ?? "";
+        gsap.to(el, {
+          duration: 1.1,
+          ease: "none",
+          scrambleText: { text, chars: SCRAMBLE_CHARS, speed: 0.35 },
+          scrollTrigger: {
+            trigger: el,
+            scroller: rootRef.current,
+            start: "top 88%",
+            once: true,
+          },
+        });
+      });
+
+      // Toolkit ticker: two identical copies side by side, shifted by half the
+      // track per loop so the scroll reads as endless.
+      gsap.to(".pro-marquee-track", {
+        xPercent: -50,
+        ease: "none",
+        duration: 30,
+        repeat: -1,
       });
 
       // Projects are dealt in like thrown cards: each flies from an alternating
@@ -162,11 +273,80 @@ export default function ProfessionalPage() {
         duration: 0.95,
         ease: "back.out(1.3)",
         stagger: 0.13,
-        // Drop the inline transform when done so the CSS hover lift/tilt works.
+        // Drop the inline transform when done so the pointer tilt can take over.
         clearProps: "transform",
       });
+
+      // ---- Pointer interactions (fine pointers only) ---------------------
+      if (finePointer) {
+        // Cards tilt in 3D under the cursor, with an ink sheen that follows it.
+        gsap.utils.toArray<HTMLElement>(".pro-card").forEach((card) => {
+          const rotX = gsap.quickTo(card, "rotationX", {
+            duration: 0.5,
+            ease: "power3.out",
+          });
+          const rotY = gsap.quickTo(card, "rotationY", {
+            duration: 0.5,
+            ease: "power3.out",
+          });
+          const lift = gsap.quickTo(card, "y", {
+            duration: 0.4,
+            ease: "power3.out",
+          });
+          const onMove = (e: PointerEvent) => {
+            const r = card.getBoundingClientRect();
+            const px = (e.clientX - r.left) / r.width;
+            const py = (e.clientY - r.top) / r.height;
+            gsap.set(card, { transformPerspective: 900 });
+            rotY((px - 0.5) * 10);
+            rotX((0.5 - py) * 8);
+            card.style.setProperty("--mx", `${px * 100}%`);
+            card.style.setProperty("--my", `${py * 100}%`);
+          };
+          const onEnter = () => lift(-6);
+          const onLeave = () => {
+            rotX(0);
+            rotY(0);
+            lift(0);
+          };
+          card.addEventListener("pointermove", onMove);
+          card.addEventListener("pointerenter", onEnter);
+          card.addEventListener("pointerleave", onLeave);
+          removers.push(() => {
+            card.removeEventListener("pointermove", onMove);
+            card.removeEventListener("pointerenter", onEnter);
+            card.removeEventListener("pointerleave", onLeave);
+          });
+        });
+
+        // Contact pills and the footer CTA pull gently toward the cursor.
+        gsap.utils.toArray<HTMLElement>(".pro-magnet").forEach((el) => {
+          const qx = gsap.quickTo(el, "x", { duration: 0.4, ease: "power3.out" });
+          const qy = gsap.quickTo(el, "y", { duration: 0.4, ease: "power3.out" });
+          const onMove = (e: PointerEvent) => {
+            const r = el.getBoundingClientRect();
+            qx((e.clientX - (r.left + r.width / 2)) * 0.25);
+            qy((e.clientY - (r.top + r.height / 2)) * 0.35);
+          };
+          const onLeave = () => {
+            qx(0);
+            qy(0);
+          };
+          el.addEventListener("pointermove", onMove);
+          el.addEventListener("pointerleave", onLeave);
+          removers.push(() => {
+            el.removeEventListener("pointermove", onMove);
+            el.removeEventListener("pointerleave", onLeave);
+          });
+        });
+      }
     }, rootRef);
-    return () => ctx.revert();
+
+    return () => {
+      removers.forEach((fn) => fn());
+      split?.revert();
+      ctx.revert();
+    };
   }, [reduce]);
 
   return (
@@ -176,6 +356,14 @@ export default function ProfessionalPage() {
       style={{ color: "var(--pro-text)" }}
     >
       <ProfessionalBackground />
+
+      {/* Scroll progress hairline. Below the opening overlay, above content. */}
+      <div
+        ref={progressRef}
+        aria-hidden
+        className="pro-progress fixed left-0 top-0 z-[55] h-[2px] w-full"
+        style={{ background: "var(--pro-ink)" }}
+      />
 
       {/* GSAP opening overlay: wipes up to reveal the page. */}
       <div
@@ -197,9 +385,9 @@ export default function ProfessionalPage() {
         />
       </div>
 
-      <div className="relative mx-auto w-full max-w-5xl px-6 sm:px-8">
+      <div ref={contentRef} className="relative mx-auto w-full max-w-5xl px-6 sm:px-8">
         {/* ---- Hero (GSAP opening) ----------------------------------------- */}
-        <section className="relative flex min-h-[100dvh] flex-col justify-center py-20">
+        <section className="pro-hero relative flex min-h-[100dvh] flex-col justify-center py-20">
           {/* Me, anchored bottom right of the hero on larger screens. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -218,7 +406,8 @@ export default function ProfessionalPage() {
           <div className="relative z-10 md:max-w-[62%]">
             <div className="overflow-hidden pb-[0.12em]">
               <h1
-                className={`${DISPLAY} pro-hero-rise font-light leading-[0.92] tracking-[-0.02em] text-[color:var(--pro-ink)]`}
+                ref={heroTitleRef}
+                className={`${DISPLAY} font-light leading-[0.92] tracking-[-0.02em] text-[color:var(--pro-ink)]`}
                 style={{ fontSize: "clamp(2.6rem, 8vw, 5.75rem)" }}
               >
                 {PROFILE.name}
@@ -239,6 +428,7 @@ export default function ProfessionalPage() {
             </div>
             <div className="mt-8 overflow-hidden">
               <p
+                ref={heroMetaRef}
                 className={`${MONO} pro-hero-rise text-[11px] uppercase tracking-[0.3em] text-[color:var(--pro-muted)]`}
               >
                 {PROFILE.meta}
@@ -280,7 +470,7 @@ export default function ProfessionalPage() {
             {ABOUT.hooks.map((hook, i) => (
               <Reveal key={hook.title} delay={0.06 * i}>
                 <article
-                  className="h-full rounded-2xl border p-6 backdrop-blur-md transition-colors duration-300 hover:border-[color:var(--pro-ink)] sm:p-7"
+                  className="h-full rounded-lg border p-6 backdrop-blur-md transition-colors duration-300 hover:border-[color:var(--pro-ink)] sm:p-7"
                   style={{
                     borderColor: "var(--pro-line)",
                     backgroundColor: "var(--pro-panel)",
@@ -303,6 +493,44 @@ export default function ProfessionalPage() {
           </div>
         </section>
 
+        {/* ---- Toolkit ticker ----------------------------------------------
+            An endless strip of the real stack from the selected projects, so
+            the keywords a recruiter scans for literally walk past. */}
+        <section aria-label="Toolkit" className="py-4">
+          <div
+            className="pro-marquee overflow-hidden border-y py-5"
+            style={{ borderColor: "var(--pro-line)" }}
+          >
+            <div className="pro-marquee-track flex w-max items-center whitespace-nowrap">
+              {[0, 1].map((copy) => (
+                <div
+                  key={copy}
+                  aria-hidden={copy === 1}
+                  className="flex items-center"
+                >
+                  {STACK.map((item) => (
+                    <span key={`${copy}-${item}`} className="flex items-center">
+                      <span
+                        className={`${DISPLAY} px-6 text-[1.35rem] italic text-[color:var(--pro-ink)] sm:text-[1.6rem]`}
+                        style={{ opacity: 0.85 }}
+                      >
+                        {item}
+                      </span>
+                      <span
+                        aria-hidden
+                        className={`${MONO} text-[11px] tracking-widest text-[color:var(--pro-muted)]`}
+                        style={{ opacity: 0.55 }}
+                      >
+                        {"//"}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* ---- Projects ---------------------------------------------------- */}
         <section className="py-24 sm:py-32">
           <Reveal>
@@ -318,7 +546,8 @@ export default function ProfessionalPage() {
           </Reveal>
 
           {/* A dealt hand: each project is a playing card (no images), thrown in
-              by GSAP. The rank corners and divider lean into the card metaphor. */}
+              by GSAP, then held under the cursor — it tilts in 3D and an ink
+              sheen tracks the pointer. The rank corners lean into the metaphor. */}
           <div className="pro-deck mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2">
             {PROJECTS.map((project, i) => {
               const rank = String(i + 1).padStart(2, "0");
@@ -328,12 +557,15 @@ export default function ProfessionalPage() {
                   href={project.href}
                   target={project.href.startsWith("http") ? "_blank" : undefined}
                   rel="noopener noreferrer"
-                  className="pro-card group relative flex h-full min-h-[19rem] flex-col rounded-2xl border p-7 backdrop-blur-md transition-[transform,border-color] duration-300 will-change-transform hover:-translate-y-1.5 hover:rotate-[-0.7deg] hover:border-[color:var(--pro-ink)] focus:outline-none focus-visible:ring-2 sm:p-8"
+                  className="pro-card group relative flex h-full min-h-[19rem] flex-col rounded-lg border p-7 backdrop-blur-md transition-colors duration-300 will-change-transform hover:border-[color:var(--pro-ink)] focus:outline-none focus-visible:ring-2 sm:p-8"
                   style={{
                     borderColor: "var(--pro-line)",
                     backgroundColor: "var(--pro-panel)",
                   }}
                 >
+                  {/* Ink sheen that follows the cursor (position from JS vars). */}
+                  <span aria-hidden className="pro-card-sheen" />
+
                   {/* Card rank corner. */}
                   <div className="flex items-start justify-between">
                     <span
@@ -419,7 +651,7 @@ export default function ProfessionalPage() {
                     href={link.href}
                     target={link.href.startsWith("http") ? "_blank" : undefined}
                     rel="noopener noreferrer"
-                    className={`${MONO} group inline-flex items-center gap-2 rounded-full border px-5 py-3 text-[12px] uppercase tracking-[0.18em] transition-all duration-200 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2`}
+                    className={`${MONO} pro-magnet group inline-flex items-center gap-2 rounded-full border px-5 py-3 text-[12px] uppercase tracking-[0.18em] transition-colors duration-200 focus:outline-none focus-visible:ring-2`}
                     style={
                       primary
                         ? {
@@ -460,7 +692,7 @@ export default function ProfessionalPage() {
           <button
             type="button"
             onClick={goBack}
-            className={`${MONO} group inline-flex items-center gap-2.5 rounded-full border px-7 py-4 text-[12px] uppercase tracking-[0.2em] transition-all duration-200 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2`}
+            className={`${MONO} pro-magnet group inline-flex items-center gap-2.5 rounded-full border px-7 py-4 text-[12px] uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2`}
             style={{
               borderColor: "var(--pro-ink)",
               backgroundColor: "var(--pro-ink)",

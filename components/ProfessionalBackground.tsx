@@ -1,7 +1,7 @@
 "use client";
 
-// Cool, abstract, monochrome motion for the professional page. A slowly rotating
-// conic sheen plus a couple of drifting grayscale orbs over a warm white canvas,
+// Cool, abstract motion for the professional page. A slowly rotating conic
+// sheen plus a couple of drifting signal fields over a crisp paper canvas,
 // finished with a faint grid and grain. CSS-driven so it stays smooth on
 // mid-range hardware and mobile, with no JS animation loop. Reduced-motion users
 // get the static canvas (the spin and drift simply stop).
@@ -23,7 +23,7 @@ export default function ProfessionalBackground() {
           marginLeft: "-75vmax",
           opacity: 0.5,
           background:
-            "conic-gradient(from 0deg, rgba(11,11,12,0) 0deg, rgba(11,11,12,0.06) 60deg, rgba(11,11,12,0) 130deg, rgba(11,11,12,0.05) 220deg, rgba(11,11,12,0) 300deg, rgba(11,11,12,0.07) 360deg)",
+            "conic-gradient(from 0deg, rgba(11,11,12,0) 0deg, rgba(37,99,235,0.08) 60deg, rgba(11,11,12,0) 130deg, rgba(11,11,12,0.05) 220deg, rgba(11,11,12,0) 300deg, rgba(37,99,235,0.09) 360deg)",
         }}
       />
 
@@ -36,7 +36,7 @@ export default function ProfessionalBackground() {
           width: "48vw",
           height: "48vw",
           background:
-            "radial-gradient(closest-side, rgba(11,11,12,0.1), transparent 70%)",
+            "radial-gradient(closest-side, rgba(37,99,235,0.12), transparent 70%)",
         }}
       />
       <div

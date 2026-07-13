@@ -128,18 +128,20 @@ body {
 }
 
 /* ----- Professional page ---------------------------------------------------
-   Black and white editorial. A warm white canvas with near black ink type and
-   a cool, abstract monochrome background: a slowly rotating conic sheen, soft
-   drifting grayscale orbs, a faint grid, and grain. Everything respects the
-   global reduced-motion reset above (and the explicit rules below).
+   Recruiter-facing security dossier. Crisp paper, black ink, and a restrained
+   blue signal accent keep the page professional without falling into a bland
+   monochrome sheet. Motion is concentrated in the opening decode, ticker, and
+   card interactions.
    --------------------------------------------------------------------------- */
 .pro-root {
-  --pro-bg: #f4f2ec; /* warm white canvas */
+  --pro-bg: #f7f8f5; /* crisp paper canvas */
   --pro-ink: #0b0b0c; /* near black, headlines */
   --pro-text: #2a2a2c; /* body */
-  --pro-muted: #6c6a64; /* labels */
+  --pro-muted: #62676f; /* labels */
   --pro-line: rgba(11, 11, 12, 0.14); /* hairlines */
-  --pro-panel: rgba(255, 255, 255, 0.6);
+  --pro-panel: rgba(255, 255, 255, 0.68);
+  --pro-accent: #2563eb;
+  --pro-accent-soft: rgba(37, 99, 235, 0.16);
   background-color: var(--pro-bg);
   color: var(--pro-text);
   -webkit-font-smoothing: antialiased;
@@ -158,6 +160,56 @@ body {
   border-radius: 9999px;
   border: 3px solid transparent;
   background-clip: padding-box;
+}
+
+.pro-progress {
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+.pro-marquee {
+  background:
+    linear-gradient(90deg, var(--pro-bg), transparent 12%, transparent 88%, var(--pro-bg)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0.14));
+}
+
+.pro-card {
+  overflow: hidden;
+  transform-style: preserve-3d;
+  box-shadow: 0 24px 70px rgba(11, 11, 12, 0.08);
+}
+
+.pro-card > :not(.pro-card-sheen) {
+  position: relative;
+  z-index: 1;
+}
+
+.pro-card-sheen {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms ease;
+  background:
+    radial-gradient(
+      220px circle at var(--mx, 50%) var(--my, 50%),
+      var(--pro-accent-soft),
+      transparent 62%
+    ),
+    linear-gradient(
+      135deg,
+      transparent 0%,
+      transparent 34%,
+      rgba(255, 255, 255, 0.52) 48%,
+      transparent 62%,
+      transparent 100%
+    );
+}
+
+.pro-card:hover .pro-card-sheen,
+.pro-card:focus-visible .pro-card-sheen {
+  opacity: 1;
 }
 
 /* Rotating conic sheen: the main abstract motion, grayscale and soft. */

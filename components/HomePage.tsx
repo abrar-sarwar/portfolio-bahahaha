@@ -12,6 +12,7 @@ import { RETURN_TO_KEY } from "@/lib/projects";
 import type { SubView } from "@/lib/sections";
 
 const GOJO_VIDEO_SRC = "/assets/videos/idwin.mp4";
+const ABRAR_VIDEO_SRC = "/assets/videos/abrarmainscreenvideo.mp4";
 const GRIFFITH_AUDIO_SRC = "/assets/videos/griffith.mp3";
 const CALENDLY_URL = "https://calendly.com/abrartsarwar/30min";
 
@@ -26,7 +27,6 @@ const NAV_LINKS: { id: SubView; label: string }[] = [
 
 const SOCIALS = [
   { label: "Email", href: "mailto:abrartsarwar@gmail.com", text: "abrartsarwar@gmail.com" },
-  { label: "Phone", href: "tel:4703992597", text: "470.399.2597" },
   { label: "LinkedIn", href: "https://linkedin.com/in/abrar-sarwar/", text: "linkedin.com/in/abrar-sarwar" },
   { label: "GitHub", href: "https://github.com/abrar-sarwar", text: "github.com/abrar-sarwar" },
 ];
@@ -235,6 +235,7 @@ export default function HomePage({ onNavigate }: Props) {
   // AnimatePresence can't intercept, so variants actually run.
   const [stage, setStage] = useState<"hidden" | "visible">("hidden");
   const [gojoVideoOpen, setGojoVideoOpen] = useState(false);
+  const [abrarVideoOpen, setAbrarVideoOpen] = useState(false);
   const [songPlaying, setSongPlaying] = useState(false);
   const griffithRef = useRef<HTMLAudioElement | null>(null);
   const favoriteSongRef = useRef<HTMLAudioElement | null>(null);
@@ -808,12 +809,37 @@ export default function HomePage({ onNavigate }: Props) {
           />
         </motion.button>
 
-        <div className="relative">
+        {/* Abrar — clickable: plays the main-screen video (by 57bazed). A
+            pulsing warm halo marks him as interactive, mirroring Gojo's cue. */}
+        <motion.button
+          type="button"
+          onClick={() => setAbrarVideoOpen(true)}
+          aria-label="Play Abrar's video"
+          whileHover={{ scale: 1.03, y: -3 }}
+          whileTap={{ scale: 0.985 }}
+          transition={{ type: "spring", stiffness: 420, damping: 22 }}
+          className="pointer-events-auto relative cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+        >
+          {/* Pulsing halo — the "click me" cue, behind the sprite. */}
+          <motion.span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -z-10"
+            animate={{
+              opacity: [0.45, 0.9, 0.45],
+              scale: [0.96, 1.06, 0.96],
+            }}
+            transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+            style={{
+              background:
+                "radial-gradient(closest-side, rgba(253,230,138,0.5) 0%, rgba(251,191,36,0.28) 42%, transparent 72%)",
+              filter: "blur(24px)",
+            }}
+          />
           <SpriteSlot
             src="/assets/sprites/abrarmainscreen.png"
             alt="Abrar"
             fallbackLabel="abrarmainscreen.png"
-            className="block h-56 w-auto select-none object-contain sm:h-96 md:h-[26rem]"
+            className="block h-56 w-auto select-none object-contain sm:h-96 md:h-[26rem] [filter:drop-shadow(0_0_5px_rgba(253,230,138,0.55))_drop-shadow(0_0_18px_rgba(251,191,36,0.35))]"
           />
           {/* BAM popping off Abrar's right side — Gojo lives on the left now. */}
           <motion.div
@@ -827,23 +853,25 @@ export default function HomePage({ onNavigate }: Props) {
               className="h-16 w-16 select-none object-contain sm:h-20 sm:w-20 md:h-24 md:w-24"
             />
           </motion.div>
-        </div>
+        </motion.button>
       </motion.aside>
 
       {/* Decorative easter-eggs — TODO: tune position to taste. */}
+      {/* Mahoraga — no blend mode (screen made his dark robe invisible on the
+          black page, so only the light top half showed). A faint white edge
+          glow keeps the dark half readable instead. */}
       <motion.img
         src="/assets/sprites/mahoraga.png"
         alt=""
         aria-hidden
         draggable={false}
         initial={{ opacity: 0, scale: 0.85 }}
-        animate={{ opacity: 0.85, scale: 1 }}
+        animate={{ opacity: 0.9, scale: 1 }}
         transition={{ delay: 1.4, duration: 0.6, ease: "easeOut" }}
-        className="pointer-events-none absolute z-[1] hidden h-44 w-auto select-none object-contain sm:block sm:h-56 md:h-64"
+        className="pointer-events-none absolute z-[1] hidden h-44 w-auto select-none object-contain sm:block sm:h-56 md:h-64 [filter:drop-shadow(0_0_1.5px_rgba(255,255,255,0.9))_drop-shadow(0_0_10px_rgba(196,181,253,0.35))]"
         style={{
           top: "18%",
           left: "52%",
-          mixBlendMode: "screen",
         }}
       />
       {/* gyro.gif — sits in the right column between the Fun nav and Abrar. */}
@@ -862,13 +890,15 @@ export default function HomePage({ onNavigate }: Props) {
         style={{
           top: "24%",
           right: "2%",
+          clipPath: "inset(0 0 4px 0)",
           mixBlendMode: "screen",
         }}
       />
 
-      {/* Preload Gojo's video so the click feels instant. */}
+      {/* Preload the click-to-play videos so they feel instant. */}
       <div aria-hidden className="pointer-events-none absolute h-0 w-0 overflow-hidden opacity-0">
         <video src={GOJO_VIDEO_SRC} preload="none" muted playsInline />
+        <video src={ABRAR_VIDEO_SRC} preload="none" muted playsInline />
       </div>
 
       {/* Professional page entry — bottom-right corner of the main page. Sits
@@ -1009,12 +1039,27 @@ export default function HomePage({ onNavigate }: Props) {
           />
         </button>
 
-        <div className="relative">
+        {/* Abrar — tap to play the main-screen video (by 57bazed). */}
+        <button
+          type="button"
+          onClick={() => setAbrarVideoOpen(true)}
+          aria-label="Play Abrar's video"
+          className="relative cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+        >
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -z-10"
+            style={{
+              background:
+                "radial-gradient(closest-side, rgba(253,230,138,0.45) 0%, rgba(251,191,36,0.25) 42%, transparent 72%)",
+              filter: "blur(20px)",
+            }}
+          />
           <SpriteSlot
             src="/assets/sprites/abrarmainscreen.png"
             alt="Abrar"
             fallbackLabel="abrarmainscreen.png"
-            className="block h-52 w-auto select-none object-contain"
+            className="block h-52 w-auto select-none object-contain [filter:drop-shadow(0_0_5px_rgba(253,230,138,0.5))]"
           />
           <div className="pointer-events-none absolute -right-2 top-4">
             <SpriteSlot
@@ -1024,7 +1069,7 @@ export default function HomePage({ onNavigate }: Props) {
               className="h-14 w-14 select-none object-contain"
             />
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Bio */}
@@ -1192,6 +1237,15 @@ export default function HomePage({ onNavigate }: Props) {
           onClose={() => setGojoVideoOpen(false)}
           volume={0.6}
           credit="goaten"
+        />
+      )}
+      {abrarVideoOpen && (
+        <VideoModal
+          src={ABRAR_VIDEO_SRC}
+          onClose={() => setAbrarVideoOpen(false)}
+          volume={0.6}
+          credit="57bazed"
+          creditLabel="video by"
         />
       )}
     </AnimatePresence>

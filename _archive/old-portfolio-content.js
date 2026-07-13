@@ -32,7 +32,6 @@ export const SURFACES = {
         kind: 'contact',
         title: 'Reach out',
         items: [
-          { label: '470-399-2597', href: 'tel:4703992597' },
           { label: 'abrartsarwar@gmail.com', href: 'mailto:abrartsarwar@gmail.com' },
           { label: 'linkedin.com/in/abrar-sarwar', href: 'https://linkedin.com/in/abrar-sarwar' },
           { label: 'github.com/abrar-sarwar', href: GITHUB_URL },

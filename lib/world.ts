@@ -97,7 +97,7 @@ export const WORLD_LOCATIONS: WorldLocation[] = [
     lat: 33.749,
     lng: -84.388,
     highlight: { source: "states", name: "Georgia" },
-    image: "/assets/sprites/georgia.jpg",
+    image: "/assets/sprites/georgia.png",
     content: [
       "I was born and raised right here in Georgia, and it's been an exciting time growing up through everything happening in Atlanta. I always lived out in the countryside where life moved slow and quiet, but as my college years went on that slowly changed, and I found myself spending more and more time in the city. That's where I like to be now, right in the middle of all the action.",
       "The people here are genuinely nice though, and the mountain views never get old. I always try to take solo trips around different parts of Georgia hoping to find more to it, but it kinda feels like every area is the same thing. This is also where I met so many of my friends, so it holds a lot for me. Honestly the place can be wicked at times, but just know it would make a dope GTA map.",
@@ -111,7 +111,7 @@ export const WORLD_LOCATIONS: WorldLocation[] = [
     lat: 36.1627,
     lng: -86.7816,
     highlight: { source: "states", name: "Tennessee" },
-    image: "/assets/sprites/tennessee.jpg",
+    image: "/assets/sprites/Tennessee.png",
     content: [
       "This is the best place for cowboys and all kinds of country stuff to get into. You got Gatlinburg and Pigeon Forge, which are a fun time to head around and explore, checking out cool parks and just seeing what's out there. Come through with your family for this one, it's that kind of place.",
       "Honestly I visit Tennessee a lot because my friend of over 7 years lives here, so I always swing by just because, why not. There's something about having a spot you can keep coming back to that makes it feel like a second home. He's planning to get married and I'm gonna be his best man, which is pretty awesome.",
@@ -125,7 +125,7 @@ export const WORLD_LOCATIONS: WorldLocation[] = [
     lat: 35.7796,
     lng: -78.6382,
     highlight: { source: "states", name: "North Carolina" },
-    image: "/assets/sprites/northcarolina.jpg.webp",
+    image: "/assets/sprites/northcarolina.jpg",
     content: [
       "I've been here a couple times but only really around the Charlotte area, so I can't say I've seen all of it. Honestly it feels like a cleaner Atlanta than Atlanta itself, like a greener version with more mountains and woods to wander through. Everything just feels a little more open and easy to breathe in.",
       "I'd actually love to live there one day, mostly because it just looks healthier than living in Atlanta, lol. I'm heading back soon to catch the J. Cole concert at the Spectrum, so I'm pretty hype about that.",
@@ -139,7 +139,7 @@ export const WORLD_LOCATIONS: WorldLocation[] = [
     lat: 40.7128,
     lng: -74.006,
     highlight: { source: "states", name: "New York" },
-    image: "/assets/sprites/newyork.jpg",
+    image: "/assets/sprites/Newyork.png",
     content: [
       "I've been coming here since I was a kid, which was always decent because my auntie lives out here, so I had a reason to keep coming back. I made a trip for New Year's too, since I'm the type to always watch the ball drop on TV and figured I'd finally see it for real. The food alone is worth the trip though, so dope, I'd come back just to eat my way through it again.",
       "The Statue of Liberty is always nice to catch even from far away, and it never really loses that feeling. One thing I gotta say is it smells exactly like downtown Atlanta, so it felt weirdly familiar the second I got there, lol. And I gotta say it, go Knicks, because that game was pretty insane ngl. I've got like 3 friends living here too, so every now and then we link up and hang out when I'm around.",
@@ -155,7 +155,7 @@ export const WORLD_LOCATIONS: WorldLocation[] = [
     lat: 33.6844,
     lng: 73.0479,
     highlight: { source: "countries", name: "Pakistan" },
-    image: "/assets/sprites/pakistan.jpg",
+    image: "/assets/sprites/Pakistan.png",
     content: [
       "Pakistan is where my dad's side of the family is from, and going there honestly felt rushed because everything about it moved at a rush. There was sand everywhere and people riding motorcycles through all of it. I still remember pulling out of the airport in a van that had the goofiest horn ever, and man it was so annoying, lol.",
       "I came to visit my dad's family who haven't moved over to America yet, and they were so welcoming the whole time. Meeting them was a blessing, and I'd do anything for them, especially after the way they took care of us. And the food, bro, I lowkey gained like 20 pounds before I even left.",
@@ -169,7 +169,7 @@ export const WORLD_LOCATIONS: WorldLocation[] = [
     lat: -6.2088,
     lng: 106.8456,
     highlight: { source: "countries", name: "Indonesia" },
-    image: "/assets/sprites/indonesia.webp",
+    image: "/assets/sprites/Indonesia.png",
     content: [
       "This is the area where my mother is from, and being here for a week really showed me the way she grew up. At first it looks like a utopia, but once you head outside the city of Jakarta it can honestly look a little scary. There's a lot that comes at your eyes here, but Jakarta itself felt like it carried a lot of Japanese influence, and you can feel that culture in everything, especially since most of it is pretty cheap.",
       "I still remember how long it took to get between the train stations, but it was so worth it because I was able to see where my grandma was. I just wish I'd had the chance to learn more about my mom's life growing up.",
@@ -184,7 +184,7 @@ export const WORLD_LOCATIONS: WorldLocation[] = [
     lat: 41.0082,
     lng: 28.9784,
     highlight: { source: "countries", name: "Turkey" },
-    image: "/assets/sprites/turkey.jpg",
+    image: "/assets/sprites/Turkey.png",
     content: [
       "Turkey is known for having one of the biggest international airports out there, and it's kind of insane how the whole area feels when you're in it. I gotta be honest though, every single time I visit it has that rainy mood to it, even after coming through like 4 times now. The Blue Mosque was still under construction while I was there, which was a little bummer.",
       "This is also the area where I first got to meet my mom's side of the family. I'd never met them before, but they had a chance to come through while traveling outside of Indonesia, so it all kind of lined up. It was still an incredible time, especially since we got to hop on a cruise and make our way out to Cat Island! :3 ",
@@ -197,7 +197,7 @@ export const WORLD_LOCATIONS: WorldLocation[] = [
     lat: 24.7136,
     lng: 46.6753,
     highlight: { source: "countries", name: "Saudi Arabia" },
-    image: "/assets/sprites/saudiarabia.jpg",
+    image: "/assets/sprites/Saudiarabia.png",
     content: [
       "Saudi Arabia is honestly the most beautiful place in the world to me, and the most holy too. Every single time I come here I find myself thinking I need to come back just to feel free again. Even though I always end up hungry whenever I'm here, that's just part of the journey, sitting in a car for 3 hours and then walking at least 10k plus steps after. It's an honest adventure, the kind that feels like it was made for us as humanity.",
       "The clock tower alone has like 73 floors to enter from, and it really felt like a way into heaven looking up at it. I still can't believe the architecture out here, it's got like 7 different hotels all built together, which I guess is just the culture but it's wild. I will say prepare for the heat though, because it's so hot with sand and wind breeze going everywhere, you can lowkey farm aura out there.",
@@ -211,7 +211,7 @@ export const WORLD_LOCATIONS: WorldLocation[] = [
     lat: 3.139,
     lng: 101.6869,
     highlight: { source: "countries", name: "Malaysia" },
-    image: "/assets/sprites/malaysia.png",
+    image: "/assets/sprites/Malaysia.jpg",
     content: [
       "I was only here for one day, but it honestly felt like I'd been there a year because of how much greatness came out of it. For one, the towers and buildings out here are beautiful, and the whole area of technology just felt right, like everything was built with intention. My dad's friend lived here too, and after so long the two of them finally reconnected, which was such a wholesome thing to witness.",
       "Walking around, it just gives you that feeling of the future, like you stepped into what's coming next. I don't even know why, but at one point I had to stop and take a selfie with one of the buildings because it was just that beautiful for the area.",
@@ -225,7 +225,7 @@ export const WORLD_LOCATIONS: WorldLocation[] = [
     lat: 38.7223,
     lng: -9.1393,
     highlight: { source: "countries", name: "Portugal" },
-    image: "/assets/sprites/portugal.jpg",
+    image: "/assets/sprites/Portugal.png",
     content: [
       "I came here on a solo trip to meet a friend I'd gotten pretty close with on Discord, and I figured why not just go out and actually meet her. It ended up being such an amazing time. I didn't get to see all of Portugal, but I feel like Porto pretty much summed up what the whole place is about.",
       "The beaches were a little insane, and from what I saw there were green mountains just outside the city. Going around just feels so European, like the peak of life where I could honestly stay forever. Riding the boats, walking from one area to the next, and their train system was pretty dope compared to New York, lol. There's always some festival going on with music keeping the city in good vibes.",
