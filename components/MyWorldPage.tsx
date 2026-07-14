@@ -414,7 +414,11 @@ export default function MyWorldPage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.7, ease: EASE, delay: 0.15 }}
-                  className="mt-5 aspect-[4/3] w-full select-none rounded-xl border border-white/12 object-cover"
+                  className={`mt-5 aspect-[4/3] w-full select-none rounded-xl border border-white/12 ${
+                    activeLocation.slug === "georgia"
+                      ? "bg-white/5 object-contain"
+                      : "object-cover"
+                  }`}
                 />
               )}
               <div className="mt-5 space-y-4">
