@@ -10,7 +10,6 @@ import VideoModal from "./VideoModal";
 import ProfessionalEntry from "./ProfessionalEntry";
 import { RETURN_TO_KEY } from "@/lib/projects";
 import type { SubView } from "@/lib/sections";
-import { useVideoPreload } from "@/lib/videoPreload";
 
 const GOJO_VIDEO_SRC = "/assets/videos/idwin.mp4";
 const ABRAR_VIDEO_SRC = "/assets/videos/abrarmainscreenvideo.mp4";
@@ -240,8 +239,6 @@ export default function HomePage({ onNavigate }: Props) {
   const [songPlaying, setSongPlaying] = useState(false);
   const griffithRef = useRef<HTMLAudioElement | null>(null);
   const favoriteSongRef = useRef<HTMLAudioElement | null>(null);
-  // Fetch the click-to-play videos into memory so the modal starts instantly.
-  useVideoPreload([GOJO_VIDEO_SRC, ABRAR_VIDEO_SRC]);
   useEffect(() => {
     const id = requestAnimationFrame(() => setStage("visible"));
     return () => cancelAnimationFrame(id);
@@ -897,6 +894,12 @@ export default function HomePage({ onNavigate }: Props) {
           mixBlendMode: "screen",
         }}
       />
+
+      {/* Preload the click-to-play videos so they feel instant. */}
+      <div aria-hidden className="pointer-events-none absolute h-0 w-0 overflow-hidden opacity-0">
+        <video src={GOJO_VIDEO_SRC} preload="none" muted playsInline />
+        <video src={ABRAR_VIDEO_SRC} preload="none" muted playsInline />
+      </div>
 
       {/* Professional page entry — bottom-right corner of the main page. Sits
           above the Jotaro walk lane (z above it). Note: the Abrar + Gojo portrait

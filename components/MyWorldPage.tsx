@@ -9,7 +9,6 @@ import VideoModal from "./VideoModal";
 import MyWorldGlobe, { type GlobeApi } from "./MyWorldGlobe";
 import { locationBySlug } from "@/lib/world";
 import { RETURN_TO_KEY } from "@/lib/projects";
-import { useVideoPreload } from "@/lib/videoPreload";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -24,8 +23,6 @@ export default function MyWorldPage() {
   const [slug, setSlug] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const globeApi = useRef<GlobeApi | null>(null);
-  // Fetch dio's and garou's videos into memory so they play instantly.
-  useVideoPreload([DIO_VIDEO_SRC, GAROU_VIDEO_SRC]);
 
   // ----- dio sequence state --------------------------------------------
   // "idle"  -> shadowdiooo, world spinning.

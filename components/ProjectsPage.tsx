@@ -11,7 +11,6 @@ import {
   type Project,
   type ProjectSlug,
 } from "@/lib/projects";
-import { useVideoPreload } from "@/lib/videoPreload";
 
 // rgba() from an "r,g,b" accent triplet.
 const accentRgba = (glow: string, a: number) => `rgba(${glow}, ${a})`;
@@ -51,14 +50,12 @@ export default function ProjectsPage() {
     return () => document.removeEventListener("keydown", onKey);
   }, [playingVideo, selected]);
 
-  // Preload list — backgrounds/characters as hidden <img>, videos fetched
-  // into memory so click-to-play starts instantly.
+  // Preload list — every background + every character video, hidden in DOM.
   const preloadVideos = useMemo(
     () =>
       Array.from(new Set(Object.values(PROJECT_CHARACTERS).map((c) => c.video))),
     [],
   );
-  useVideoPreload(preloadVideos);
   const preloadBackgrounds = useMemo(
     () => [PROJECTS_MAIN_BACKGROUND, ...PROJECTS.map((p) => p.backgroundSrc)],
     [],
@@ -269,6 +266,9 @@ export default function ProjectsPage() {
         {preloadCharacters.map((src) => (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img key={src} src={src} alt="" />
+        ))}
+        {preloadVideos.map((src) => (
+          <video key={src} src={src} preload="none" muted playsInline />
         ))}
       </div>
 

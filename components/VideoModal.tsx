@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { resolveVideoSrc } from "@/lib/videoPreload";
 
 type Props = {
   src: string;
@@ -54,11 +53,8 @@ export default function VideoModal({
   // React's reconciler from ever re-running the innerHTML assignment, which
   // would tear down the <video> element and lose the un-muted state we set
   // imperatively below.
-  //
-  // resolveVideoSrc swaps in the preloaded blob URL (if the page's
-  // useVideoPreload fetch has landed) so playback starts with zero network.
   const innerHtml = useMemo(
-    () => ({ __html: videoHtml(resolveVideoSrc(src), videoClass) }),
+    () => ({ __html: videoHtml(src, videoClass) }),
     [src, videoClass],
   );
 

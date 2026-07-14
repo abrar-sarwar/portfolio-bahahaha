@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState, type ReactElement } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import VideoModal from "./VideoModal";
-import { useVideoPreload } from "@/lib/videoPreload";
 
 type Weapon = "gun" | "fist" | "heart" | "sword";
 type ZoneId = "body" | "face" | "heart";
@@ -180,8 +179,6 @@ function WeaponColumn({
 export default function FunPage() {
   const [equipped, setEquipped] = useState<Weapon | null>(null);
   const [playing, setPlaying] = useState<Weapon | null>(null);
-  // Fetch the weapon videos into memory so playback is instant on hit.
-  useVideoPreload(Object.values(VIDEO_FOR));
 
   const handleZoneClick = useCallback(
     (zone: ZoneId) => {
@@ -363,6 +360,13 @@ export default function FunPage() {
             </motion.p>
           )}
         </AnimatePresence>
+      </div>
+
+      {/* Preload videos so playback is instant. */}
+      <div aria-hidden className="pointer-events-none absolute h-0 w-0 overflow-hidden opacity-0">
+        {Object.values(VIDEO_FOR).map((src) => (
+          <video key={src} src={src} preload="none" muted playsInline />
+        ))}
       </div>
 
       <AnimatePresence>
