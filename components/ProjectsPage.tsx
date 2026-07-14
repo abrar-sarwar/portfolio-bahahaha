@@ -268,7 +268,7 @@ export default function ProjectsPage() {
           <img key={src} src={src} alt="" />
         ))}
         {preloadVideos.map((src) => (
-          <video key={src} src={src} preload="auto" muted playsInline />
+          <video key={src} src={src} preload="none" muted playsInline />
         ))}
       </div>
 
