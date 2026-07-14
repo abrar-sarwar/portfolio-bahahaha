@@ -897,8 +897,8 @@ export default function HomePage({ onNavigate }: Props) {
 
       {/* Preload the click-to-play videos so they feel instant. */}
       <div aria-hidden className="pointer-events-none absolute h-0 w-0 overflow-hidden opacity-0">
-        <video src={GOJO_VIDEO_SRC} preload="none" muted playsInline />
-        <video src={ABRAR_VIDEO_SRC} preload="none" muted playsInline />
+        <video src={GOJO_VIDEO_SRC} preload="auto" muted playsInline />
+        <video src={ABRAR_VIDEO_SRC} preload="auto" muted playsInline />
       </div>
 
       {/* Professional page entry — bottom-right corner of the main page. Sits
