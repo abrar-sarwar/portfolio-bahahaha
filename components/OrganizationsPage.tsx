@@ -4,9 +4,14 @@ import { useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import SpriteSlot from "./SpriteSlot";
 import VideoModal from "./VideoModal";
+import { useVideoPreload } from "@/lib/videoPreload";
+
+const PROGSU_VIDEO_SRC = "/assets/videos/progsuvideo.mp4";
 
 export default function OrganizationsPage() {
   const [videoOpen, setVideoOpen] = useState(false);
+  // Fetch the video into memory so the sprite click plays instantly.
+  useVideoPreload([PROGSU_VIDEO_SRC]);
 
   return (
     // overflow-y-auto so very short viewports can still scroll past content;
@@ -108,7 +113,7 @@ export default function OrganizationsPage() {
       <AnimatePresence>
         {videoOpen && (
           <VideoModal
-            src="/assets/videos/progsuvideo.mp4"
+            src={PROGSU_VIDEO_SRC}
             onClose={() => setVideoOpen(false)}
             volume={0.5}
           />
