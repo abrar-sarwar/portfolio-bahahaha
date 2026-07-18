@@ -1,0 +1,24 @@
+/** Global 32-color palette. Char → hex. "." is transparent (not listed). */
+export const PALETTE: Record<string, string> = {
+  // neutrals
+  O: "#0a0a0d", K: "#16161c", k: "#23232c", D: "#33333f", d: "#4a4a58",
+  W: "#e8e8ee", C: "#d7d9e0", c: "#9a9dab",
+  // skin / hair
+  S: "#c98f5f", s: "#a8714a", H: "#1b1410", h: "#33261a",
+  // site violet / magic
+  V: "#c4b5fd", v: "#8b6cf0", U: "#5b3fb8",
+  // cyber blue
+  B: "#6ec1ff", b: "#2f7fd4", N: "#1a3a5c",
+  // corruption red
+  R: "#ef4444", r: "#a02030", X: "#5c0f18",
+  // world greens (Bug Fields)
+  G: "#59c95f", g: "#2f8f45", F: "#1c5a30",
+  // harbor teal
+  T: "#3fbdb0", t: "#20726e",
+  // factory orange / molten
+  M: "#ff9f45", m: "#d4622a", L: "#8f3415",
+  // archive sepia
+  P: "#cbb289", p: "#8f7a55",
+  // gold / key
+  Y: "#ffd75e", y: "#c9a227",
+};
