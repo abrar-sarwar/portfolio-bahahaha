@@ -764,7 +764,7 @@ export function registerSprites(scene: Phaser.Scene, defs: SpriteDef[]): void {
       if (g.w !== def.w || g.h !== def.h)
         throw new Error(`${tex}: expected ${def.w}x${def.h}, got ${g.w}x${g.h}`);
       const canvas = scene.textures.createCanvas(tex, g.w, g.h);
-      if (!canvas) continue;
+      if (!canvas) return;
       const ctx = canvas.getContext();
       g.px.forEach((row, y) =>
         row.forEach((ch, x) => {
