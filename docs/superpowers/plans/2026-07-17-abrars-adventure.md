@@ -17,6 +17,7 @@
 - Cybersecurity "commands" are fictional arcade prompts; keep the framing playful, never real attack instructions.
 - Dev unlock code is `INK-7F2A`, served ONLY through `codeService` (async) so an API can replace it later. Never hardcode it in UI components.
 - Path alias `@/*` → repo root. New game code lives under `features/adventure/`; shared site components under `components/`.
+- `tailwind.config.ts` `content` must include `"./features/**/*.{ts,tsx}"` (added as a Task 3 fix — without it Tailwind purges every class used by the game's overlay UI in production). This is the ONLY allowed edit to that file.
 - Canvas: 960×540 internal, `pixelArt: true`, `roundPixels: true`, `Scale.FIT`, camera zoom 2 in platforming (480×270 visible). Tiles are 16×16. Player sprite 16×24, small enemies 16×16, Brute/Knight 24×24, bosses 48×64, Devil King 80×96.
 - Type-check gate for every task: `npx tsc --noEmit` → no errors. Test gate: `npx vitest run` → all pass.
 - The 20-point completion checklist from the spec is the final acceptance bar (Task 30).
