@@ -4,6 +4,7 @@ import { gameStore } from "../bridge/GameStore";
 import { bus } from "../bridge/EventBus";
 import { registerSprites, frameKey, animKey } from "../art/textures";
 import { PLAYER_SPRITES } from "../art/sprites/player";
+import { audio } from "../audio/synth";
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -25,5 +26,10 @@ export class BootScene extends Phaser.Scene {
       .setOrigin(0.5);
     gameStore.set({ scene: "Boot" });
     bus.emit("scene:changed", { scene: "Boot" });
+
+    // First user gesture on the canvas unlocks audio and starts the theme.
+    this.input.once("pointerdown", () => {
+      audio.playTrack("title");
+    });
   }
 }
