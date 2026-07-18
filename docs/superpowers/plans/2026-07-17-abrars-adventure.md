@@ -228,7 +228,10 @@ Expected: FAIL — cannot resolve `./EventBus`, `./GameStore`.
 ```ts
 type Handler<T> = (payload: T) => void;
 
-export class EventBus<E extends Record<string, unknown>> {
+// Constraint is Record<keyof E, unknown> (not Record<string, unknown>) so a
+// plain interface keeps literal keys — `keyof E` must stay a union of the
+// declared event names, giving compile errors on typo'd events.
+export class EventBus<E extends Record<keyof E, unknown>> {
   private handlers = new Map<keyof E, Set<Handler<never>>>();
 
   on<K extends keyof E>(event: K, fn: Handler<E[K]>): () => void {
@@ -258,8 +261,10 @@ export class EventBus<E extends Record<string, unknown>> {
   }
 }
 
-/** Global event map. Later tasks extend this interface with their events. */
-export interface AdventureEvents extends Record<string, unknown> {
+/** Global event map. Later tasks extend this interface with their events.
+ *  Deliberately NOT `extends Record<string, unknown>` — that would widen
+ *  `keyof AdventureEvents` to `string` and kill typo protection. */
+export interface AdventureEvents {
   "scene:changed": { scene: import("../ids").SceneKey };
 }
 
@@ -305,21 +310,38 @@ export const gameStore = createStore<GameUIState>({
   paused: false,
 });
 
+/** Memoize a selector by store-state reference so getSnapshot returns a
+ *  stable value between store changes (useSyncExternalStore contract —
+ *  object-returning selectors would otherwise loop React). */
+export function memoizeBy<S, T>(compute: (s: S) => T): (s: S) => T {
+  let last: { s: S; v: T } | null = null;
+  return (s) => {
+    if (!last || last.s !== s) last = { s, v: compute(s) };
+    return last.v;
+  };
+}
+
 export function useGameStore<T>(selector: (s: GameUIState) => T): T {
+  // Selector is captured on first render; inline selectors must be pure.
+  const memo = useMemo(() => memoizeBy(selector), []);
   return useSyncExternalStore(
     gameStore.subscribe,
-    () => selector(gameStore.get()),
-    () => selector(gameStore.get()),
+    () => memo(gameStore.get()),
+    () => memo(gameStore.get()),
   );
 }
 ```
+
+(`useMemo`, `useSyncExternalStore` imported from "react".) `GameStore.test.ts`
+additionally covers `memoizeBy`: same state reference → same value reference;
+new state reference → recomputed value (7 bridge tests total).
 
 Also create `features/adventure/ids.ts` with the exact content from **Canonical identifiers**, and delete `features/adventure/smoke.test.ts`.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run features/adventure/bridge && npx tsc --noEmit`
-Expected: 6 passed; no type errors.
+Expected: 7 passed; no type errors.
 
 - [ ] **Step 5: Commit**
 
