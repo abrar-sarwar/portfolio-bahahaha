@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { createStore } from "./GameStore";
+import { createStore, memoizeBy } from "./GameStore";
 
 describe("GameStore", () => {
   it("set patches shallowly and notifies subscribers", () => {
@@ -26,5 +26,15 @@ describe("GameStore", () => {
     expect(fn).not.toHaveBeenCalled();
     const snap = store.get();
     expect(store.get()).toBe(snap); // referential stability for useSyncExternalStore
+  });
+
+  it("memoizeBy returns cached value for same state ref, recomputes on new ref", () => {
+    const sel = memoizeBy((s: { n: number }) => ({ doubled: s.n * 2 }));
+    const stateA = { n: 2 };
+    const first = sel(stateA);
+    expect(sel(stateA)).toBe(first);           // same ref in, same ref out
+    const second = sel({ n: 2 });
+    expect(second).not.toBe(first);            // new ref in, recomputed
+    expect(second).toEqual({ doubled: 4 });
   });
 });

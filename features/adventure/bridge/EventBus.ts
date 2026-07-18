@@ -1,6 +1,9 @@
 type Handler<T> = (payload: T) => void;
 
-export class EventBus<E extends Record<string, unknown>> {
+// Constraint is Record<keyof E, unknown> (not Record<string, unknown>) so a
+// plain interface keeps literal keys — `keyof E` must stay a union of the
+// declared event names, giving compile errors on typo'd events.
+export class EventBus<E extends Record<keyof E, unknown>> {
   private handlers = new Map<keyof E, Set<Handler<never>>>();
 
   on<K extends keyof E>(event: K, fn: Handler<E[K]>): () => void {
@@ -30,8 +33,10 @@ export class EventBus<E extends Record<string, unknown>> {
   }
 }
 
-/** Global event map. Later tasks extend this interface with their events. */
-export interface AdventureEvents extends Record<string, unknown> {
+/** Global event map. Later tasks extend this interface with their events.
+ *  Deliberately NOT `extends Record<string, unknown>` — that would widen
+ *  `keyof AdventureEvents` to `string` and kill typo protection. */
+export interface AdventureEvents {
   "scene:changed": { scene: import("../ids").SceneKey };
 }
 
