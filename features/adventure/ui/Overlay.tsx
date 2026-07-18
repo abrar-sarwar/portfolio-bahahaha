@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { useGameStore } from "../bridge/GameStore";
 import { audio } from "../audio/synth";
+import Hud from "./Hud";
 
 export default function Overlay() {
   const scene = useGameStore((s) => s.scene);
@@ -19,7 +20,8 @@ export default function Overlay() {
       className="pointer-events-none absolute inset-0 z-10 select-none font-mono"
       onPointerDown={() => audio.unlock()}
     >
-      {/* Later tasks mount HUD / dialogue / combat panels here. */}
+      {/* Later tasks mount dialogue / combat panels here. */}
+      {scene === "Level" && <Hud />}
       <div className="absolute left-2 top-2 text-[10px] uppercase tracking-[0.3em] text-white/30">
         {scene}
       </div>

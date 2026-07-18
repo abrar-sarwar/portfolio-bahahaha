@@ -38,6 +38,12 @@ export class EventBus<E extends Record<keyof E, unknown>> {
  *  `keyof AdventureEvents` to `string` and kill typo protection. */
 export interface AdventureEvents {
   "scene:changed": { scene: import("../ids").SceneKey };
+  "level:complete": { levelId: import("../ids").LevelId };
+  "level:enter-boss": { levelId: import("../ids").LevelId; bossId: import("../ids").BossId };
+  "player:damaged": { health: number };
+  "buff:collected": { buff: import("../ids").BuffId };
+  "level:fragment": { levelId: import("../ids").LevelId };
+  "nav:external": { href: string };
 }
 
 export const bus = new EventBus<AdventureEvents>();

@@ -21,17 +21,41 @@ export function createStore<S extends object>(initial: S) {
   };
 }
 
-import type { SceneKey } from "../ids";
+import type { SceneKey, LevelId, BuffId, AbilityId } from "../ids";
+import { PLAYER_BASE } from "../config";
+
+/** Player-facing HUD snapshot (hearts, buff chips, fragment count). */
+export interface HudState {
+  health: number;
+  maxHealth: number;
+  buffs: BuffId[];
+  fragments: number;
+  levelId: LevelId | null;
+}
 
 /** UI-facing snapshot. Later tasks add fields; they never remove them. */
 export interface GameUIState {
   scene: SceneKey;
   paused: boolean;
+  hud: HudState;
+  /** Buffs snapshotted when entering a boss (Task 13 combat consumes this). */
+  levelBuffs: BuffId[];
+  /** Unlocked movement/combat abilities. `dash` gates the platformer dash. */
+  abilities: Record<AbilityId, boolean>;
 }
 
 export const gameStore = createStore<GameUIState>({
   scene: "Boot",
   paused: false,
+  hud: {
+    health: PLAYER_BASE.maxHealth,
+    maxHealth: PLAYER_BASE.maxHealth,
+    buffs: [],
+    fragments: 0,
+    levelId: null,
+  },
+  levelBuffs: [],
+  abilities: { dash: false, analyze: false, improvedParry: false },
 });
 
 /** Memoize a selector by store-state reference so getSnapshot returns a

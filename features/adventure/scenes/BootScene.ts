@@ -1,10 +1,9 @@
 import Phaser from "phaser";
-import { GAME_WIDTH, GAME_HEIGHT } from "../config";
 import { gameStore } from "../bridge/GameStore";
 import { bus } from "../bridge/EventBus";
-import { registerSprites, frameKey, animKey } from "../art/textures";
+import { registerSprites } from "../art/textures";
 import { PLAYER_SPRITES } from "../art/sprites/player";
-import { audio } from "../audio/synth";
+import { tilesetFor } from "../art/sprites/tiles-fields";
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -12,24 +11,12 @@ export class BootScene extends Phaser.Scene {
   }
 
   create() {
-    registerSprites(this, [PLAYER_SPRITES]);
-    this.add
-      .sprite(GAME_WIDTH / 2, GAME_HEIGHT / 2, frameKey("player", 0))
-      .setScale(4)
-      .play(animKey("player", "idle"));
-    this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 80, "BOOT OK", {
-        fontFamily: "monospace",
-        fontSize: "16px",
-        color: "#c4b5fd",
-      })
-      .setOrigin(0.5);
+    // Register every texture the Level scene relies on (idempotent — Level
+    // also calls registerSprites for robustness), then hand straight off.
+    // Title / Overworld replace this direct start in Task 16.
+    registerSprites(this, [PLAYER_SPRITES, ...tilesetFor("fields")]);
     gameStore.set({ scene: "Boot" });
     bus.emit("scene:changed", { scene: "Boot" });
-
-    // First user gesture on the canvas unlocks audio and starts the theme.
-    this.input.once("pointerdown", () => {
-      audio.playTrack("title");
-    });
+    this.scene.start("Level", { levelId: "1-1" });
   }
 }
