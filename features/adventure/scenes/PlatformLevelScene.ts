@@ -6,12 +6,15 @@ import { parseLevel } from "../levels/parse";
 import type { LevelDefinition, ParsedLevel, Pt } from "../levels/types";
 import { registerSprites, frameKey, animKey } from "../art/textures";
 import { PLAYER_SPRITES } from "../art/sprites/player";
-import { tilesetFor } from "../art/sprites/tiles-fields";
+import { tilesetFor, FIELD_TILE_KEYS, FIELD_PARALLAX_KEYS } from "../art/sprites/tiles-fields";
 import { audio } from "../audio/synth";
 import { bus } from "../bridge/EventBus";
 import { gameStore } from "../bridge/GameStore";
 import { input } from "../input/InputState";
-import { mergeRowRuns, runToRect } from "./levelGeometry";
+import { mergeRowRuns, runToRect, topExposed } from "./levelGeometry";
+import { shouldClipAscent, movementLocked } from "./controllerGates";
+
+const KNOCKBACK_MS = 180;
 
 type Body = Phaser.Physics.Arcade.Body;
 
@@ -37,6 +40,8 @@ export class PlatformLevelScene extends Phaser.Scene {
   // controller timing state
   private lastGroundedAt = -Infinity;
   private jumpQueuedAt = -Infinity;
+  private jumpFiredAt = -Infinity;
+  private knockbackUntil = -Infinity;
   private dashing = false;
   private dashStartedAt = -Infinity;
   private attacking = false;
@@ -147,9 +152,9 @@ export class PlatformLevelScene extends Phaser.Scene {
     // World-covering tileSprites (scrollFactor 1, no edge gaps, zoom-safe);
     // tilePositionX is driven each frame to fake depth (see update()).
     const layers: { key: string; depth: number; factor: number }[] = [
-      { key: "bg-fields-0", depth: -30, factor: 0.2 },
-      { key: "bg-fields-1", depth: -20, factor: 0.35 },
-      { key: "bg-fields-2", depth: -10, factor: 0.5 },
+      { key: FIELD_PARALLAX_KEYS.bg0, depth: -30, factor: 0.2 },
+      { key: FIELD_PARALLAX_KEYS.bg1, depth: -20, factor: 0.35 },
+      { key: FIELD_PARALLAX_KEYS.bg2, depth: -10, factor: 0.5 },
     ];
     for (const l of layers) {
       const sprite = this.add
@@ -163,14 +168,18 @@ export class PlatformLevelScene extends Phaser.Scene {
   private buildTiles() {
     const { solids, oneWays, hazards } = this.lvl;
 
-    // Visual tile images (one per set cell).
+    // Visual tile images (one per set cell). A solid draws the grass-lip GROUND
+    // only when its top face is exposed; covered cells in a stack draw the
+    // lip-less GROUND_FILL so grass shows on the crown, not through the soil.
     for (let ty = 0; ty < this.lvl.heightTiles; ty++) {
       for (let tx = 0; tx < this.lvl.widthTiles; tx++) {
         const cx = tx * TILE + TILE / 2;
         const cy = ty * TILE + TILE / 2;
-        if (solids[ty][tx]) this.add.image(cx, cy, "tile-fields-ground").setDepth(0);
-        else if (oneWays[ty][tx]) this.add.image(cx, cy, "tile-fields-oneway").setDepth(0);
-        else if (hazards[ty][tx]) this.add.image(cx, cy, "tile-fields-hazard").setDepth(1);
+        if (solids[ty][tx]) {
+          const key = topExposed(solids, tx, ty) ? FIELD_TILE_KEYS.ground : FIELD_TILE_KEYS.groundFill;
+          this.add.image(cx, cy, key).setDepth(0);
+        } else if (oneWays[ty][tx]) this.add.image(cx, cy, FIELD_TILE_KEYS.oneWay).setDepth(0);
+        else if (hazards[ty][tx]) this.add.image(cx, cy, FIELD_TILE_KEYS.hazard).setDepth(1);
       }
     }
 
@@ -296,17 +305,26 @@ export class PlatformLevelScene extends Phaser.Scene {
     const buffered = this.time.now - this.jumpQueuedAt <= PHYSICS.jumpBufferMs;
     if (buffered && canCoyote && !this.dashing) {
       body.setVelocityY(PHYSICS.jumpVelocity);
+      this.jumpFiredAt = this.time.now;
       this.jumpQueuedAt = -Infinity;
       this.lastGroundedAt = -Infinity;
       audio.sfx("jump");
     }
-    // variable jump height: releasing early clips ascent
-    if (!snap.jumpHeld && body.velocity.y < -120) body.setVelocityY(-120);
+    // variable jump height: releasing early clips ascent — but never during
+    // knockback (would cancel the damage pop) or within the tap-jump grace.
+    if (
+      shouldClipAscent(this.time.now, this.jumpFiredAt, snap.jumpHeld, body.velocity.y, this.knockbackUntil)
+    )
+      body.setVelocityY(-120);
 
+    // Player-driven horizontal movement / dash / flip are suppressed while a
+    // knockback impulse is in effect, so the -80/-160 damage pop and -200
+    // hazard bounce survive instead of being overwritten the next frame.
+    const inKnockback = movementLocked(this.time.now, this.knockbackUntil);
     const dir = (snap.right ? 1 : 0) - (snap.left ? 1 : 0);
     if (this.dashing) {
       if (this.time.now - this.dashStartedAt > PHYSICS.dashMs) this.dashing = false;
-    } else {
+    } else if (!inKnockback) {
       body.setVelocityX(dir * PHYSICS.moveSpeed * this.speedScale); // cache-boost sets speedScale 1.25
       if (dir !== 0) this.player.setFlipX(dir < 0);
       const dashReady = this.time.now - this.dashStartedAt > PHYSICS.dashCooldownMs;
@@ -430,7 +448,10 @@ export class PlatformLevelScene extends Phaser.Scene {
   private onHazard() {
     if (this.time.now < this.iframesUntil || this.dead) return;
     this.takeDamage(1);
-    if (!this.dead) (this.player.body as Body).setVelocityY(-200); // bounce up
+    if (!this.dead) {
+      (this.player.body as Body).setVelocityY(-200); // bounce up
+      this.knockbackUntil = this.time.now + KNOCKBACK_MS; // protect the bounce
+    }
   }
 
   private takeDamage(n: number) {
@@ -451,6 +472,7 @@ export class PlatformLevelScene extends Phaser.Scene {
     const body = this.player.body as Body;
     body.setVelocityX(this.player.flipX ? 80 : -80);
     body.setVelocityY(-160);
+    this.knockbackUntil = this.time.now + KNOCKBACK_MS; // protect the pop
 
     this.iframesUntil = this.time.now + IFRAMES_MS;
     this.blink(IFRAMES_MS);

@@ -52,3 +52,13 @@ export function runToRect(run: SolidRun, tile: number): PixelRect {
     h: tile,
   };
 }
+
+/**
+ * Whether a solid cell shows its top face to open air — the top world row, or a
+ * cell with no solid directly above it. Exposed cells draw the grass-lip GROUND
+ * tile; covered cells draw the lip-less GROUND_FILL tile, so a vertical stack of
+ * solids has grass only on its crown instead of a grass stripe through the soil.
+ */
+export function topExposed(solids: boolean[][], tx: number, ty: number): boolean {
+  return ty === 0 || !solids[ty - 1][tx];
+}

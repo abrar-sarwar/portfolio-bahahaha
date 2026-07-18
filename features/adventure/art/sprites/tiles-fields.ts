@@ -34,6 +34,30 @@ const GROUND = frame(`
   hhFhhhhhhhhhhhFh
 `);
 
+// Ground fill: the same speckled dirt body as GROUND but with NO grass lip —
+// the top four grass rows are replaced by more dirt so a stacked column of
+// solids only shows grass on its exposed crown (GROUND), not a stripe partway
+// down. Same h/F palette chars as GROUND's body, so the seam where GROUND's
+// bottom edge meets a fill tile below reads as continuous soil.
+const GROUND_FILL = frame(`
+  hhhhhhhhFhhhhhFh
+  hFhhhhhhhhhhFhhh
+  hhhhFhhhhFhhhhhh
+  hhhhhhhhhhhhFhhh
+  hhFhhhhFhhhhhFhh
+  hhhhhFhhhhhFhhhh
+  FhhhhhhhhFhhhhhh
+  hhhhFhhhhhhhhFhh
+  hhhhhhhFhhhhhhhh
+  hFhhhhhhhhhFhhhh
+  hhhhhhFhhhhhhhhF
+  hhFhhhhhhhFhhhhh
+  hhhhhhhhFhhhhhhh
+  FhhhhhFhhhhhhhFh
+  hhhhhhhhhhFhhhhh
+  hhFhhhhhhhhhhhFh
+`);
+
 // One-way platform lip: a thin grass ledge over a shallow dirt underside,
 // then transparent. Only its top face blocks (set in the scene).
 const ONEWAY = frame(`
@@ -80,6 +104,13 @@ export const FIELDS_GROUND: SpriteDef = {
   w: 16,
   h: 16,
   frames: [GROUND],
+};
+
+export const FIELDS_GROUND_FILL: SpriteDef = {
+  key: "tile-fields-ground-fill",
+  w: 16,
+  h: 16,
+  frames: [GROUND_FILL],
 };
 
 export const FIELDS_ONEWAY: SpriteDef = {
@@ -185,8 +216,29 @@ export const FIELDS_BG2: SpriteDef = { key: "bg-fields-2", w: BG_W, h: BG_H, fra
 
 // --- registry ---------------------------------------------------------------
 
-export const FIELDS_TILES: SpriteDef[] = [FIELDS_GROUND, FIELDS_ONEWAY, FIELDS_HAZARD];
+export const FIELDS_TILES: SpriteDef[] = [
+  FIELDS_GROUND,
+  FIELDS_GROUND_FILL,
+  FIELDS_ONEWAY,
+  FIELDS_HAZARD,
+];
 export const FIELDS_PARALLAX: SpriteDef[] = [FIELDS_BG0, FIELDS_BG1, FIELDS_BG2];
+
+// Single source of truth for the BARE texture keys the scene references (each
+// resolves to a single-frame SpriteDef, aliased by registerSprites/bareKeyFor).
+// Shared by the scene and the integrity test so the strings can't drift.
+export const FIELD_TILE_KEYS = {
+  ground: FIELDS_GROUND.key,
+  groundFill: FIELDS_GROUND_FILL.key,
+  oneWay: FIELDS_ONEWAY.key,
+  hazard: FIELDS_HAZARD.key,
+} as const;
+
+export const FIELD_PARALLAX_KEYS = {
+  bg0: FIELDS_BG0.key,
+  bg1: FIELDS_BG1.key,
+  bg2: FIELDS_BG2.key,
+} as const;
 
 /** Parallax + tile SpriteDefs for a level theme. Only "fields" exists today;
  *  later worlds add their own tileset modules behind this switch. */

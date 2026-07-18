@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mergeRowRuns, runToRect, type SolidRun } from "./levelGeometry";
+import { mergeRowRuns, runToRect, topExposed, type SolidRun } from "./levelGeometry";
 
 // Small string-grid helper: "#" = solid, "." = empty.
 function grid(rows: string[]): boolean[][] {
@@ -83,5 +83,37 @@ describe("runToRect", () => {
     const wpx = (run.colEnd - run.colStart) * TILE;
     expect(r.x + r.w / 2).toBe(run.colStart * TILE + wpx / 2);
     expect(r.y + r.h / 2).toBe(run.row * TILE + TILE / 2);
+  });
+});
+
+describe("topExposed", () => {
+  // Two-tall stack in column 1; a lone tile in column 3 on the bottom row.
+  const g = grid([
+    ".#..",
+    ".#.#",
+  ]);
+
+  it("treats the world top row (ty === 0) as always exposed", () => {
+    expect(topExposed(g, 1, 0)).toBe(true);
+  });
+
+  it("is not exposed when a solid sits directly above (covered -> fill tile)", () => {
+    expect(topExposed(g, 1, 1)).toBe(false);
+  });
+
+  it("is exposed when the cell above is empty (grass-lip tile)", () => {
+    expect(topExposed(g, 3, 1)).toBe(true);
+  });
+
+  it("handles edge columns (leftmost / rightmost) on the top row", () => {
+    const edge = grid(["#..#"]);
+    expect(topExposed(edge, 0, 0)).toBe(true);
+    expect(topExposed(edge, 3, 0)).toBe(true);
+  });
+
+  it("handles an edge column covered from above", () => {
+    const edge = grid(["#", "#"]);
+    expect(topExposed(edge, 0, 0)).toBe(true); // top row
+    expect(topExposed(edge, 0, 1)).toBe(false); // covered
   });
 });
