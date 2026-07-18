@@ -1,11 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { parseLevel } from "./parse";
-import type { LevelDefinition } from "./types";
+import { LEVELS } from "./index";
+import type { LevelDefinition, EnemyKind } from "./types";
+import type { LevelId } from "../ids";
 
 const mini = (map: string): LevelDefinition => ({
   id: "1-1", name: "t", theme: "fields", bossId: "glitch-toad",
   music: "level-1", map, introDialogueId: null, fragmentDialogueId: null,
 });
+
+const countChar = (map: string, ch: string): number =>
+  [...map].filter((c) => c === ch).length;
 
 describe("parseLevel", () => {
   it("classifies tiles and finds markers", () => {
@@ -31,10 +36,120 @@ describe("parseLevel", () => {
   });
 });
 
-import { LEVELS } from "./index";
-
 describe("authored levels", () => {
   it("every registered level parses", () => {
     for (const def of Object.values(LEVELS)) expect(() => parseLevel(def!)).not.toThrow();
+  });
+});
+
+describe("level content requirements", () => {
+  const CONTENT: Partial<Record<LevelId, {
+    rowLen: number; checkpointsMin: number; fragments: number;
+    spawnMins: Partial<Record<EnemyKind, number>>;
+    hazards: boolean; oneWays: boolean;
+  }>> = {
+    "1-1": { rowLen: 160, checkpointsMin: 2, fragments: 1,
+             spawnMins: { bugling: 4, phishling: 2 }, hazards: true, oneWays: true },
+  };
+
+  for (const [id, expected] of Object.entries(CONTENT) as [
+    LevelId,
+    NonNullable<(typeof CONTENT)[LevelId]>,
+  ][]) {
+    describe(id, () => {
+      const def = LEVELS[id]!;
+      const rawLines = def.map.split("\n");
+
+      it("has no ragged rows", () => {
+        for (const line of rawLines) expect(line.length).toBe(expected.rowLen);
+      });
+
+      it("has exactly one player start (P)", () => {
+        expect(countChar(def.map, "P")).toBe(1);
+      });
+
+      it("has exactly one boss door (D)", () => {
+        expect(countChar(def.map, "D")).toBe(1);
+      });
+
+      it("has exactly the expected number of fragments (M), catching duplicates", () => {
+        expect(countChar(def.map, "M")).toBe(expected.fragments);
+      });
+
+      it("has no empty line sandwiched between two non-empty lines", () => {
+        for (let i = 1; i < rawLines.length - 1; i++) {
+          if (rawLines[i].length === 0) {
+            expect(rawLines[i - 1].length === 0 || rawLines[i + 1].length === 0).toBe(true);
+          }
+        }
+      });
+
+      it("parses with at least the minimum checkpoints", () => {
+        const lvl = parseLevel(def);
+        expect(lvl.checkpoints.length).toBeGreaterThanOrEqual(expected.checkpointsMin);
+      });
+
+      it("parses with a fragment iff the level expects one", () => {
+        const lvl = parseLevel(def);
+        expect(lvl.fragment !== null).toBe(expected.fragments > 0);
+      });
+
+      it("meets the minimum spawn count for every required enemy kind", () => {
+        const lvl = parseLevel(def);
+        for (const [kind, min] of Object.entries(expected.spawnMins) as [EnemyKind, number][]) {
+          const count = lvl.spawns.filter((s) => s.kind === kind).length;
+          expect(count).toBeGreaterThanOrEqual(min);
+        }
+      });
+
+      it("has hazards/one-ways present iff expected", () => {
+        const lvl = parseLevel(def);
+        const anyHazard = lvl.hazards.some((row) => row.some(Boolean));
+        const anyOneWay = lvl.oneWays.some((row) => row.some(Boolean));
+        expect(anyHazard).toBe(expected.hazards);
+        expect(anyOneWay).toBe(expected.oneWays);
+      });
+
+      it("every spawn has standable ground beneath it (solid or one-way, never a hazard or open air)", () => {
+        const lvl = parseLevel(def);
+        for (const spawn of lvl.spawns) {
+          const { tx, ty } = spawn.at;
+          let landedTy: number | null = null;
+          for (let y = ty + 1; y < lvl.heightTiles; y++) {
+            if (lvl.solids[y][tx] || lvl.oneWays[y][tx] || lvl.hazards[y][tx]) {
+              landedTy = y;
+              break;
+            }
+          }
+          expect(
+            landedTy,
+            `${id} spawn "${spawn.kind}" at (${tx},${ty}) falls out of the map with nothing solid beneath it`,
+          ).not.toBeNull();
+          if (landedTy !== null) {
+            expect(
+              lvl.solids[landedTy][tx] || lvl.oneWays[landedTy][tx],
+              `${id} spawn "${spawn.kind}" at (${tx},${ty}) lands on a hazard at row ${landedTy}`,
+            ).toBe(true);
+          }
+        }
+      });
+    });
+  }
+
+  it("parser maps every enemy char and the checkpoint marker", () => {
+    const lvl = parseLevel(mini("PbpmBksCD"));
+    expect(lvl.spawns).toEqual([
+      { kind: "bugling", at: { tx: 1, ty: 0 } },
+      { kind: "phishling", at: { tx: 2, ty: 0 } },
+      { kind: "malware-bat", at: { tx: 3, ty: 0 } },
+      { kind: "brute", at: { tx: 4, ty: 0 } },
+      { kind: "firewall-knight", at: { tx: 5, ty: 0 } },
+      { kind: "rootkit-slime", at: { tx: 6, ty: 0 } },
+    ]);
+    expect(lvl.checkpoints).toEqual([{ tx: 7, ty: 0 }]);
+  });
+
+  it("throws on an unknown map char", () => {
+    expect(() => parseLevel(mini("P?D"))).toThrow(/unknown map char/i);
   });
 });
