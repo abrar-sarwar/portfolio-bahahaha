@@ -53,6 +53,7 @@ export interface CombatState {
   def: BossDefinition; tag: CombatTag; turn: number;
   bossHealth: number; phaseIndex: number;
   player: PlayerCombat; items: BuffId[]; fx: ActiveEffects;
+  mechanic: MechanicState;
   ultimate: number; pendingMoveId: string | null;
   prompt: { text: string; display: string; timeLimitMs: number } | null;
   log: string[]; weaknessesRevealed: number;
