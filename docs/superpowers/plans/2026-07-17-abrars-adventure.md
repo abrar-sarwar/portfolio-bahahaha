@@ -775,6 +775,25 @@ export function registerSprites(scene: Phaser.Scene, defs: SpriteDef[]): void {
       );
       canvas.refresh();
     });
+    // Single-frame defs (tiles, backdrops, pickups) are ALSO registered under
+    // their bare key so scene code can reference them without frameKey() —
+    // Phaser silently renders __MISSING for unknown keys, which review caught
+    // breaking every tile in Task 7.
+    if (def.frames.length === 1 && !scene.textures.exists(def.key)) {
+      const g = parseGrid(def.frames[0]);
+      const canvas = scene.textures.createCanvas(def.key, g.w, g.h);
+      if (canvas) {
+        const ctx = canvas.getContext();
+        g.px.forEach((row, y) =>
+          row.forEach((ch, x) => {
+            if (!ch) return;
+            ctx.fillStyle = PALETTE[ch];
+            ctx.fillRect(x, y, 1, 1);
+          }),
+        );
+        canvas.refresh();
+      }
+    }
     for (const anim of def.anims ?? []) {
       const key = animKey(def.key, anim.key);
       if (scene.anims.exists(key)) continue;
@@ -1203,7 +1222,7 @@ git commit -m "feat(adventure): ASCII level format, parser, level 1-1 map"
   - `PlatformLevelScene` started with data `{ levelId: LevelId; spawnAt?: "start" | "checkpoint" | "door" }`.
   - Store gains `hud: { health: number; maxHealth: number; buffs: BuffId[]; fragments: number; levelId: LevelId | null }`, `levelBuffs: BuffId[]`.
   - Events: `"level:complete" { levelId }`, `"level:enter-boss" { levelId; bossId }`, `"player:damaged" { health }`, `"buff:collected" { buff: BuffId }`, `"nav:external" { href: string }`.
-  - Tileset keys: `tile-fields-ground`, `tile-fields-oneway`, `tile-fields-hazard`, parallax `bg-fields-0/1/2` (authored to schema: 16×16 tiles; grass lip `G/g` over dirt `h/F`; hazard = `R/r` glitch spikes; parallax = 480×270 gradient sky `N→K`, `V` star specks, pixel clouds `C/c`, broken terminal silhouettes `k/D`).
+  - Tileset keys: `tile-fields-ground` (grass-lipped top), `tile-fields-ground-fill` (interior dirt, no grass — used for any solid cell whose cell above is also solid, so stacked ground shows no mid-soil grass stripe), `tile-fields-oneway`, `tile-fields-hazard`, parallax `bg-fields-0/1/2` (authored to schema: 16×16 tiles; grass lip `G/g` over dirt `h/F`; hazard = `R/r` glitch spikes; parallax = 480×270 gradient sky `N→K`, `V` star specks, pixel clouds `C/c`, broken terminal silhouettes `k/D`).
 
 - [ ] **Step 1: InputState**
 
@@ -1309,15 +1328,21 @@ update(_t: number, dtMs: number) {
   if (buffered && canCoyote && !this.dashing) {
     body.setVelocityY(PHYSICS.jumpVelocity);
     this.jumpQueuedAt = -Infinity; this.lastGroundedAt = -Infinity;
+    this.jumpFiredAt = this.time.now;
     audio.sfx("jump");
   }
-  // variable jump height: releasing early clips ascent
-  if (!snap.jumpHeld && body.velocity.y < -120) body.setVelocityY(-120);
+  // variable jump height: releasing early clips ascent — but only ascent that
+  // came from a jump (80ms grace so tap-buffered jumps still get a real hop)
+  // and never during knockback, or damage pops get neutralized.
+  const inKnockback = this.time.now < this.knockbackUntil; // takeDamage/onHazard set knockbackUntil = now + 180
+  if (!snap.jumpHeld && body.velocity.y < -120 && !inKnockback &&
+      this.time.now - this.jumpFiredAt > 80)
+    body.setVelocityY(-120);
 
   const dir = (snap.right ? 1 : 0) - (snap.left ? 1 : 0);
   if (this.dashing) {
     if (this.time.now - this.dashStartedAt > PHYSICS.dashMs) this.dashing = false;
-  } else {
+  } else if (!inKnockback) {
     body.setVelocityX(dir * PHYSICS.moveSpeed * this.speedScale); // cache-boost sets speedScale 1.25
     if (dir !== 0) this.player.setFlipX(dir < 0);
     const dashReady = this.time.now - this.dashStartedAt > PHYSICS.dashCooldownMs;
