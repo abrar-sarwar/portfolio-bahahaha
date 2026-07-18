@@ -1735,6 +1735,7 @@ export interface CombatState {
   prompt: { text: string; display: string; timeLimitMs: number } | null;
   log: string[]; weaknessesRevealed: number;
   rng: number; assistScale: number;
+  mechanic: MechanicState;
   outcome: "ongoing" | "victory" | "defeat";
 }
 
