@@ -2,6 +2,7 @@
 
 import { useGameStore } from "../bridge/GameStore";
 import { heartsFromHealth, buffTag } from "./hudMath";
+import Toast from "./Toast";
 
 // 8x8 heart bitmap (1 = filled cell). Rendered as a pixel div grid so the HUD
 // stays in the game's blocky pixel-art idiom.
@@ -52,7 +53,9 @@ export default function Hud() {
   ];
 
   return (
-    <div className="pointer-events-none absolute left-2 top-6 z-20 flex flex-col gap-1.5 font-mono">
+    <>
+      <Toast />
+      <div className="pointer-events-none absolute left-2 top-6 z-20 flex flex-col gap-1.5 font-mono">
       {/* hearts */}
       <div className="flex items-center gap-1">
         {hearts.map((f, i) => (
@@ -79,6 +82,7 @@ export default function Hud() {
           )}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

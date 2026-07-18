@@ -7,12 +7,19 @@ import type { LevelDefinition, ParsedLevel, Pt } from "../levels/types";
 import { registerSprites, frameKey, animKey } from "../art/textures";
 import { PLAYER_SPRITES } from "../art/sprites/player";
 import { tilesetFor, FIELD_TILE_KEYS, FIELD_PARALLAX_KEYS } from "../art/sprites/tiles-fields";
+import { ENEMY_SPRITES } from "../art/sprites/enemies1";
+import { PICKUP_SPRITES, pickupKeyFor } from "../art/sprites/pickups";
 import { audio } from "../audio/synth";
 import { bus } from "../bridge/EventBus";
 import { gameStore } from "../bridge/GameStore";
 import { input } from "../input/InputState";
 import { mergeRowRuns, runToRect, topExposed } from "./levelGeometry";
 import { shouldClipAscent, movementLocked } from "./controllerGates";
+import { Enemy, type EnemyHostScene } from "../enemies/Enemy";
+import { Bugling } from "../enemies/Bugling";
+import { Phishling, ANALYZE_RANGE_PX } from "../enemies/Phishling";
+import { resolvePlayerContact } from "../enemies/enemyLogic";
+import type { DropItem } from "../enemies/drops";
 
 const KNOCKBACK_MS = 180;
 
@@ -29,7 +36,7 @@ const HURT_ANIM_MS = 300;
 const ATTACK_MS = 220;
 const DEATH_MS = 750;
 
-export class PlatformLevelScene extends Phaser.Scene {
+export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private def!: LevelDefinition;
   private lvl!: ParsedLevel;
   private player!: Phaser.Physics.Arcade.Sprite;
@@ -67,6 +74,11 @@ export class PlatformLevelScene extends Phaser.Scene {
 
   // scene objects
   private hazardGroup!: Phaser.Physics.Arcade.StaticGroup;
+  private solidGroup!: Phaser.Physics.Arcade.StaticGroup;
+  private oneWayGroup!: Phaser.Physics.Arcade.StaticGroup;
+  private enemyGroup!: Phaser.Physics.Arcade.Group;
+  private pickupGroup!: Phaser.Physics.Arcade.Group;
+  private attackHitbox?: Phaser.GameObjects.Zone;
   private fragmentSprite?: Phaser.GameObjects.GameObject;
   private checkpointMarkers: { pt: Pt; obj: Phaser.GameObjects.Rectangle }[] = [];
   private bg: { sprite: Phaser.GameObjects.TileSprite; factor: number }[] = [];
@@ -87,11 +99,17 @@ export class PlatformLevelScene extends Phaser.Scene {
 
     // Textures: idempotent — BootScene already registered these, but Level
     // must not assume it ran first (Task 16 will start Level from elsewhere).
-    registerSprites(this, [PLAYER_SPRITES, ...tilesetFor(def.theme)]);
+    registerSprites(this, [
+      PLAYER_SPRITES,
+      ...tilesetFor(def.theme),
+      ...ENEMY_SPRITES,
+      ...PICKUP_SPRITES,
+    ]);
 
     this.buildParallax();
     this.spawnPlayer(data.spawnAt ?? "start"); // before buildTiles: colliders need the player
     this.buildTiles();
+    this.spawnEnemies(); // after buildTiles: enemies collide with the tile groups
     this.setupCamera();
 
     // HUD / progression reset for this level.
@@ -184,19 +202,19 @@ export class PlatformLevelScene extends Phaser.Scene {
     }
 
     // Solid collision: merged horizontal runs -> invisible static bodies.
-    const solidGroup = this.physics.add.staticGroup();
+    this.solidGroup = this.physics.add.staticGroup();
     for (const run of mergeRowRuns(solids)) {
       const r = runToRect(run, TILE);
       const rect = this.add.rectangle(r.x + r.w / 2, r.y + r.h / 2, r.w, r.h).setVisible(false);
-      solidGroup.add(rect);
+      this.solidGroup.add(rect);
     }
 
     // One-ways: merged the same way; only the top face blocks (jump-through).
-    const oneWayGroup = this.physics.add.staticGroup();
+    this.oneWayGroup = this.physics.add.staticGroup();
     for (const run of mergeRowRuns(oneWays)) {
       const r = runToRect(run, TILE);
       const rect = this.add.rectangle(r.x + r.w / 2, r.y + r.h / 2, r.w, r.h).setVisible(false);
-      oneWayGroup.add(rect);
+      this.oneWayGroup.add(rect);
       const body = rect.body as Phaser.Physics.Arcade.StaticBody;
       body.checkCollision.down = false;
       body.checkCollision.left = false;
@@ -232,16 +250,102 @@ export class PlatformLevelScene extends Phaser.Scene {
       this.checkpointMarkers.push({ pt: cp, obj });
     }
 
-    this.setupColliders(solidGroup, oneWayGroup);
+    this.setupColliders();
   }
 
-  private setupColliders(
-    solidGroup: Phaser.Physics.Arcade.StaticGroup,
-    oneWayGroup: Phaser.Physics.Arcade.StaticGroup,
-  ) {
-    this.physics.add.collider(this.player, solidGroup);
-    this.physics.add.collider(this.player, oneWayGroup);
+  private setupColliders() {
+    this.physics.add.collider(this.player, this.solidGroup);
+    this.physics.add.collider(this.player, this.oneWayGroup);
     this.physics.add.overlap(this.player, this.hazardGroup, () => this.onHazard(), undefined, this);
+  }
+
+  // --- enemies + pickups ----------------------------------------------------
+
+  private spawnEnemies() {
+    this.enemyGroup = this.physics.add.group();
+    for (const s of this.lvl.spawns) {
+      const x = s.at.tx * TILE + TILE / 2;
+      const y = s.at.ty * TILE + TILE / 2;
+      let enemy: Enemy | null = null;
+      if (s.kind === "bugling") enemy = new Bugling(this, x, y);
+      else if (s.kind === "phishling") enemy = new Phishling(this, x, y);
+      // malware-bat / brute / firewall-knight / rootkit-slime land in Tasks 18/19.
+      if (enemy) this.enemyGroup.add(enemy);
+    }
+
+    // All enemies collide with solids; only gravity enemies (walkers) collide
+    // with one-ways — floaters (phishling) pass through so lunges aren't caught.
+    this.physics.add.collider(this.enemyGroup, this.solidGroup);
+    this.physics.add.collider(
+      this.enemyGroup,
+      this.oneWayGroup,
+      undefined,
+      (enemyObj) => ((enemyObj as Phaser.Physics.Arcade.Sprite).body as Body).allowGravity,
+      this,
+    );
+    this.physics.add.overlap(this.player, this.enemyGroup, this.onEnemyContact, undefined, this);
+
+    // Pickups: pop up on spawn, land on solids/one-ways, collect on touch.
+    this.pickupGroup = this.physics.add.group();
+    this.physics.add.collider(this.pickupGroup, this.solidGroup);
+    this.physics.add.collider(this.pickupGroup, this.oneWayGroup);
+    this.physics.add.overlap(this.player, this.pickupGroup, this.onPickup, undefined, this);
+  }
+
+  // Falling onto a stompable enemy's top kills it (with a bounce); anything else
+  // is contact damage. Stomp-vs-touch decision is the pure resolvePlayerContact.
+  private onEnemyContact: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (_p, enemyObj) => {
+    const enemy = enemyObj as Enemy;
+    if (enemy.dying || this.dead) return;
+    const body = this.player.body as Body;
+    const decision = resolvePlayerContact(body.velocity.y, this.player.y, enemy.y, enemy.stompable);
+    if (decision === "stomp") enemy.die("stomp");
+    else enemy.hurtPlayer();
+  };
+
+  private onPickup: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (_p, pickupObj) => {
+    const pickup = pickupObj as Phaser.Physics.Arcade.Sprite;
+    const drop = pickup.getData("drop") as DropItem | undefined;
+    if (!drop) return;
+    if (drop === "heart") {
+      this.health = Math.min(this.maxHealth, this.health + 1);
+    } else if (!this.buffs.includes(drop)) {
+      this.buffs.push(drop);
+      bus.emit("buff:collected", { buff: drop });
+      if (drop === "cache-boost") this.speedScale = 1.25; // level-wide move-speed boost
+    }
+    audio.sfx("collect");
+    this.pushHud();
+    pickup.destroy();
+  };
+
+  /** EnemyHostScene: materialize a dropped pickup with a little pop. */
+  spawnPickup(x: number, y: number, drop: DropItem) {
+    const pickup = this.pickupGroup.create(x, y, pickupKeyFor(drop)) as Phaser.Physics.Arcade.Sprite;
+    pickup.setDepth(3);
+    pickup.setData("drop", drop);
+    const body = pickup.body as Body;
+    body.setAllowGravity(true);
+    body.setVelocity(Phaser.Math.Between(-30, 30), -120); // pop out of the corpse
+    this.tweens.add({ targets: pickup, scaleX: 1.2, scaleY: 0.85, duration: 120, yoyo: true });
+  }
+
+  /** EnemyHostScene: solid-tile lookup in world px (ledge probing). */
+  isSolidAt(px: number, py: number): boolean {
+    const tx = Math.floor(px / TILE);
+    const ty = Math.floor(py / TILE);
+    if (ty < 0 || ty >= this.lvl.heightTiles || tx < 0 || tx >= this.lvl.widthTiles) return false;
+    return this.lvl.solids[ty][tx];
+  }
+
+  /** EnemyHostScene: apply contact damage (respects iframes/dead internally). */
+  damagePlayer(n: number) {
+    this.takeDamage(n);
+  }
+
+  /** EnemyHostScene: the player sprite (stomp-bounce + phishling targeting). */
+  get playerSprite(): Phaser.Physics.Arcade.Sprite {
+    return this.player;
   }
 
   private spawnPlayer(spawnAt: "start" | "checkpoint" | "door") {
@@ -273,7 +377,7 @@ export class PlatformLevelScene extends Phaser.Scene {
 
   // --- update loop (verbatim core) ------------------------------------------
 
-  update(_t: number, _dtMs: number) {
+  update(_t: number, dtMs: number) {
     const snap = input.read();
 
     if (gameStore.get().paused) {
@@ -281,6 +385,7 @@ export class PlatformLevelScene extends Phaser.Scene {
       if (snap.pausePressed) {
         gameStore.set({ paused: false });
         this.pausedText?.setVisible(false);
+        this.physics.resume(); // unfreeze enemies/pickups
       }
       input.consume();
       return;
@@ -344,10 +449,16 @@ export class PlatformLevelScene extends Phaser.Scene {
 
     this.playAnimFor(body, onGround); // idle/run/jump/fall by velocity, unless attacking/hurt
     if (snap.attackPressed && !this.attacking) this.doAttack(); // 220ms hitbox 14x18 in front, sfx
-    if (snap.interactPressed) this.tryInteract(); // door / fragment (overlap flags)
+    if (snap.interactPressed) this.tryInteract(); // door / fragment / analyze exploit
+
+    // Drive enemy AI (patrol, phishling state machine, particles). Frozen while
+    // paused because we return above before reaching here.
+    for (const obj of this.enemyGroup.getChildren()) (obj as Enemy).tick(dtMs);
+
     if (snap.pausePressed) {
       gameStore.set({ paused: true });
       this.pausedText?.setPosition(cam.midPoint.x, cam.midPoint.y).setVisible(true);
+      this.physics.pause(); // freeze enemies/pickups velocities + positions
     }
     if (this.player.y > this.mapHeightPx + 40) this.respawn(1); // pit: 1 dmg, checkpoint
     input.consume();
@@ -370,12 +481,20 @@ export class PlatformLevelScene extends Phaser.Scene {
     this.attackUntil = this.time.now + ATTACK_MS;
     this.player.play(animKey("player", "attack"), true);
     audio.sfx("stomp");
-    // Hitbox in front of the player. Task 13 wires enemy overlap onto this.
+    // Hitbox in front of the player; overlapping enemies die by "attack".
     const dir = this.player.flipX ? -1 : 1;
     const hitbox = this.add.zone(this.player.x + dir * 12, this.player.y, 14, 18);
     this.physics.add.existing(hitbox);
     (hitbox.body as Body).setAllowGravity(false);
-    this.time.delayedCall(ATTACK_MS, () => hitbox.destroy());
+    this.attackHitbox = hitbox;
+    this.physics.add.overlap(hitbox, this.enemyGroup, (_hb, enemyObj) => {
+      const enemy = enemyObj as Enemy;
+      if (!enemy.dying) enemy.die("attack");
+    });
+    this.time.delayedCall(ATTACK_MS, () => {
+      hitbox.destroy();
+      if (this.attackHitbox === hitbox) this.attackHitbox = undefined;
+    });
   }
 
   // --- interaction / progression --------------------------------------------
@@ -420,6 +539,15 @@ export class PlatformLevelScene extends Phaser.Scene {
   }
 
   private tryInteract() {
+    // Analyze exploit: expose any disguised phishling in reach (needs the ability).
+    if (this.abilities.analyze) {
+      for (const obj of this.enemyGroup.getChildren()) {
+        if (!(obj instanceof Phishling)) continue;
+        const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, obj.x, obj.y);
+        if (d <= ANALYZE_RANGE_PX) obj.tryExpose();
+      }
+    }
+
     if (this.nearFragment && !this.fragmentCollected) {
       this.fragmentCollected = true;
       this.fragments += 1;

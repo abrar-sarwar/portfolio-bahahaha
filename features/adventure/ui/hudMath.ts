@@ -36,3 +36,19 @@ const BUFF_TAGS: Record<BuffId, string> = {
 export function buffTag(buff: BuffId): string {
   return BUFF_TAGS[buff] ?? buff.slice(0, 2).toUpperCase();
 }
+
+/** Human-readable buff name for toasts / tooltips. */
+const BUFF_NAMES: Record<BuffId, string> = {
+  "attack-byte": "Attack Byte",
+  "firewall-layer": "Firewall Layer",
+  "focus-chip": "Focus Chip",
+  "parry-module": "Parry Module",
+  "recovery-packet": "Recovery Packet",
+  "root-access": "Root Access",
+  "exploit-insight": "Exploit Insight",
+  "cache-boost": "Cache Boost",
+};
+
+export function buffName(buff: BuffId): string {
+  return BUFF_NAMES[buff] ?? buff;
+}
