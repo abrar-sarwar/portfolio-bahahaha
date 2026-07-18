@@ -1,7 +1,7 @@
 "use client";
 
 import { useGameStore } from "../bridge/GameStore";
-import { heartsFromHealth, buffTag } from "./hudMath";
+import { heartsFromHealth, buffTag, countBuffs } from "./hudMath";
 import Toast from "./Toast";
 
 // 8x8 heart bitmap (1 = filled cell). Rendered as a pixel div grid so the HUD
@@ -45,6 +45,7 @@ function Heart({ fill }: { fill: "full" | "half" | "empty" }) {
 export default function Hud() {
   const hud = useGameStore((s) => s.hud);
   const { full, half, empty } = heartsFromHealth(hud.health, hud.maxHealth);
+  const buffCounts = countBuffs(hud.buffs); // buffs stack -> one chip per id, xN
 
   const hearts: ("full" | "half" | "empty")[] = [
     ...Array<"full">(full).fill("full"),
@@ -63,15 +64,16 @@ export default function Hud() {
         ))}
       </div>
 
-      {/* buff chips + fragment icon */}
+      {/* buff chips (stacked buffs collapse to one chip with an xN count) + fragment icon */}
       {(hud.buffs.length > 0 || hud.fragments > 0) && (
         <div className="flex items-center gap-1">
-          {hud.buffs.map((b) => (
+          {buffCounts.map(({ buff, n }) => (
             <span
-              key={b}
+              key={buff}
               className="rounded-sm border border-violet-400/70 px-1 text-[8px] uppercase leading-tight tracking-widest text-violet-200"
             >
-              {buffTag(b)}
+              {buffTag(buff)}
+              {n > 1 ? ` x${n}` : ""}
             </span>
           ))}
           {hud.fragments > 0 && (

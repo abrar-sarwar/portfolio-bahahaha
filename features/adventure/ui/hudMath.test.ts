@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { heartsFromHealth, buffTag } from "./hudMath";
+import { heartsFromHealth, buffTag, countBuffs } from "./hudMath";
+import type { BuffId } from "../ids";
 
 describe("heartsFromHealth", () => {
   it("full health = all full hearts", () => {
@@ -42,5 +43,42 @@ describe("buffTag", () => {
     expect(buffTag("cache-boost")).toBe("CB");
     expect(buffTag("attack-byte")).toBe("AB");
     expect(buffTag("parry-module")).toBe("PM");
+  });
+});
+
+describe("countBuffs", () => {
+  // Fix 3: buffs stack (duplicates legal), so the HUD groups them into one
+  // chip per buff id with an xN count instead of rendering N separate chips.
+  it("returns an empty list for no buffs", () => {
+    expect(countBuffs([])).toEqual([]);
+  });
+
+  it("counts a single instance of each distinct buff as n: 1", () => {
+    const buffs: BuffId[] = ["attack-byte", "cache-boost"];
+    expect(countBuffs(buffs)).toEqual([
+      { buff: "attack-byte", n: 1 },
+      { buff: "cache-boost", n: 1 },
+    ]);
+  });
+
+  it("groups repeated buffs into a single entry with the right count", () => {
+    const buffs: BuffId[] = ["attack-byte", "attack-byte", "attack-byte"];
+    expect(countBuffs(buffs)).toEqual([{ buff: "attack-byte", n: 3 }]);
+  });
+
+  it("handles a mix of repeats and singles, order-stable by first appearance", () => {
+    const buffs: BuffId[] = [
+      "cache-boost",
+      "attack-byte",
+      "cache-boost",
+      "focus-chip",
+      "attack-byte",
+      "cache-boost",
+    ];
+    expect(countBuffs(buffs)).toEqual([
+      { buff: "cache-boost", n: 3 },
+      { buff: "attack-byte", n: 2 },
+      { buff: "focus-chip", n: 1 },
+    ]);
   });
 });

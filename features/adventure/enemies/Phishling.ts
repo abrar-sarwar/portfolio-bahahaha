@@ -2,7 +2,7 @@ import Phaser from "phaser";
 import { animKey } from "../art/textures";
 import { PHISHLING_SPRITES } from "../art/sprites/enemies1";
 import { Enemy } from "./Enemy";
-import { phishlingNext, type PhishlingState } from "./enemyLogic";
+import { phishlingNext, STUN_MS, type PhishlingState } from "./enemyLogic";
 
 // Reveal aggro range (player within 40px) lives in the pure phishlingNext().
 export const ANALYZE_RANGE_PX = 60; // analyze exploit reach
@@ -11,12 +11,15 @@ const HOVER_COOLDOWN_MS = 700; // hover between lunges
 const LUNGE_MS = 500; // lunge travel time
 const LUNGE_SPEED = 160;
 const HOVER_AMP = 6;
+const STUN_BOB_MS = 400; // slower-than-hover bob period while stunned
 
 /**
  * Phishling: a floating gift-box mimic. It hovers disguised (dangling a fake
  * "FREE UPGRADE") until the player draws near, then reveals a toothy maw and
  * repeatedly lunges. Stompable only once revealed. The analyze exploit, used
- * while it is still disguised, exposes it permanently (stunned, easy kill).
+ * while it is still disguised, exposes it: stunned for STUN_MS (no lunges, no
+ * contact damage, but stompable — an easy free hit), after which it drops
+ * into the same hover/lunge cycle a normal reveal would reach.
  */
 export class Phishling extends Enemy {
   private phase: PhishlingState = "disguised";
@@ -25,6 +28,7 @@ export class Phishling extends Enemy {
   private tAccum = 0;
   private revealAnimDone = false;
   private analyzePending = false;
+  private stunnedUntil = 0;
   private freeText?: Phaser.GameObjects.Text;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
@@ -60,12 +64,14 @@ export class Phishling extends Enemy {
     const player = this.host.playerSprite;
     const dist = Phaser.Math.Distance.Between(this.x, this.y, player.x, player.y);
     const cooldownOver = now - this.phaseEnteredAt >= this.phaseDuration();
+    const stunOver = now >= this.stunnedUntil;
 
     const next = phishlingNext(this.phase, {
       dist,
       revealed: this.revealAnimDone,
       cooldownOver,
       analyzed: this.analyzePending,
+      stunOver,
     });
     this.analyzePending = false;
     if (next !== this.phase) this.enterState(next, now);
@@ -87,7 +93,11 @@ export class Phishling extends Enemy {
         this.stompable = true; // velocity carries from enterState()
         break;
       case "exposed":
+        // Stunned: slow desaturated bob, no lunge, stompable, no contact damage
+        // (touchDamage is zeroed in enterState) until the STUN_MS timer lapses.
+        this.tAccum += dtMs;
         this.setVelocity(0, 0);
+        this.y = this.baseY + Math.sin(this.tAccum / STUN_BOB_MS) * HOVER_AMP;
         this.stompable = true;
         break;
     }
@@ -99,7 +109,7 @@ export class Phishling extends Enemy {
   private phaseDuration(): number {
     if (this.phase === "revealed") return HOVER_COOLDOWN_MS;
     if (this.phase === "lunging") return LUNGE_MS;
-    return Infinity; // disguised / exposed are driven by dist / terminal
+    return Infinity; // disguised is dist-driven; exposed uses stunnedUntil, not this
   }
 
   private enterState(next: PhishlingState, now: number): void {
@@ -109,6 +119,8 @@ export class Phishling extends Enemy {
       case "revealed": {
         this.baseY = this.y;
         this.tAccum = 0;
+        this.touchDamage = 1; // normal contact damage (0 while stunned/exposed)
+        this.clearTint(); // in case we're arriving here out of a stun
         this.destroyFreeText();
         this.play(animKey(this.animBase, "reveal"));
         if (!this.revealAnimDone)
@@ -126,6 +138,10 @@ export class Phishling extends Enemy {
         break;
       }
       case "exposed": {
+        this.baseY = this.y;
+        this.tAccum = 0;
+        this.touchDamage = 0; // stunned: no contact damage
+        this.stunnedUntil = now + STUN_MS;
         this.destroyFreeText();
         this.play(animKey(this.animBase, "reveal"));
         this.setVelocity(0, 0);

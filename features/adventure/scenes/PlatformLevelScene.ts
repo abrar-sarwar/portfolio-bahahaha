@@ -18,7 +18,7 @@ import { shouldClipAscent, movementLocked } from "./controllerGates";
 import { Enemy, type EnemyHostScene } from "../enemies/Enemy";
 import { Bugling } from "../enemies/Bugling";
 import { Phishling, ANALYZE_RANGE_PX } from "../enemies/Phishling";
-import { resolvePlayerContact } from "../enemies/enemyLogic";
+import { resolvePlayerContact, applyRestompWindow } from "../enemies/enemyLogic";
 import type { DropItem } from "../enemies/drops";
 
 const KNOCKBACK_MS = 180;
@@ -53,6 +53,9 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private dashStartedAt = -Infinity;
   private attacking = false;
   private attackUntil = -Infinity;
+  /** Timestamp of the player's last stomp (Fix 4: same-frame double-contact
+   *  guard — see applyRestompWindow / onEnemyContact). */
+  private lastStompAt = -Infinity;
   private iframesUntil = -Infinity;
   private hurtAnimUntil = -Infinity;
   private dead = false;
@@ -78,7 +81,15 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private oneWayGroup!: Phaser.Physics.Arcade.StaticGroup;
   private enemyGroup!: Phaser.Physics.Arcade.Group;
   private pickupGroup!: Phaser.Physics.Arcade.Group;
-  private attackHitbox?: Phaser.GameObjects.Zone;
+  /** Persistent attack hitbox: one zone + one overlap for the level's whole
+   *  lifetime (created once in create()). doAttack() repositions it and flips
+   *  its body on/off rather than creating+destroying a Collider per swing —
+   *  that used to leak a dead Collider into the world's collider list on every
+   *  attack. Phaser's Arcade World skips overlap checks for disabled bodies
+   *  (see World.js separate(): `!body1.enable || !body2.enable` short-circuits
+   *  before any callback runs), so a disabled body is a true no-op, not just a
+   *  visual/positional hide. */
+  private attackHitbox!: Phaser.GameObjects.Zone;
   private fragmentSprite?: Phaser.GameObjects.GameObject;
   private checkpointMarkers: { pt: Pt; obj: Phaser.GameObjects.Rectangle }[] = [];
   private bg: { sprite: Phaser.GameObjects.TileSprite; factor: number }[] = [];
@@ -110,6 +121,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.spawnPlayer(data.spawnAt ?? "start"); // before buildTiles: colliders need the player
     this.buildTiles();
     this.spawnEnemies(); // after buildTiles: enemies collide with the tile groups
+    this.setupAttackHitbox(); // after spawnEnemies: overlap needs enemyGroup
     this.setupCamera();
 
     // HUD / progression reset for this level.
@@ -292,15 +304,41 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.physics.add.overlap(this.player, this.pickupGroup, this.onPickup, undefined, this);
   }
 
+  /** One persistent zone + one overlap for the attack hitbox's whole level
+   *  lifetime (Fix 2: previously doAttack() created a fresh overlap Collider
+   *  per swing and only ever destroyed the zone, leaking a dead Collider into
+   *  the world every attack). Body starts disabled; doAttack() flips it on for
+   *  ATTACK_MS then off — a disabled body makes Phaser's Arcade World skip the
+   *  overlap check entirely (see the setupAttackHitbox doc above), so the
+   *  callback below is a true no-op outside the attack window, not merely
+   *  positioned off-screen. */
+  private setupAttackHitbox() {
+    const hitbox = this.add.zone(0, 0, 14, 18);
+    this.physics.add.existing(hitbox);
+    const body = hitbox.body as Body;
+    body.setAllowGravity(false);
+    body.enable = false;
+    this.attackHitbox = hitbox;
+    this.physics.add.overlap(hitbox, this.enemyGroup, (_hb, enemyObj) => {
+      const enemy = enemyObj as Enemy;
+      if (!enemy.dying) enemy.die("attack");
+    });
+  }
+
   // Falling onto a stompable enemy's top kills it (with a bounce); anything else
-  // is contact damage. Stomp-vs-touch decision is the pure resolvePlayerContact.
+  // is contact damage. Stomp-vs-touch decision is the pure resolvePlayerContact,
+  // upgraded to a chain-stomp via applyRestompWindow when it lands just after
+  // another stomp this same fall (stacked enemies).
   private onEnemyContact: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (_p, enemyObj) => {
     const enemy = enemyObj as Enemy;
     if (enemy.dying || this.dead) return;
     const body = this.player.body as Body;
-    const decision = resolvePlayerContact(body.velocity.y, this.player.y, enemy.y, enemy.stompable);
-    if (decision === "stomp") enemy.die("stomp");
-    else enemy.hurtPlayer();
+    const raw = resolvePlayerContact(body.velocity.y, this.player.y, enemy.y, enemy.stompable);
+    const decision = applyRestompWindow(raw, enemy.stompable, this.time.now, this.lastStompAt);
+    if (decision === "stomp") {
+      this.lastStompAt = this.time.now;
+      enemy.die("stomp");
+    } else enemy.hurtPlayer();
   };
 
   private onPickup: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (_p, pickupObj) => {
@@ -309,7 +347,9 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     if (!drop) return;
     if (drop === "heart") {
       this.health = Math.min(this.maxHealth, this.health + 1);
-    } else if (!this.buffs.includes(drop)) {
+    } else {
+      // Buffs stack: every pickup appends, even repeats of the same buff (the
+      // HUD groups repeats into one chip with an xN count via countBuffs()).
       this.buffs.push(drop);
       bus.emit("buff:collected", { buff: drop });
       if (drop === "cache-boost") this.speedScale = 1.25; // level-wide move-speed boost
@@ -481,19 +521,15 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.attackUntil = this.time.now + ATTACK_MS;
     this.player.play(animKey("player", "attack"), true);
     audio.sfx("stomp");
-    // Hitbox in front of the player; overlapping enemies die by "attack".
+    // Reposition the persistent hitbox in front of the player and enable its
+    // body for the ATTACK_MS window; overlapping enemies die by "attack". No
+    // new zone/Collider is created per swing (see setupAttackHitbox).
     const dir = this.player.flipX ? -1 : 1;
-    const hitbox = this.add.zone(this.player.x + dir * 12, this.player.y, 14, 18);
-    this.physics.add.existing(hitbox);
-    (hitbox.body as Body).setAllowGravity(false);
-    this.attackHitbox = hitbox;
-    this.physics.add.overlap(hitbox, this.enemyGroup, (_hb, enemyObj) => {
-      const enemy = enemyObj as Enemy;
-      if (!enemy.dying) enemy.die("attack");
-    });
+    this.attackHitbox.setPosition(this.player.x + dir * 12, this.player.y);
+    const body = this.attackHitbox.body as Body;
+    body.enable = true;
     this.time.delayedCall(ATTACK_MS, () => {
-      hitbox.destroy();
-      if (this.attackHitbox === hitbox) this.attackHitbox = undefined;
+      body.enable = false;
     });
   }
 

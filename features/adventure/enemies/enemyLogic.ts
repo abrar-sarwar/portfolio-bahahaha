@@ -21,7 +21,32 @@ export function resolvePlayerContact(
   return "damage";
 }
 
+/** Restomp window (ms): a contact that resolves as "damage" within this many
+ *  ms of the player's last stomp, against a stompable enemy, is upgraded to a
+ *  stomp instead — lets a single fall chain-stomp stacked enemies rather than
+ *  stomp one and take contact damage from the next in the same frame. */
+export const RESTOMP_WINDOW_MS = 60;
+
+/**
+ * Upgrades a "damage" decision to "stomp" when it lands just after another
+ * stomp this same fall (stacked/adjacent enemies) and the enemy in question is
+ * stompable. An already-resolved "stomp" passes through unchanged.
+ */
+export function applyRestompWindow(
+  decision: "stomp" | "damage",
+  stompable: boolean,
+  now: number,
+  lastStompAt: number,
+): "stomp" | "damage" {
+  if (decision === "stomp") return decision;
+  if (stompable && now - lastStompAt < RESTOMP_WINDOW_MS) return "stomp";
+  return decision;
+}
+
 export type PhishlingState = "disguised" | "revealed" | "lunging" | "exposed";
+
+/** Stun duration (ms) once the analyze exploit exposes a disguised phishling. */
+export const STUN_MS = 1500;
 
 export interface PhishlingInputs {
   /** Distance (px) from the phishling to the player. */
@@ -32,13 +57,17 @@ export interface PhishlingInputs {
   cooldownOver: boolean;
   /** True the frame the player uses the analyze exploit within range. */
   analyzed: boolean;
+  /** True once the exposed/stun timer (STUN_MS) has elapsed. */
+  stunOver: boolean;
 }
 
 /**
  * Phishling state machine. Disguised as loot until the player draws near, then
  * reveals and repeatedly lunges with a hover cooldown between strikes. Using
- * the analyze exploit while it is still disguised exposes it permanently
- * (stunned, easy kill).
+ * the analyze exploit while it is still disguised exposes it (stunned: no
+ * lunges, no contact damage, but stompable) for STUN_MS, after which it drops
+ * into the same "revealed" hostile state a normal reveal would reach —
+ * hover-cooldown -> lunge cycle as usual.
  */
 export function phishlingNext(state: PhishlingState, inp: PhishlingInputs): PhishlingState {
   switch (state) {
@@ -54,6 +83,7 @@ export function phishlingNext(state: PhishlingState, inp: PhishlingInputs): Phis
       return inp.cooldownOver ? "revealed" : "lunging";
     case "exposed":
     default:
-      return "exposed"; // terminal: stays defanged
+      // Stun expires -> normal revealed hostile (hover/lunge cycle resumes).
+      return inp.stunOver ? "revealed" : "exposed";
   }
 }

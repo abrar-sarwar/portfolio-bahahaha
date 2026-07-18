@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { resolvePlayerContact, phishlingNext, type PhishlingInputs } from "./enemyLogic";
+import {
+  resolvePlayerContact,
+  applyRestompWindow,
+  phishlingNext,
+  RESTOMP_WINDOW_MS,
+  type PhishlingInputs,
+} from "./enemyLogic";
 
 describe("resolvePlayerContact", () => {
   it("stomps when falling onto a stompable enemy from above the 6px lip", () => {
@@ -24,8 +30,42 @@ describe("resolvePlayerContact", () => {
   });
 });
 
+describe("applyRestompWindow", () => {
+  // Fix 4: same-frame double-contact after a stomp (stacked enemies) should
+  // chain-stomp rather than stomp+hurt in one frame.
+  it("leaves an already-resolved stomp alone", () => {
+    expect(applyRestompWindow("stomp", true, 1000, 950)).toBe("stomp");
+  });
+
+  it("upgrades damage -> stomp when inside the restomp window against a stompable enemy", () => {
+    expect(applyRestompWindow("damage", true, 1000, 950)).toBe("stomp"); // 50ms < 60ms window
+  });
+
+  it("leaves damage alone once the restomp window has elapsed", () => {
+    expect(applyRestompWindow("damage", true, 1010, 950)).toBe("damage"); // 60ms, not < 60
+  });
+
+  it("leaves damage alone against a non-stompable enemy even inside the window", () => {
+    expect(applyRestompWindow("damage", false, 1000, 950)).toBe("damage");
+  });
+
+  it("leaves damage alone when there was no recent stomp", () => {
+    expect(applyRestompWindow("damage", true, 1000, -Infinity)).toBe("damage");
+  });
+
+  it("exposes the restomp window constant as 60ms", () => {
+    expect(RESTOMP_WINDOW_MS).toBe(60);
+  });
+});
+
 describe("phishlingNext", () => {
-  const base: PhishlingInputs = { dist: 999, revealed: false, cooldownOver: false, analyzed: false };
+  const base: PhishlingInputs = {
+    dist: 999,
+    revealed: false,
+    cooldownOver: false,
+    analyzed: false,
+    stunOver: false,
+  };
 
   it("disguised + analyze -> exposed (exploit)", () => {
     expect(phishlingNext("disguised", { ...base, analyzed: true })).toBe("exposed");
@@ -50,7 +90,21 @@ describe("phishlingNext", () => {
     expect(phishlingNext("lunging", { ...base, cooldownOver: false })).toBe("lunging");
   });
 
-  it("exposed is terminal (stays defanged)", () => {
-    expect(phishlingNext("exposed", { ...base, dist: 5, cooldownOver: true })).toBe("exposed");
+  it("exposed stays exposed-stunned while the stun timer is still running", () => {
+    expect(phishlingNext("exposed", { ...base, dist: 5, cooldownOver: true, stunOver: false })).toBe(
+      "exposed",
+    );
+  });
+
+  it("exposed transitions to a normal revealed hostile once the stun expires", () => {
+    expect(phishlingNext("exposed", { ...base, dist: 5, stunOver: true })).toBe("revealed");
+  });
+
+  it("a stun-expired phishling lunges like a normally-revealed one (same downstream cycle)", () => {
+    // exposed -> revealed (stun over), then revealed -> lunging exactly like the
+    // ordinary disguised -> revealed -> lunging path once its own timers finish.
+    const revealed = phishlingNext("exposed", { ...base, stunOver: true });
+    expect(revealed).toBe("revealed");
+    expect(phishlingNext(revealed, { ...base, revealed: true, cooldownOver: true })).toBe("lunging");
   });
 });
