@@ -619,6 +619,9 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   }
 
   private takeDamage(n: number) {
+    // Zero-damage contact (e.g. a stunned phishling) must not knock back,
+    // blink, or play hurt feedback — it is not a hit.
+    if (n <= 0) return;
     if (this.time.now < this.iframesUntil || this.dead) return;
     this.health = Math.max(0, this.health - n);
     this.pushHud();
