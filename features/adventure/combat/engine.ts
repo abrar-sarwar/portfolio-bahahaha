@@ -66,11 +66,14 @@ export function createCombat(
   const assistScale = assistTimeScale(level);
   const startHeal = assistStartHeal(level);
   if (startHeal > 0) {
-    const healed = Math.min(startHeal, player.maxHealth - player.health);
-    if (healed > 0) {
-      player = { ...player, health: player.health + healed };
-      log.push(`Assist restores ${healed} HP.`);
-    }
+    // The player always starts full, so a plain heal was provably inert. The
+    // quiet aid is BONUS max health (extra hearts) for this attempt: add to both.
+    player = {
+      ...player,
+      maxHealth: player.maxHealth + startHeal,
+      health: player.health + startHeal,
+    };
+    log.push(`Assist grants ${startHeal} bonus HP.`);
   }
 
   // Split carried buffs: passives auto-apply, consumables land in the pouch,
@@ -192,6 +195,7 @@ function computeAttack(state: CombatState): AttackCalc {
   }
   if (def.armored && !mechanic.breached) {
     dmg = 1; // armored & !breached & !ultimate → flat 1
+    usedExposed = false; // the armor-flattened hit can't use exposed — keep the charge
   }
   return { dmg, ignoreArmor: false, usedUltimate: false, usedExposed };
 }
@@ -367,20 +371,29 @@ function seqInput(state: CombatState, verb: string): CombatState {
   const expected = SEQ_ORDER[state.mechanic.seqIndex];
   if (verb === expected) {
     const seqIndex = state.mechanic.seqIndex + 1;
-    // Puzzle inputs are free: phaseCheck may declare victory, otherwise the
-    // player stays on their turn to enter the next step.
-    return phaseCheck({
+    const log = [...state.log, `Sequence step "${verb}" correct — a clue surfaces. (${seqIndex}/${SEQ_ORDER.length})`];
+    let mechanic = { ...state.mechanic, seqIndex };
+    // Completing all four steps breaks the armor: the page understands, and
+    // normal attacks then land at full damage.
+    if (seqIndex >= SEQ_ORDER.length && !mechanic.breached) {
+      mechanic = { ...mechanic, breached: true };
+      log.push("THE PAGE UNDERSTANDS…");
+    }
+    // Balance amendment: puzzle steps are NOT free — the boss takes its turn.
+    const next = phaseCheck({
       ...state,
-      mechanic: { ...state.mechanic, seqIndex },
+      mechanic,
       bossHealth: state.bossHealth - 12,
-      log: [...state.log, `Sequence step "${verb}" correct — a clue surfaces. (${seqIndex}/${SEQ_ORDER.length})`],
+      log,
     });
+    return advanceToBossOrEnd(next);
   }
-  return {
+  // A wrong step resets the order and still costs a boss turn.
+  return advanceToBossOrEnd({
     ...state,
     mechanic: { ...state.mechanic, seqIndex: 0 },
     log: [...state.log, `Sequence broken at "${verb}" — the order resets.`],
-  };
+  });
 }
 
 // ───────────────────────────────────────────────────────── boss telegraph ──
@@ -458,11 +471,13 @@ function resolveDefense(
       breachHit = true;
       outcomeLog = `Perfect parry! You counter for ${counter}.`;
     } else if (parry === "normal") {
-      playerDmg = incomingDamage(Math.ceil(0.25 * bossBase), state.fx);
+      // Balance amendment: a normal parry now fully blocks (perfect 0 / normal 0 /
+      // miss full). Counter + meter are unchanged, so perfect stays strictly better.
+      playerDmg = incomingDamage(0, state.fx);
       counter = Math.ceil(base / 2);
       ultGain = 15;
       breachHit = true;
-      outcomeLog = `Parry! You take ${playerDmg} and counter for ${counter}.`;
+      outcomeLog = `Parry! The blow is turned aside; you counter for ${counter}.`;
     } else {
       playerDmg = incomingDamage(bossBase, state.fx);
       outcomeLog = `The blow lands for ${playerDmg}.`;
@@ -504,7 +519,7 @@ function resolveDefense(
     player,
     fx,
     mechanic,
-    ultimate: state.ultimate + ultGain,
+    ultimate: Math.min(100, state.ultimate + ultGain), // ultimate clamps at 100
     bossHealth: state.bossHealth - counter,
     pendingMoveId: null,
     log,
@@ -575,18 +590,25 @@ function scripted(state: CombatState, event: CombatEvent): CombatState {
 
   if (event.type === "item") return useItem(state, event.buff); // healing stays free
 
+  // Event hygiene: event TYPES inapplicable to the current step are pure no-ops
+  // returning the SAME state reference. Only a genuine failed ATTEMPT at the
+  // current step (a missed telegraphed parry, an incomplete/incorrect typed
+  // command, a wrong-but-offered mechanic press) invokes failScript.
   const expected = FINAL_ORDER[step];
   switch (expected) {
     case "analyze":
       if (event.type === "action" && event.kind === "analyze") {
         return advanceScript(state, 1, {}, "You read the Devil King's pattern.");
       }
-      return failScript(state, "You needed to analyze first.");
+      return state; // inapplicable event → no-op
     case "parry":
-      if (event.type === "defense-result" && (event.parry === "perfect" || event.parry === "normal")) {
-        return advanceScript(state, 2, {}, "You turn the strike aside.");
+      // The telegraphed parry: a defense-result IS the attempt at this step.
+      if (event.type === "defense-result") {
+        return event.parry === "perfect" || event.parry === "normal"
+          ? advanceScript(state, 2, {}, "You turn the strike aside.")
+          : failScript(state, "The parry fails.");
       }
-      return failScript(state, "The parry fails.");
+      return state; // any non-defense event → no-op
     case "command":
       if (event.type === "action" && event.kind === "command") {
         const timeLimitMs = typingTimeLimitMs(8000, state.fx.focusChips, state.assistScale);
@@ -597,7 +619,7 @@ function scripted(state: CombatState, event: CombatEvent): CombatState {
         };
         return { ...state, prompt, log: [...state.log, "Type: sudo restore the lost chapter"] };
       }
-      return failScript(state, "You needed to issue the command.");
+      return state; // inapplicable event → no-op (the typing attempt is graded above)
     case "root-access": {
       if (event.type === "mechanic" && event.choice === "root-access") {
         let fx = state.fx;
@@ -609,7 +631,7 @@ function scripted(state: CombatState, event: CombatEvent): CombatState {
         fx = { ...fx, rootAccessCharges: fx.rootAccessCharges - 1 };
         return advanceScript({ ...state, fx, log }, 4, {}, "You seize root access.");
       }
-      return failScript(state, "You needed root access.");
+      return state; // only the offered root-access press applies → else no-op
     }
     case "strike": {
       if (event.type === "mechanic" && event.choice === "strike-adds" && state.mechanic.summons > 0) {
@@ -636,7 +658,7 @@ function scripted(state: CombatState, event: CombatEvent): CombatState {
           log: [...state.log, "FINAL STRIKE — the Devil King is undone."],
         };
       }
-      return failScript(state, "You needed to strike.");
+      return state; // only strike / strike-adds are offered here → else no-op
     }
     default:
       return state;
@@ -658,7 +680,9 @@ function advanceScript(
 }
 
 function failScript(state: CombatState, msg: string): CombatState {
-  const health = state.player.health - 2;
+  // Balance amendment: a slip costs 1 HP (defeat if it empties) and the player
+  // RETRIES the same step — no −2, no reset of finalStep to 0.
+  const health = state.player.health - 1;
   if (health <= 0) {
     return {
       ...state,
@@ -672,8 +696,7 @@ function failScript(state: CombatState, msg: string): CombatState {
   return {
     ...state,
     player: { ...state.player, health },
-    prompt: null,
-    mechanic: { ...state.mechanic, finalStep: 0 },
-    log: [...state.log, msg, "The sequence resets."],
+    prompt: null, // clear any typed prompt so the step can be re-attempted
+    log: [...state.log, msg, "Steady — try that step again."],
   };
 }

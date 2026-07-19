@@ -233,16 +233,27 @@ describe("combat engine — mechanics", () => {
     expect(s.mechanic.breachMeter).toBe(0);
   });
 
-  it("sequence-puzzle: the full correct order lands 48 and clears the sequence", () => {
+  it("sequence-puzzle: the full correct order lands 48, breaks the armor, and unlocks full attacks", () => {
     let s = createCombat(SEQ_BOSS, carry);
     const start = s.bossHealth;
-    s = reduce(s, { type: "action", kind: "analyze" });   // step 1
+    // Each puzzle step now costs a boss turn (steps are not free actions):
+    // input a step, then the boss telegraphs and we must answer before the next.
+    s = reduce(s, { type: "action", kind: "analyze" });   // step 1 → boss telegraphs
+    expect(s.tag).toBe("telegraph");
+    s = reduce(s, { type: "defense-result", parry: "miss" }); // resolve the boss turn
     s = reduce(s, { type: "action", kind: "defend" });    // step 2
+    s = reduce(s, { type: "defense-result", parry: "miss" });
     s = reduce(s, { type: "mechanic", choice: "remember" }); // step 3
-    s = reduce(s, { type: "mechanic", choice: "create" });   // step 4
+    s = reduce(s, { type: "defense-result", parry: "miss" });
+    s = reduce(s, { type: "mechanic", choice: "create" });   // step 4 → completes + breaks armor
     expect(start - s.bossHealth).toBe(48); // 4 × 12
     expect(s.mechanic.seqIndex).toBe(4);
-    expect(s.tag).toBe("player-turn");
+    expect(s.mechanic.breached).toBe(true); // "THE PAGE UNDERSTANDS…"
+    // resolve the boss's final telegraph, then a normal attack now lands full damage.
+    s = reduce(s, { type: "defense-result", parry: "miss" });
+    const hp = s.bossHealth;
+    s = reduce(s, { type: "action", kind: "attack" });
+    expect(hp - s.bossHealth).toBe(carry.attack); // full damage, no longer flat 1
   });
 
   it("sequence-puzzle: a plain attack only chips 1 (armored)", () => {
@@ -251,10 +262,11 @@ describe("combat engine — mechanics", () => {
     expect(s.bossHealth).toBe(SEQ_BOSS.maxHealth - 1);
   });
 
-  it("sequence-puzzle: a wrong verb resets the sequence to 0", () => {
+  it("sequence-puzzle: a wrong verb resets the sequence to 0 (and still costs a boss turn)", () => {
     let s = createCombat(SEQ_BOSS, carry);
-    s = reduce(s, { type: "action", kind: "analyze" });    // step 1 ok
+    s = reduce(s, { type: "action", kind: "analyze" });    // step 1 ok → boss telegraphs
     expect(s.mechanic.seqIndex).toBe(1);
+    s = reduce(s, { type: "defense-result", parry: "miss" }); // resolve the boss turn
     s = reduce(s, { type: "mechanic", choice: "create" }); // expected "defend" → reset
     expect(s.mechanic.seqIndex).toBe(0);
     expect(s.bossHealth).toBe(SEQ_BOSS.maxHealth - 12); // only the first correct step landed
@@ -314,20 +326,26 @@ describe("combat engine — mechanics", () => {
     expect(s.outcome).toBe("victory");
   });
 
-  it("devil-king: a failed step reduces health by 2 and resets to step 0", () => {
+  it("devil-king: a failed step costs 1 HP and retries the SAME step (no reset to 0)", () => {
     let s = enterScripted();
-    s = reduce(s, { type: "action", kind: "analyze" }); // finalStep 1
+    s = reduce(s, { type: "action", kind: "analyze" }); // finalStep 1 (parry)
     const hp = s.player.health;
-    s = reduce(s, { type: "defense-result", parry: "miss" }); // parry step failed
-    expect(s.player.health).toBe(hp - 2);
-    expect(s.mechanic.finalStep).toBe(0);
+    s = reduce(s, { type: "defense-result", parry: "miss" }); // parry attempt failed
+    expect(s.player.health).toBe(hp - 1); // softened: -1, not -2
+    expect(s.mechanic.finalStep).toBe(1); // still on the parry step; no reset to 0
     expect(s.tag).toBe("scripted");
+    // the retried step can still succeed
+    s = reduce(s, { type: "defense-result", parry: "perfect" });
+    expect(s.mechanic.finalStep).toBe(2);
   });
 
-  it("devil-king: a failed step that empties health is a defeat", () => {
+  it("devil-king: repeated failures eventually empty health into a defeat", () => {
     let s = enterScripted({ maxHealth: 2 }); // player enters the finale at 2 HP
-    s = reduce(s, { type: "action", kind: "analyze" }); // finalStep 1
-    s = reduce(s, { type: "defense-result", parry: "miss" }); // -2 → 0
+    s = reduce(s, { type: "action", kind: "analyze" }); // finalStep 1 (parry)
+    s = reduce(s, { type: "defense-result", parry: "miss" }); // 2 → 1, retry parry
+    expect(s.tag).toBe("scripted");
+    expect(s.player.health).toBe(1);
+    s = reduce(s, { type: "defense-result", parry: "miss" }); // 1 → 0 → defeat
     expect(s.tag).toBe("defeat");
     expect(s.outcome).toBe("defeat");
   });
@@ -395,5 +413,75 @@ describe("combat engine — mechanics", () => {
       expect(s).toEqual(snapshot); // input object graph untouched
       s = next;
     }
+  });
+});
+
+// ─────────────────────────────────────────── balance amendment coverage ──
+
+describe("combat engine — balance amendment", () => {
+  it("a non-devil boss driven to 0 HP ends in victory", () => {
+    let s = createCombat(TEST_BOSS, carry);
+    for (let i = 0; i < 8 && s.outcome === "ongoing"; i++) {
+      s = run(s, { type: "action", kind: "attack" }, { type: "defense-result", parry: "perfect" });
+    }
+    expect(s.bossHealth).toBe(0);
+    expect(s.tag).toBe("victory");
+    expect(s.outcome).toBe("victory");
+  });
+
+  it("normal parry fully blocks (0 damage) and grants +15 ultimate", () => {
+    let s = createCombat(TEST_BOSS, carry); // no firewall, no defend
+    s = run(s, { type: "action", kind: "attack" }, { type: "defense-result", parry: "normal" });
+    expect(s.player.health).toBe(6); // took nothing — normal parry now fully blocks
+    expect(s.ultimate).toBe(15);     // explicit +15 on a normal parry
+    expect(s.bossHealth).toBe(20 - 2 - 1); // attack 2 + normal counter ceil(2/2)=1
+  });
+
+  it("ultimate meter clamps at 100", () => {
+    let s = createCombat(TEST_BOSS, carry);
+    s = { ...s, ultimate: 90 };
+    s = run(s, { type: "action", kind: "attack" }, { type: "defense-result", parry: "perfect" });
+    expect(s.ultimate).toBe(100); // 90 + 34 clamped to 100, not 124
+  });
+
+  it("exposed survives an armor-flattened hit (charge kept for a usable hit)", () => {
+    const base = createCombat(BREACH_BOSS, carry); // armored, not breached
+    const exposed: CombatState = { ...base, mechanic: { ...base.mechanic, exposed: true } };
+    const hp = exposed.bossHealth;
+    const s = reduce(exposed, { type: "action", kind: "attack" });
+    expect(hp - s.bossHealth).toBe(1);      // armor flattens to 1
+    expect(s.mechanic.exposed).toBe(true);  // but the exposed charge is NOT consumed
+  });
+
+  it("assist grants bonus hearts (extra max health) after repeated deaths", () => {
+    const s = createCombat(TEST_BOSS, { ...carry, maxHealth: 8, deathsOnBoss: 4 });
+    expect(s.player.maxHealth).toBe(10); // 8 + assistStartHeal(level 2) = 2
+    expect(s.player.health).toBe(10);    // starts full, on the raised cap
+  });
+
+  it("scripted finale: inapplicable event types are no-ops returning the SAME state reference", () => {
+    let s = enterScripted();
+    // step 0 (analyze): defense/typing/attack are inapplicable → same ref
+    expect(reduce(s, { type: "defense-result", parry: "perfect" })).toBe(s);
+    expect(reduce(s, { type: "typing-result", grade: "perfect" })).toBe(s);
+    expect(reduce(s, { type: "action", kind: "attack" })).toBe(s);
+    s = reduce(s, { type: "action", kind: "analyze" }); // → step 1 (parry)
+    // step 1 (parry): a typing-result / non-parry action is inapplicable
+    expect(reduce(s, { type: "typing-result", grade: "perfect" })).toBe(s);
+    expect(reduce(s, { type: "action", kind: "analyze" })).toBe(s);
+    s = reduce(s, { type: "defense-result", parry: "perfect" }); // → step 2 (command)
+    // step 2 (command, pre-prompt): a defense-result is inapplicable
+    expect(reduce(s, { type: "defense-result", parry: "perfect" })).toBe(s);
+    s = reduce(s, { type: "action", kind: "command" }); // prompt shown
+    // step 2 (command, prompt shown): non-typing events are inert
+    expect(reduce(s, { type: "action", kind: "attack" })).toBe(s);
+    s = reduce(s, { type: "typing-result", grade: "perfect" }); // → step 3 (root-access)
+    // step 3 (root-access): a not-offered mechanic press is inapplicable
+    expect(reduce(s, { type: "mechanic", choice: "strike" })).toBe(s);
+    s = reduce(s, { type: "mechanic", choice: "root-access" }); // → step 4 (strike)
+    // step 4 (strike): a non-strike action is inapplicable
+    expect(reduce(s, { type: "action", kind: "analyze" })).toBe(s);
+    s = reduce(s, { type: "mechanic", choice: "strike" });
+    expect(s.tag).toBe("victory"); // the walk still completes normally
   });
 });

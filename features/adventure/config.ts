@@ -15,7 +15,7 @@ export const PHYSICS = {
 } as const;
 
 export const PLAYER_BASE = {
-  maxHealth: 6,
+  maxHealth: 8, // balance amendment: was 6; simulation showed 6 HP made average combat play unwinnable
   attack: 2,
   defense: 1,
   focus: 1,
