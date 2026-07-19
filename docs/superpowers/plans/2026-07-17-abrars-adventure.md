@@ -22,6 +22,26 @@
 - Type-check gate for every task: `npx tsc --noEmit` → no errors. Test gate: `npx vitest run` → all pass.
 - The 20-point completion checklist from the spec is the final acceptance bar (Task 30).
 
+## Combat balance acceptance (sim-verified; binding for Tasks 12/14/18/19/20/22/30)
+
+Measured with the pinned AVERAGE policy (60% normal parry, 60% QTE, 70% good
+typing, clue knowledge), player 10 HP / attack 2, N ≥ 1000 seeded fights:
+- OPTIMAL play wins 100% on every boss.
+- AVERAGE-unbuffed floors: Toad ≥ 70%, Spoof ≥ 55%, Blank Page ≥ 40%.
+- Warden and Devil King are LONG fights balanced around the buffs their own
+  levels shower (50–70% enemy drop rates make arriving buffless a synthetic
+  worst case, not the typical run): Warden gate = AVERAGE with the typical
+  factory loadout (1 parry-module + 1 recovery-packet) ≥ 40%; Devil gate =
+  AVERAGE with the typical castle loadout (2 attack-byte + 1 firewall-layer +
+  1 recovery-packet) ≥ 40%, AND assist-level-3 unbuffed (modeled +18pp
+  parry/QTE + 2 bonus max HP) ≥ 15% — the quiet safety net must give
+  struggling players a real shot.
+- WEAK-unbuffed ≤ 10% everywhere. "Buffed strictly higher than unbuffed" is
+  exempt for cells already ≥ 99% (Blank Page's known-sequence 100% is its
+  design: understanding IS the win condition).
+- Breach threshold is 2 parries; entering the Devil King's scripted finale
+  heals +2 (capped) — the "resolve" beat Task 23's dialogue references.
+
 ## Content authoring rules (applies wherever a step says "author to schema")
 
 Pixel grids, music patterns, level maps, and dialogue beyond the complete examples embedded in this plan are creative content authored at implementation time. They MUST follow the locked schemas: only palette characters from `art/palette.ts`, exact sprite dimensions and frame counts from the tables in Tasks 4/8/14/18/19/20/22, level legends from Task 6, track schema from Task 5. Deviating from a schema is a task failure; drawing different (original) pixels within it is expected. This rule exists so the plan stays reviewable — it is not license to skip content: every listed asset must exist and be visually distinct/readable at 2× zoom.
@@ -1783,7 +1803,7 @@ Damage rules (locked):
 - ATTACK: `dmg = player.attack + fx.attackBonus`; ×2 consume `exposed`; ×3 + ignore armor + reset meter when ultimate ≥ 100; armored & !breached & !ultimate → dmg = 1 (and `exposed` is NOT consumed on an armor-flattened hit — the charge survives for a hit that can use it). Root-access mechanic choice `use-root-access`: `dmg = (attack + bonus) * 2` ignoring armor, consumes charge.
 - COMMAND: dmg = `round((attack + bonus) * TYPING_DAMAGE_MULT[grade] * typingPower)`, min 1; armored halves (min 1) unless breached.
 - Boss hit: `dmg = move.damage` → parry perfect 0 / normal 0 / miss full → if `fx.defending` (consume) halve (`ceil`) → minus `firewallLayers` (floor 0). Counters: perfect = `attack + bonus` (+ultimate 34), normal = `ceil((attack+bonus)/2)` (+15). QTE success: 0 damage, reflect 1, +25 ultimate. QTE fail/no-defense: full path above. Ultimate clamps at 100. (Balance amendment: normal parry originally leaked `ceil(0.25×dmg)` ≥ 1; simulation showed average play then wins 0% of all fights on the starting HP — chip death was unavoidable without perfect parries. Normal parry now fully blocks; perfect remains better via double counter + triple meter gain.)
-- `breach-meter`: parry ≥ normal → `breachMeter+1`; at 3 → `breached=true`, log "ARMOR BREACHED".
+- `breach-meter`: parry ≥ normal → `breachMeter+1`; at 2 → `breached=true`, log "ARMOR BREACHED". (Balance amendment round 2: 3→2 — sim floor for Warden average-play winnability.)
 - `spoof-pick`: every 3rd boss turn (`bossTurns % 3 === 2`) boss uses its `choice` move; success sets `exposed=true`.
 - `sequence-puzzle`: expected order `["analyze","defend","remember","create"]` — analyze/defend arrive as `action` events, remember/create as `mechanic`; correct → `seqIndex+1` + 12 damage + log clue **+ the boss takes its turn** (sequence steps are not free actions); wrong step → `seqIndex=0` + log + boss turn. Completing all four steps breaks the armor (treated as breached, log "THE PAGE UNDERSTANDS…") so normal attacks finish the fight at full damage. Boss takes only 1 from ATTACK while armored. (Balance amendment: free sequence steps made the solved fight zero-risk and the unsolved fight unwinnable.)
 - `devil-king`: phases `[{exitBelow:0.6},{exitBelow:0.2},{exitBelow:0}]`; entering index 2 clamps health at `ceil(0.2*max)`, sets tag `"scripted"`, `finalStep=0`; scripted steps `["analyze","parry","command","root-access","strike"]`; a genuinely failed ATTEMPT at the current step (missed parry, failed typing, wrong mechanic choice) → `player.health-1` (defeat if ≤0) and the player retries the SAME step; event types that are simply inapplicable to the current step are no-ops returning the same state reference (the illegal-event contract holds inside scripted mode too — a misrouted UI event must never hurt the player); `strike` (mechanic `final-strike`, only offered at step 4) → outcome victory. Phase-3 root-access step auto-grants a charge if `rootAccessCharges === 0`. (Balance amendment: -2 + full sequence reset made three slips lethal on the small health pool.) Summons: moves with `summons` add to `mechanic.summons` (each active summon +1 boss damage, cap +2); mechanic choice `strike-adds` (offered when summons>0) kills one, 60% chance to add `recovery-packet` to items (rng).
@@ -2249,7 +2269,7 @@ export const WARDEN: BossDefinition = {
       enterLines: ["THE WARDEN: PERIMETER BREACH. ESCALATING."] },
   ],
   weaknesses: ["Armor absorbs blades. PARRY his strikes to fill the BREACH meter.",
-               "Three clean parries and the wall comes down.",
+               "Two clean parries and the wall comes down.", // 3→2: balance round 2 sim floor
                "Once breached, COMMAND and ULTIMATE hit full force."],
   typingPrompts: ["nmap", "deny", "allow", "encrypt", "sudo"],
   moves: [
@@ -2420,6 +2440,7 @@ git commit -m "feat(adventure): Devil King phases one and two"
 - Produces:
   - Scripted UI: instruction banner per `finalStep` — 0 "ANALYZE HIS PATTERN" (only ANALYZE enabled) → 1 "PARRY THE DECREE" (auto-telegraph, tightened parry) → 2 big typing box `sudo restore the lost chapter` (8s base) → 3 "USE ROOT ACCESS" button → 4 the oversized red **EXECUTE FINAL STRIKE** button (fills a third of the panel, pulses). Failure feedback: screen dim + "The King laughs. Again." + health −2, back to step 0.
   - `devil-defeat` script (verbatim, from spec Appendix A): "So... you actually made it." / "I thought the bugs would stop you. I thought the false paths would fool you. I thought the Blank Page would make you turn back." / "But you kept moving." / "My final message..." / "The code is..." / "No." / "You do not get it from me." / "Take the key." / "Open the chest yourself."
+  - Note (balance round 2): entering the scripted finale now heals the player +2 (capped) as the boss "locks the fight into its final sequence" — the step-0 "ANALYZE HIS PATTERN" beat is the natural place for a short dialogue/log line acknowledging that steadying resolve (e.g. a beat where the player catches their breath before the King's decree) so the heal doesn't land as an unexplained number.
   - `VictoryScene`: throne room; kneeling King (kneel anim) → dialogue → dissolve into red pixel particles → `Y` key drops with bounce + glow; player regains control (walk only + E); E on key → banner `ARCHIVE KEY ACQUIRED` + `collect` sfx → back-wall door tiles slide open → walking through the right edge starts `Chest` scene. Save: `bossesDefeated += devil-king`.
 
 - [ ] **Steps:** engine sequence tests (perfect run → victory; failed parry at step 1 → health−2 + reset; incorrect final typing → reset; root-access auto-grant) → scripted UI → VictoryScene cinematic → verify: full castle→devil→key walk without input deadlocks (control returns exactly after dialogue) → commit:
