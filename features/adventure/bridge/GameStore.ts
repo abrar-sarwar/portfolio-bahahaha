@@ -21,7 +21,8 @@ export function createStore<S extends object>(initial: S) {
   };
 }
 
-import type { SceneKey, LevelId, BuffId, AbilityId } from "../ids";
+import type { SceneKey, LevelId, BossId, BuffId, AbilityId } from "../ids";
+import type { CombatState } from "../combat/types";
 import { PLAYER_BASE } from "../config";
 
 /** Player-facing HUD snapshot (hearts, buff chips, fragment count). */
@@ -42,6 +43,15 @@ export interface GameUIState {
   levelBuffs: BuffId[];
   /** Unlocked movement/combat abilities. `dash` gates the platformer dash. */
   abilities: Record<AbilityId, boolean>;
+  /** Live combat snapshot while a boss fight is active; null otherwise. The
+   *  React CombatPanel renders entirely from this. */
+  combat: CombatState | null;
+  /** Deaths per boss, driving the quiet assist curve. No save system yet
+   *  (Task 15) — the controller stashes deaths here for the session. */
+  deaths: Partial<Record<BossId, number>>;
+  /** Terminal result of the most recent fight; Task 14 reads this to run the
+   *  reward flow. Set on victory/defeat, cleared when combat re-launches. */
+  combatResult: { outcome: "victory" | "defeat"; bossId: BossId } | null;
 }
 
 export const gameStore = createStore<GameUIState>({
@@ -56,6 +66,9 @@ export const gameStore = createStore<GameUIState>({
   },
   levelBuffs: [],
   abilities: { dash: false, analyze: false, improvedParry: false },
+  combat: null,
+  deaths: {},
+  combatResult: null,
 });
 
 /** Memoize a selector by store-state reference so getSnapshot returns a

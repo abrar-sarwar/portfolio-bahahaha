@@ -12,6 +12,7 @@ import { PICKUP_SPRITES, pickupKeyFor } from "../art/sprites/pickups";
 import { audio } from "../audio/synth";
 import { bus } from "../bridge/EventBus";
 import { gameStore } from "../bridge/GameStore";
+import { startCombat, registerCombatGame } from "../combat/controller";
 import { input } from "../input/InputState";
 import { mergeRowRuns, runToRect, topExposed } from "./levelGeometry";
 import { shouldClipAscent, movementLocked } from "./controllerGates";
@@ -600,11 +601,15 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private enterBoss() {
     gameStore.set({ levelBuffs: [...this.buffs] });
     bus.emit("level:enter-boss", { levelId: this.def.id, bossId: this.def.bossId });
-    // Combat lands in Task 13; for now just announce and do nothing else.
-    console.info("[adventure] enter-boss (combat in Task 13)", {
-      levelId: this.def.id,
-      bossId: this.def.bossId,
-    });
+    // Hand off to the combat controller: it pauses this Level scene, launches
+    // the CombatBackdrop, and mounts the React combat UI. startCombat throws
+    // for an un-registered boss (Task 14 populates BOSSES), so guard the door.
+    registerCombatGame(this.game);
+    try {
+      startCombat(this.def.bossId, { levelId: this.def.id, returnTo: "level" });
+    } catch (err) {
+      console.warn("[adventure] boss has no combat definition yet", err);
+    }
   }
 
   // --- damage / respawn -----------------------------------------------------

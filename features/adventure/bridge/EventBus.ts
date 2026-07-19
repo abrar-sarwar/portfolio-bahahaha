@@ -44,6 +44,17 @@ export interface AdventureEvents {
   "buff:collected": { buff: import("../ids").BuffId };
   "level:fragment": { levelId: import("../ids").LevelId };
   "nav:external": { href: string };
+  // Combat side-effect events (Task 13). The controller reduces the pure engine
+  // and publishes the snapshot to the store; these carry the transient signals
+  // the store can't hold: a telegraphed move to run a defense mini-game against,
+  // fire-and-forget hit/parry/phase fx, and the terminal combat outcome.
+  "combat:telegraph": {
+    moveId: string;
+    spec: import("../combat/timedEvents").QteSpec;
+    impactInMs: number;
+  };
+  "combat:fx": { kind: import("../combat/controllerLogic").CombatFxKind };
+  "combat:over": { outcome: "victory" | "defeat"; bossId: import("../ids").BossId };
 }
 
 export const bus = new EventBus<AdventureEvents>();

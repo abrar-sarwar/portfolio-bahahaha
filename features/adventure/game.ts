@@ -2,10 +2,11 @@ import Phaser from "phaser";
 import { GAME_WIDTH, GAME_HEIGHT, PHYSICS } from "./config";
 import { BootScene } from "./scenes/BootScene";
 import { PlatformLevelScene } from "./scenes/PlatformLevelScene";
+import { CombatBackdropScene } from "./scenes/CombatBackdropScene";
 
 export function sceneList(): Phaser.Types.Scenes.SceneType[] {
   // Later tasks append scenes here (Title, Overworld, ...).
-  return [BootScene, PlatformLevelScene];
+  return [BootScene, PlatformLevelScene, CombatBackdropScene];
 }
 
 export function buildConfig(parent: HTMLElement): Phaser.Types.Core.GameConfig {
