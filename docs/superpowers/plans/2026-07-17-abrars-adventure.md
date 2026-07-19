@@ -393,7 +393,7 @@ export const PHYSICS = {
 } as const;
 
 export const PLAYER_BASE = {
-  maxHealth: 8, // balance amendment: was 6; simulation showed 6 HP made average combat play unwinnable
+  maxHealth: 10, // balance amendments: 6→8→10; independent sim with verbatim boss defs showed 8 HP still unwinnable for average play vs 3-damage bosses
   attack: 2,
   defense: 1,
   focus: 1,
@@ -2253,7 +2253,7 @@ export const WARDEN: BossDefinition = {
                "Once breached, COMMAND and ULTIMATE hit full force."],
   typingPrompts: ["nmap", "deny", "allow", "encrypt", "sudo"],
   moves: [
-    { id: "crush", name: "Gate Crush", damage: 3, parryable: true, telegraph: "The Warden's gauntlet rises…" },
+    { id: "crush", name: "Gate Crush", damage: 2, parryable: true, telegraph: "The Warden's gauntlet rises…" }, // 3→2 balance sim; lockdown keeps the heavy 3
     { id: "beam", name: "Deny Beam", damage: 2, parryable: false,
       qte: { kind: "marker", travelMs: 1100, targetStart: 0.45, targetEnd: 0.6 },
       telegraph: "A red scanline sweeps toward you…" },
@@ -2380,7 +2380,7 @@ export const DEVIL_KING: BossDefinition = {
     { shown: "vrify identity", correct: "verify identity" },
   ],
   moves: [
-    { id: "sword", name: "Ruin Cleave", damage: 3, parryable: true, telegraph: "The greatsword drinks the light…" },
+    { id: "sword", name: "Ruin Cleave", damage: 2, parryable: true, telegraph: "The greatsword drinks the light…" }, // 3→2 balance sim; flurry keeps the heavy 3 in phase 2
     { id: "fire", name: "Hellfire Volley", damage: 2, parryable: false,
       qte: { kind: "marker", travelMs: 1000, targetStart: 0.45, targetEnd: 0.6 }, telegraph: "Three cinders orbit his crown…" },
     { id: "wave", name: "Corruption Wave", damage: 2, parryable: false,
