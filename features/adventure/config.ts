@@ -15,7 +15,7 @@ export const PHYSICS = {
 } as const;
 
 export const PLAYER_BASE = {
-  maxHealth: 8, // balance amendment: was 6; simulation showed 6 HP made average combat play unwinnable
+  maxHealth: 10, // balance amendments: 6→8→10; independent sim with verbatim boss defs showed 8 HP still unwinnable for average play vs 3-damage bosses
   attack: 2,
   defense: 1,
   focus: 1,

@@ -488,7 +488,7 @@ function resolveDefense(
   let mechanic = state.mechanic;
   if (breachHit && state.def.mechanic === "breach-meter" && !mechanic.breached) {
     const breachMeter = mechanic.breachMeter + 1;
-    mechanic = { ...mechanic, breachMeter, breached: breachMeter >= 3 };
+    mechanic = { ...mechanic, breachMeter, breached: breachMeter >= 2 };
   }
   if (exposedSet) mechanic = { ...mechanic, exposed: true };
   if (move.summons && move.summons > 0) {
@@ -551,6 +551,7 @@ function phaseCheck(state: CombatState): CombatState {
   let bossHealth = state.bossHealth;
   let tag = state.tag;
   let mechanic = state.mechanic;
+  let player = state.player;
   const log = state.log.slice();
 
   while (idx < def.phases.length - 1 && bossHealth / max <= def.phases[idx].exitBelow) {
@@ -562,14 +563,19 @@ function phaseCheck(state: CombatState): CombatState {
       bossHealth = Math.ceil(0.2 * max);
       tag = "scripted";
       mechanic = { ...mechanic, finalStep: 0 };
+      // Balance amendment round 2: the resolve to face the finale steadies the
+      // player — a small, capped heal (sim floor for DevilKing winnability).
+      const healed = Math.max(0, Math.min(2, player.maxHealth - player.health));
+      player = { ...player, health: player.health + healed };
       if (phase.enterLines) log.push(...phase.enterLines);
       log.push("The Devil King locks the fight into its final sequence.");
+      if (healed > 0) log.push(`Resolve steadies you: +${healed} HP.`);
     } else if (phase.enterLines) {
       log.push(...phase.enterLines);
     }
   }
 
-  return { ...state, phaseIndex: idx, bossHealth, tag, mechanic, log };
+  return { ...state, phaseIndex: idx, bossHealth, tag, mechanic, player, log };
 }
 
 // ─────────────────────────────────────────────────────── devil-king finale ──

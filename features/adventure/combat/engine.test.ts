@@ -208,15 +208,14 @@ describe("combat engine — mechanics", () => {
     expect(s.mechanic.exposed).toBe(false);
   });
 
-  it("breach-meter: three qualifying parries breach the armor, unlocking full attacks", () => {
+  it("breach-meter: two qualifying parries breach the armor, unlocking full attacks", () => {
+    // Balance amendment: breach threshold 3→2 parries (sim floor for Warden winnability).
     let s = createCombat(BREACH_BOSS, { ...carry, maxHealth: 20 });
     s = reduce(s, { type: "action", kind: "attack" });
     expect(s.bossHealth).toBe(39); // armored → flat 1
     s = reduce(s, { type: "defense-result", parry: "normal" }); // breachMeter 1
     s = reduce(s, { type: "action", kind: "attack" });
-    s = reduce(s, { type: "defense-result", parry: "normal" }); // breachMeter 2
-    s = reduce(s, { type: "action", kind: "attack" });
-    s = reduce(s, { type: "defense-result", parry: "normal" }); // breachMeter 3 → breached
+    s = reduce(s, { type: "defense-result", parry: "normal" }); // breachMeter 2 → breached
     expect(s.mechanic.breached).toBe(true);
     const hp = s.bossHealth;
     s = reduce(s, { type: "action", kind: "attack" });
@@ -294,6 +293,33 @@ describe("combat engine — mechanics", () => {
     expect(s.phaseIndex).toBe(2);
     expect(s.bossHealth).toBe(Math.ceil(0.2 * DEVIL_BOSS.maxHealth));
     expect(s.mechanic.finalStep).toBe(0);
+  });
+
+  it("devil-king: entering the scripted finale heals the player, capped at +2", () => {
+    // Balance amendment round 2: resolve heal on entering the finale (sim floor
+    // for DevilKing winnability). Take 1 dmg/turn on the way down so there's
+    // more than 2 HP of headroom when the finale clamp fires, proving the heal
+    // is capped at +2 rather than topping the player all the way back up.
+    const dCarry = { ...carry, maxHealth: 8 };
+    let s = createCombat(DEVIL_BOSS, dCarry);
+    s = run(s, { type: "action", kind: "attack" }, { type: "defense-result", parry: "miss" }); // 8 → 7
+    expect(s.phaseIndex).toBe(0);
+    s = run(s, { type: "action", kind: "attack" }, { type: "defense-result", parry: "miss" }); // 7 → 6, phase 0 → 1
+    expect(s.phaseIndex).toBe(1);
+    s = run(s, { type: "action", kind: "attack" }, { type: "defense-result", parry: "miss" }); // 6 → 5
+    expect(s.player.health).toBe(5);
+    s = run(s, { type: "action", kind: "attack" }, { type: "defense-result", parry: "miss" }); // enters scripted (3 HP headroom)
+    expect(s.tag).toBe("scripted");
+    expect(s.phaseIndex).toBe(2);
+    expect(s.player.health).toBe(7); // 5 + 2 (capped, not the full 3 headroom)
+  });
+
+  it("devil-king: the resolve heal never overheals past max (already full → +0)", () => {
+    let s = createCombat(DEVIL_BOSS, carry);
+    s = run(s, { type: "action", kind: "attack" }, { type: "defense-result", parry: "perfect" });
+    s = run(s, { type: "action", kind: "attack" }, { type: "defense-result", parry: "perfect" });
+    expect(s.tag).toBe("scripted");
+    expect(s.player.health).toBe(carry.maxHealth); // stayed full — no overheal
   });
 
   it("devil-king: phase ≥1 command uses corrupted prompts (shown vs. correct)", () => {

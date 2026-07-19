@@ -2262,7 +2262,7 @@ git commit -m "feat(adventure): phishing harbor — malware bats, fake platforms
 
 ```ts
 export const WARDEN: BossDefinition = {
-  id: "warden", name: "The Warden", maxHealth: 52, armored: true, // 55→52: balance sim floor for average-play winnability
+  id: "warden", name: "The Warden", maxHealth: 44, armored: true, // 55→52→44: balance sim floor — typical factory loadout (1 parry-module + 1 recovery-packet) AVERAGE-winnability ≥40%
   phases: [
     { exitBelow: 0.5, movePool: ["crush", "beam"], tempoScale: 1 },
     { exitBelow: 0, movePool: ["crush", "beam", "lockdown"], tempoScale: 0.8,

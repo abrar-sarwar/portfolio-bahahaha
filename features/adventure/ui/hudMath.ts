@@ -2,7 +2,7 @@ import type { BuffId } from "../ids";
 
 // Pure HUD math extracted so the hearts logic (half-heart rounding, odd
 // health/maxHealth) is unit-tested without React. Health is measured in
-// half-heart points: maxHealth 8 => 4 hearts, each heart = 2 points.
+// half-heart points: maxHealth 10 => 5 hearts, each heart = 2 points.
 
 export interface Hearts {
   full: number;
