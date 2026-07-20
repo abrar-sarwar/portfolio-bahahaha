@@ -3,6 +3,8 @@
 import { useCallback, useState } from "react";
 import { useGameStore } from "../bridge/GameStore";
 import { audio } from "../audio/synth";
+import { loadSave, persistSave } from "../state/save";
+import { setMuted as setSaveMuted } from "../state/settings";
 import Hud from "./Hud";
 import CombatPanel from "./CombatPanel";
 
@@ -13,8 +15,10 @@ export default function Overlay() {
 
   const toggleSound = useCallback(() => {
     audio.unlock(); // must run inside the gesture before toggling
-    audio.setMuted(!audio.getState().muted);
-    setMuted(audio.getState().muted);
+    const next = !audio.getState().muted;
+    audio.setMuted(next);
+    setMuted(next);
+    persistSave(setSaveMuted(loadSave(), next)); // write-through: survives reload
   }, []);
 
   return (

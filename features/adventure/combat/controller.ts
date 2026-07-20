@@ -28,6 +28,7 @@ import { bus } from "../bridge/EventBus";
 import { LEVELS } from "../levels";
 import { audio } from "../audio/synth";
 import { grantRewards } from "./rewards";
+import { completeLevel, loadSave, markBossDefeated, persistSave, recordDeath } from "../state/save";
 
 export interface StartCombatOpts {
   levelId: LevelId;
@@ -69,6 +70,15 @@ let session: Session | null = null;
 let combatGame: GameLike | null = null;
 let storeUnsub: (() => void) | null = null;
 let lastPaused = false;
+
+// Persist level completion wherever "level:complete" fires — today that's
+// only this module's exitCombat() victory branch ("completing 1-1" = beating
+// its boss, per the current level layout), but a future overworld emitting
+// the same event from a different seam (Task 16+) gets persistence for free
+// without this module needing to know about it.
+bus.on("level:complete", ({ levelId }) => {
+  persistSave(completeLevel(loadSave(), levelId));
+});
 
 function now(): number {
   return typeof performance !== "undefined" ? performance.now() : Date.now();
@@ -244,13 +254,15 @@ function handleOutcome(): void {
     const deaths = { ...gameStore.get().deaths };
     deaths[bossId] = (deaths[bossId] ?? 0) + 1;
     gameStore.set({ deaths, combatResult: { outcome: "defeat", bossId } });
+    persistSave(recordDeath(loadSave(), bossId)); // durable mirror of the assist-curve counter above
   } else {
-    // Victory seam: grant this boss's rewards (idempotent — see rewards.ts)
-    // and switch the music before publishing the result, so the UI's
-    // victory panel and the fanfare land together.
+    // Victory seam: grant this boss's rewards (idempotent — see rewards.ts,
+    // which also persists them) and switch the music before publishing the
+    // result, so the UI's victory panel and the fanfare land together.
     grantRewards(state.def);
     audio.playTrack("victory");
     gameStore.set({ combatResult: { outcome: "victory", bossId } });
+    persistSave(markBossDefeated(loadSave(), bossId));
   }
   bus.emit("combat:over", { outcome: state.outcome === "defeat" ? "defeat" : "victory", bossId });
   // The combat snapshot stays in the store so the UI shows victory / retry.

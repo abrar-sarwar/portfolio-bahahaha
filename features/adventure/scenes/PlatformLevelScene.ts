@@ -13,6 +13,7 @@ import { audio } from "../audio/synth";
 import { bus } from "../bridge/EventBus";
 import { gameStore } from "../bridge/GameStore";
 import { startCombat, registerCombatGame } from "../combat/controller";
+import { collectMemoryFragment, loadSave, persistSave } from "../state/save";
 import { input } from "../input/InputState";
 import { mergeRowRuns, runToRect, topExposed } from "./levelGeometry";
 import { shouldClipAscent, movementLocked } from "./controllerGates";
@@ -109,6 +110,11 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.mapWidthPx = this.lvl.widthTiles * TILE;
     this.mapHeightPx = this.lvl.heightTiles * TILE;
 
+    // Save check (before buildTiles): a fragment collected in a prior
+    // session must not spawn again — read this ahead of buildTiles() so its
+    // fragment-sprite block can skip the spawn entirely.
+    this.fragmentCollected = loadSave().memoryFragments.includes(def.id);
+
     // Textures: idempotent — BootScene already registered these, but Level
     // must not assume it ran first (Task 16 will start Level from elsewhere).
     registerSprites(this, [
@@ -129,8 +135,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.health = PLAYER_BASE.maxHealth;
     this.maxHealth = PLAYER_BASE.maxHealth;
     this.buffs = [];
-    this.fragments = 0;
-    this.fragmentCollected = false;
+    this.fragments = this.fragmentCollected ? 1 : 0; // reflect a prior-session collection in the HUD count
     this.latchedCheckpoints.clear();
     this.abilities = { ...gameStore.get().abilities };
     this.speedScale = this.buffs.includes("cache-boost") ? 1.25 : 1;
@@ -255,8 +260,10 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       this.hazardGroup.add(rect);
     }
 
-    // Fragment collectible.
-    if (this.lvl.fragment) {
+    // Fragment collectible — skip entirely if a prior session already
+    // collected this level's fragment (this.fragmentCollected is read from
+    // the save before buildTiles() runs; see create()).
+    if (this.lvl.fragment && !this.fragmentCollected) {
       const f = this.lvl.fragment;
       this.fragmentSprite = this.add
         .rectangle(f.tx * TILE + TILE / 2, f.ty * TILE + TILE / 2, 8, 8, 0xffd75e)
@@ -606,6 +613,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       this.fragmentSprite?.destroy();
       this.pushHud();
       bus.emit("level:fragment", { levelId: this.def.id });
+      persistSave(collectMemoryFragment(loadSave(), this.def.id));
       return;
     }
     if (this.nearDoor) this.enterBoss();
