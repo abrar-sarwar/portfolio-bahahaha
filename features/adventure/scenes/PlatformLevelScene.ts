@@ -5,9 +5,17 @@ import { LEVELS } from "../levels";
 import { parseLevel } from "../levels/parse";
 import type { LevelDefinition, ParsedLevel, Pt } from "../levels/types";
 import { registerSprites, frameKey, animKey } from "../art/textures";
+import type { SpriteDef } from "../art/textures";
 import { PLAYER_SPRITES } from "../art/sprites/player";
-import { tilesetFor, FIELD_TILE_KEYS, FIELD_PARALLAX_KEYS } from "../art/sprites/tiles-fields";
+import {
+  FIELDS_TILES, FIELDS_PARALLAX, FIELD_TILE_KEYS, FIELD_PARALLAX_KEYS,
+} from "../art/sprites/tiles-fields";
+import {
+  HARBOR_TILES, HARBOR_PARALLAX, HARBOR_BOAT_SPRITE, HARBOR_TILE_KEYS,
+  HARBOR_PARALLAX_KEYS, HARBOR_BOAT_KEY, HARBOR_WATER_ANIM, HARBOR_FAKE_ANIM,
+} from "../art/sprites/tiles-harbor";
 import { ENEMY_SPRITES } from "../art/sprites/enemies1";
+import { ENEMIES2_SPRITES } from "../art/sprites/enemies2";
 import { PICKUP_SPRITES, pickupKeyFor } from "../art/sprites/pickups";
 import { audio } from "../audio/synth";
 import { bus } from "../bridge/EventBus";
@@ -20,13 +28,97 @@ import { mergeRowRuns, runToRect, topExposed } from "./levelGeometry";
 import { shouldClipAscent, movementLocked } from "./controllerGates";
 import { Enemy, type EnemyHostScene } from "../enemies/Enemy";
 import { Bugling } from "../enemies/Bugling";
+import { MalwareBat } from "../enemies/MalwareBat";
 import { Phishling, ANALYZE_RANGE_PX } from "../enemies/Phishling";
 import { resolvePlayerContact, applyRestompWindow } from "../enemies/enemyLogic";
 import type { DropItem } from "../enemies/drops";
 
 const KNOCKBACK_MS = 180;
 
+// Fake-platform + boat tuning (Task 18). Fakes flicker within 24px, collapse
+// 300ms after being stood on, and reappear 2s later. Boats ferry ±64px from
+// home at a steady velocity (~1.5s each way) and carry a rider by delta-x.
+const FAKE_PROXIMITY_PX = 24;
+const FAKE_COLLAPSE_MS = 300;
+const FAKE_RESPAWN_MS = 2000;
+const FAKE_H = 8; // 16x8 one-way look-alike
+const BOAT_W = 32;
+const BOAT_AMPLITUDE = 64;
+const BOAT_SPEED = (BOAT_AMPLITUDE * 2) / 1.5 / 1000; // px/ms, ~1.5s from end to end
+
 type Body = Phaser.Physics.Arcade.Body;
+
+/** Per-theme tile/parallax wiring. Keeps buildTiles/buildParallax generic so a
+ *  new world only adds a tileset module + a branch here (Task 18: harbor). */
+interface ThemeTiles {
+  register: SpriteDef[];
+  parallax: { key: string; depth: number; factor: number }[];
+  ground: string;
+  groundFill: string;
+  oneWay: string;
+  hazard: string;
+  /** When set, hazard cells render as animated sprites playing this anim
+   *  (harbor code-water) rather than a static image (fields glitch-spikes). */
+  hazardAnim?: string;
+  fakeKey: string;
+  fakeAnim?: string;
+  boatKey: string;
+}
+
+function themeTilesFor(theme: LevelDefinition["theme"]): ThemeTiles {
+  if (theme === "harbor") {
+    return {
+      register: [...HARBOR_PARALLAX, ...HARBOR_TILES, HARBOR_BOAT_SPRITE],
+      parallax: [
+        { key: HARBOR_PARALLAX_KEYS.bg0, depth: -30, factor: 0.2 },
+        { key: HARBOR_PARALLAX_KEYS.bg1, depth: -20, factor: 0.4 },
+        { key: HARBOR_PARALLAX_KEYS.bg2, depth: -10, factor: 0.55 },
+      ],
+      ground: HARBOR_TILE_KEYS.ground,
+      groundFill: HARBOR_TILE_KEYS.groundFill,
+      oneWay: HARBOR_TILE_KEYS.oneWay,
+      hazard: HARBOR_TILE_KEYS.water,
+      hazardAnim: HARBOR_WATER_ANIM,
+      fakeKey: HARBOR_TILE_KEYS.fake,
+      fakeAnim: HARBOR_FAKE_ANIM,
+      boatKey: HARBOR_BOAT_KEY,
+    };
+  }
+  // Default: Bug Fields (Task 6). No fakes/boats are authored in fields levels,
+  // so fakeKey/boatKey fall back to the one-way tile and are never referenced.
+  return {
+    register: [...FIELDS_PARALLAX, ...FIELDS_TILES],
+    parallax: [
+      { key: FIELD_PARALLAX_KEYS.bg0, depth: -30, factor: 0.2 },
+      { key: FIELD_PARALLAX_KEYS.bg1, depth: -20, factor: 0.35 },
+      { key: FIELD_PARALLAX_KEYS.bg2, depth: -10, factor: 0.5 },
+    ],
+    ground: FIELD_TILE_KEYS.ground,
+    groundFill: FIELD_TILE_KEYS.groundFill,
+    oneWay: FIELD_TILE_KEYS.oneWay,
+    hazard: FIELD_TILE_KEYS.hazard,
+    fakeKey: FIELD_TILE_KEYS.oneWay,
+    boatKey: FIELD_TILE_KEYS.oneWay,
+  };
+}
+
+interface FakePlatform {
+  sprite: Phaser.GameObjects.Sprite;
+  rect: Phaser.GameObjects.Rectangle;
+  cx: number;
+  topY: number;
+  glow?: Phaser.GameObjects.Rectangle;
+  vanishAt: number | null;
+  respawnAt: number | null;
+  gone: boolean;
+}
+
+interface Boat {
+  sprite: Phaser.Physics.Arcade.Sprite;
+  home: number;
+  prevX: number;
+  dir: 1 | -1;
+}
 
 export interface LevelSceneData {
   levelId: LevelId;
@@ -79,11 +171,17 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private nearFragment = false;
 
   // scene objects
+  private theme!: ThemeTiles;
   private hazardGroup!: Phaser.Physics.Arcade.StaticGroup;
   private solidGroup!: Phaser.Physics.Arcade.StaticGroup;
   private oneWayGroup!: Phaser.Physics.Arcade.StaticGroup;
   private enemyGroup!: Phaser.Physics.Arcade.Group;
   private pickupGroup!: Phaser.Physics.Arcade.Group;
+  private projectileGroup!: Phaser.Physics.Arcade.Group;
+  private fakeGroup!: Phaser.Physics.Arcade.StaticGroup;
+  private boatGroup!: Phaser.Physics.Arcade.Group;
+  private fakes: FakePlatform[] = [];
+  private boats: Boat[] = [];
   /** Persistent attack hitbox: one zone + one overlap for the level's whole
    *  lifetime (created once in create()). doAttack() repositions it and flips
    *  its body on/off rather than creating+destroying a Collider per swing —
@@ -118,20 +216,27 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     const save = loadSave();
     this.fragmentCollected = save.memoryFragments.includes(def.id);
 
+    // Per-theme tile/parallax wiring (fields vs harbor).
+    this.theme = themeTilesFor(def.theme);
+
     // Textures: idempotent — BootScene already registered these, but Level
     // must not assume it ran first (Task 16 will start Level from elsewhere).
     registerSprites(this, [
       PLAYER_SPRITES,
-      ...tilesetFor(def.theme),
+      ...this.theme.register,
       ...ENEMY_SPRITES,
+      ...ENEMIES2_SPRITES,
       ...PICKUP_SPRITES,
     ]);
 
     this.buildParallax();
     this.spawnPlayer(data.spawnAt ?? "start"); // before buildTiles: colliders need the player
     this.buildTiles();
+    this.buildFakes(); // fake platforms (Task 18): one-way look-alikes that collapse
+    this.buildBoats(); // boats (Task 18): ferrying moving platforms
     this.spawnEnemies(); // after buildTiles: enemies collide with the tile groups
     this.setupAttackHitbox(); // after spawnEnemies: overlap needs enemyGroup
+    this.setupProjectiles(); // pooled enemy-projectile group (malware-bat packets)
     this.setupCamera();
 
     // HUD / progression reset for this level.
@@ -232,12 +337,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private buildParallax() {
     // World-covering tileSprites (scrollFactor 1, no edge gaps, zoom-safe);
     // tilePositionX is driven each frame to fake depth (see update()).
-    const layers: { key: string; depth: number; factor: number }[] = [
-      { key: FIELD_PARALLAX_KEYS.bg0, depth: -30, factor: 0.2 },
-      { key: FIELD_PARALLAX_KEYS.bg1, depth: -20, factor: 0.35 },
-      { key: FIELD_PARALLAX_KEYS.bg2, depth: -10, factor: 0.5 },
-    ];
-    for (const l of layers) {
+    for (const l of this.theme.parallax) {
       const sprite = this.add
         .tileSprite(0, 0, this.mapWidthPx, this.mapHeightPx, l.key)
         .setOrigin(0, 0)
@@ -257,10 +357,16 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
         const cx = tx * TILE + TILE / 2;
         const cy = ty * TILE + TILE / 2;
         if (solids[ty][tx]) {
-          const key = topExposed(solids, tx, ty) ? FIELD_TILE_KEYS.ground : FIELD_TILE_KEYS.groundFill;
+          const key = topExposed(solids, tx, ty) ? this.theme.ground : this.theme.groundFill;
           this.add.image(cx, cy, key).setDepth(0);
-        } else if (oneWays[ty][tx]) this.add.image(cx, cy, FIELD_TILE_KEYS.oneWay).setDepth(0);
-        else if (hazards[ty][tx]) this.add.image(cx, cy, FIELD_TILE_KEYS.hazard).setDepth(1);
+        } else if (oneWays[ty][tx]) this.add.image(cx, cy, this.theme.oneWay).setDepth(0);
+        else if (hazards[ty][tx]) {
+          if (this.theme.hazardAnim) {
+            // Animated hazard (harbor code-water): a Sprite playing its wave anim.
+            const water = this.add.sprite(cx, cy, frameKey(this.theme.hazard, 0)).setDepth(1);
+            water.play(animKey(this.theme.hazard, this.theme.hazardAnim));
+          } else this.add.image(cx, cy, this.theme.hazard).setDepth(1);
+        }
       }
     }
 
@@ -324,6 +430,185 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.physics.add.overlap(this.player, this.hazardGroup, () => this.onHazard(), undefined, this);
   }
 
+  // --- fake platforms (Task 18) ---------------------------------------------
+
+  /** Fake platforms: 16x8 one-way look-alikes that shimmer (the "shortcut"
+   *  lure), flicker as the player nears, then collapse 300ms after being stood
+   *  on and reappear 2s later. A cyan glow dot below each one hints at the safe
+   *  route (real dock / boat) beneath — decoration, not a map legend char. */
+  private buildFakes() {
+    this.fakeGroup = this.physics.add.staticGroup();
+    for (const f of this.lvl.fakes) {
+      const cx = f.tx * TILE + TILE / 2;
+      const topY = f.ty * TILE; // platform top face = top of the tile cell
+      const sprite = this.add
+        .sprite(cx, topY + FAKE_H / 2, frameKey(this.theme.fakeKey, 0))
+        .setDepth(2);
+      if (this.theme.fakeAnim) sprite.play(animKey(this.theme.fakeKey, this.theme.fakeAnim));
+
+      // One-way collision body: only the top face blocks (jump-through look-alike).
+      const rect = this.add.rectangle(cx, topY + FAKE_H / 2, TILE, FAKE_H).setVisible(false);
+      this.fakeGroup.add(rect);
+      const body = rect.body as Phaser.Physics.Arcade.StaticBody;
+      body.checkCollision.down = false;
+      body.checkCollision.left = false;
+      body.checkCollision.right = false;
+
+      const glow = this.add
+        .rectangle(cx, topY + TILE * 2, 3, 3, 0x6ec1ff)
+        .setDepth(2)
+        .setAlpha(0.8);
+      this.tweens.add({
+        targets: glow, alpha: 0.25, y: topY + TILE * 2 + 4,
+        duration: 700, yoyo: true, repeat: -1, ease: "Sine.inOut",
+      });
+
+      this.fakes.push({ sprite, rect, cx, topY, glow, vanishAt: null, respawnAt: null, gone: false });
+    }
+    this.physics.add.collider(this.player, this.fakeGroup);
+  }
+
+  private updateFakes() {
+    const now = this.time.now;
+    const pb = this.player.body as Body;
+    for (const fk of this.fakes) {
+      if (fk.gone) {
+        if (fk.respawnAt !== null && now >= fk.respawnAt) this.respawnFake(fk);
+        continue;
+      }
+      // Flicker when the player is close.
+      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, fk.cx, fk.topY);
+      fk.sprite.setAlpha(dist <= FAKE_PROXIMITY_PX ? 0.55 + 0.45 * Math.sin(now / 55) : 1);
+
+      // Standing-on detection: feet on the top face, horizontally overlapping.
+      const standing =
+        pb.blocked.down &&
+        Math.abs(pb.bottom - fk.topY) < 6 &&
+        Math.abs(this.player.x - fk.cx) < TILE / 2 + 2;
+      if (standing && fk.vanishAt === null) fk.vanishAt = now + FAKE_COLLAPSE_MS;
+      if (fk.vanishAt !== null && now >= fk.vanishAt) this.collapseFake(fk);
+    }
+  }
+
+  private collapseFake(fk: FakePlatform) {
+    fk.gone = true;
+    fk.vanishAt = null;
+    fk.respawnAt = this.time.now + FAKE_RESPAWN_MS;
+    (fk.rect.body as Phaser.Physics.Arcade.StaticBody).enable = false;
+    fk.sprite.setVisible(false);
+    audio.sfx("error");
+  }
+
+  private respawnFake(fk: FakePlatform) {
+    fk.gone = false;
+    fk.respawnAt = null;
+    (fk.rect.body as Phaser.Physics.Arcade.StaticBody).enable = true;
+    fk.sprite.setVisible(true).setAlpha(1);
+  }
+
+  // --- boats (Task 18) ------------------------------------------------------
+
+  /** Boats: 32x16 one-way moving platforms that ferry ±64px from home at a
+   *  steady velocity (~1.5s each way). The rider is carried by delta-x each
+   *  frame (see updateBoats) — arcade one-way bodies don't transfer horizontal
+   *  motion, so we add the boat's per-frame dx to the player while they stand
+   *  on it. Velocity (not a tween) drives the boat so its body position stays
+   *  in sync for the delta read. */
+  private buildBoats() {
+    this.boatGroup = this.physics.add.group({ allowGravity: false, immovable: true });
+    for (const b of this.lvl.boats) {
+      const cx = b.tx * TILE + TILE / 2;
+      const cy = b.ty * TILE + TILE / 2;
+      const sprite = this.boatGroup.create(cx, cy, this.theme.boatKey) as Phaser.Physics.Arcade.Sprite;
+      sprite.setDepth(4);
+      const body = sprite.body as Body;
+      body.setAllowGravity(false);
+      body.setImmovable(true);
+      body.checkCollision.down = false; // one-way: ride the deck, pass from below
+      body.checkCollision.left = false;
+      body.checkCollision.right = false;
+      body.setVelocityX(BOAT_SPEED * 1000); // px/s
+      this.boats.push({ sprite, home: cx, prevX: cx, dir: 1 });
+    }
+    this.physics.add.collider(this.player, this.boatGroup);
+  }
+
+  private updateBoats() {
+    for (const boat of this.boats) {
+      const sp = boat.sprite;
+      const body = sp.body as Body;
+      // Reverse at the ±amplitude extremes.
+      if (boat.dir === 1 && sp.x >= boat.home + BOAT_AMPLITUDE) {
+        boat.dir = -1;
+        body.setVelocityX(-BOAT_SPEED * 1000);
+      } else if (boat.dir === -1 && sp.x <= boat.home - BOAT_AMPLITUDE) {
+        boat.dir = 1;
+        body.setVelocityX(BOAT_SPEED * 1000);
+      }
+      // Delta-x carry: add the boat's movement to a rider standing on its deck.
+      const dx = sp.x - boat.prevX;
+      if (dx !== 0 && this.isRidingBoat(body)) this.player.x += dx;
+      boat.prevX = sp.x;
+    }
+  }
+
+  private isRidingBoat(boatBody: Body): boolean {
+    const pb = this.player.body as Body;
+    const onTop = pb.blocked.down && Math.abs(pb.bottom - boatBody.top) < 6;
+    const xOverlap = pb.right > boatBody.left + 2 && pb.left < boatBody.right - 2;
+    return onTop && xOverlap;
+  }
+
+  // --- enemy projectiles (Task 18) ------------------------------------------
+
+  /** Pooled 4x4 hazard packets (malware-bat fire). One group + one collider +
+   *  one overlap for the level lifetime; members are recycled via getFirstDead.
+   *  A packet despawns on a solid or once older than 2s (checked in update()). */
+  private setupProjectiles() {
+    this.projectileGroup = this.physics.add.group({ allowGravity: false });
+    this.physics.add.collider(this.projectileGroup, this.solidGroup, (proj) =>
+      this.despawnProjectile(proj as Phaser.GameObjects.Rectangle),
+    );
+    this.physics.add.overlap(this.player, this.projectileGroup, (_pl, proj) => {
+      this.despawnProjectile(proj as Phaser.GameObjects.Rectangle);
+      this.takeDamage(1);
+    });
+  }
+
+  /** EnemyHostScene: launch a pooled projectile. */
+  fireEnemyProjectile(x: number, y: number, vx: number, vy: number) {
+    let p = this.projectileGroup.getFirstDead(false) as Phaser.GameObjects.Rectangle | null;
+    if (!p) {
+      p = this.add.rectangle(x, y, 4, 4, 0xef4444).setDepth(6);
+      this.physics.add.existing(p);
+      this.projectileGroup.add(p);
+    }
+    p.setActive(true).setVisible(true);
+    const body = p.body as Body;
+    body.enable = true;
+    body.reset(x, y);
+    body.setAllowGravity(false);
+    body.setVelocity(vx, vy);
+    p.setData("bornAt", this.time.now);
+  }
+
+  private despawnProjectile(p: Phaser.GameObjects.Rectangle) {
+    if (!p.active) return;
+    p.setActive(false).setVisible(false);
+    const body = p.body as Body;
+    body.stop();
+    body.enable = false;
+  }
+
+  private updateProjectiles() {
+    const now = this.time.now;
+    for (const obj of this.projectileGroup.getChildren()) {
+      const p = obj as Phaser.GameObjects.Rectangle;
+      if (!p.active) continue;
+      if (now - (p.getData("bornAt") as number) > 2000) this.despawnProjectile(p);
+    }
+  }
+
   // --- enemies + pickups ----------------------------------------------------
 
   private spawnEnemies() {
@@ -334,7 +619,8 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       let enemy: Enemy | null = null;
       if (s.kind === "bugling") enemy = new Bugling(this, x, y);
       else if (s.kind === "phishling") enemy = new Phishling(this, x, y);
-      // malware-bat / brute / firewall-knight / rootkit-slime land in Tasks 18/19.
+      else if (s.kind === "malware-bat") enemy = new MalwareBat(this, x, y);
+      // brute / firewall-knight / rootkit-slime land in Task 19.
       if (enemy) this.enemyGroup.add(enemy);
     }
 
@@ -558,6 +844,12 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     // Drive enemy AI (patrol, phishling state machine, particles). Frozen while
     // paused because we return above before reaching here.
     for (const obj of this.enemyGroup.getChildren()) (obj as Enemy).tick(dtMs);
+
+    // Task 18 world mechanics: fake-platform collapse/flicker, boat ferrying,
+    // and pooled enemy-projectile expiry. Frozen with the rest while paused.
+    this.updateFakes();
+    this.updateBoats();
+    this.updateProjectiles();
 
     if (snap.pausePressed) {
       gameStore.set({ paused: true });

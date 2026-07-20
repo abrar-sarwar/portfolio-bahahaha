@@ -35,4 +35,10 @@ export interface ParsedLevel {
   fragment: Pt | null;
   bossDoor: Pt;
   spawns: { kind: EnemyKind; at: Pt }[];
+  /** Fake-platform spawn cells (legend `F`): 16x8 one-way look-alikes that
+   *  flicker near the player and vanish once stood on (see PlatformLevelScene). */
+  fakes: Pt[];
+  /** Boat spawn cells (legend `o`): 32x16 moving platforms that tween ±64px
+   *  horizontally and carry a rider (see PlatformLevelScene). */
+  boats: Pt[];
 }

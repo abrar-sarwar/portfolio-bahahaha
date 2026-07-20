@@ -13,6 +13,8 @@ export function parseLevel(def: LevelDefinition): ParsedLevel {
   let playerStart: Pt | null = null, bossDoor: Pt | null = null, fragment: Pt | null = null;
   const checkpoints: Pt[] = [];
   const spawns: { kind: EnemyKind; at: Pt }[] = [];
+  const fakes: Pt[] = [];
+  const boats: Pt[] = [];
 
   rows.forEach((row, ty) => {
     if (row.length !== w) throw new Error(`ragged map at row ${ty}`);
@@ -25,6 +27,8 @@ export function parseLevel(def: LevelDefinition): ParsedLevel {
       else if (ch === "D") bossDoor = at;
       else if (ch === "M") fragment = at;
       else if (ch === "C") checkpoints.push(at);
+      else if (ch === "F") fakes.push(at); // fake platform (Task 18)
+      else if (ch === "o") boats.push(at); // boat / moving platform (Task 18)
       else if (ENEMY_CHARS[ch]) spawns.push({ kind: ENEMY_CHARS[ch], at });
       else if (ch !== ".") throw new Error(`unknown map char "${ch}" at ${tx},${ty}`);
     });
@@ -35,5 +39,6 @@ export function parseLevel(def: LevelDefinition): ParsedLevel {
     widthTiles: w, heightTiles: rows.length,
     solids, oneWays, hazards,
     playerStart, checkpoints, fragment, bossDoor, spawns,
+    fakes, boats,
   };
 }

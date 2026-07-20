@@ -17,6 +17,13 @@ export const SCRIPTS: Record<string, string[]> = {
     "Patch what you can. Stomp the rest. Welcome to the fields.",
   ],
 
+  // Phishing Harbor (1-2) level intro (Task 18) — harbor / phishing tone.
+  "intro-1-2": [
+    "PHISHING HARBOR: everything here is a great deal, and every deal is a lie.",
+    "That gold plank? Fake. That free upgrade? Bait. Read the source, not the shine.",
+    "Ride the honest boats. Trust the water even less than the captains.",
+  ],
+
   // Memory fragment notes — VERBATIM per task-17-brief.md. Do not paraphrase.
   // One line each: a fragment note is a single dialogue "page", not a script.
   "frag-1-1": [

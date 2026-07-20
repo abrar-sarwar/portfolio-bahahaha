@@ -26,6 +26,21 @@ describe("parseLevel", () => {
     expect(lvl.spawns).toEqual([{ kind: "bugling", at: { tx: 3, ty: 0 } }]);
   });
 
+  it("classifies fake platforms (F) and boats (o) into their own lists", () => {
+    const lvl = parseLevel(mini(["P..F..o..D", "##########"].join("\n")));
+    expect(lvl.fakes).toEqual([{ tx: 3, ty: 0 }]);
+    expect(lvl.boats).toEqual([{ tx: 6, ty: 0 }]);
+    // Neither is a solid/one-way/hazard cell — they are spawn markers, not tiles.
+    expect(lvl.solids[0][3]).toBe(false);
+    expect(lvl.oneWays[0][3]).toBe(false);
+  });
+
+  it("gives every parsed level empty fakes/boats when it has none", () => {
+    const lvl = parseLevel(mini(["P....D", "######"].join("\n")));
+    expect(lvl.fakes).toEqual([]);
+    expect(lvl.boats).toEqual([]);
+  });
+
   it("throws when P or D is missing", () => {
     expect(() => parseLevel(mini("...\n###"))).toThrow(/player start/i);
     expect(() => parseLevel(mini("P..\n###"))).toThrow(/boss door/i);
@@ -50,7 +65,15 @@ describe("level content requirements", () => {
   }>> = {
     "1-1": { rowLen: 160, checkpointsMin: 2, fragments: 1,
              spawnMins: { bugling: 4, phishling: 2 }, hazards: true, oneWays: true },
+    "1-2": { rowLen: 170, checkpointsMin: 2, fragments: 1,
+             spawnMins: { bugling: 3, phishling: 2, "malware-bat": 3 }, hazards: true, oneWays: true },
   };
+
+  // Enemy kinds that fly (no gravity): exempt from the ground-standability check
+  // below — they spawn over water/gaps by design (Task 18 malware bats hover
+  // over the boat crossings, where the only tile beneath them is the water
+  // hazard). Grounded walkers/floaters still must land on solid/one-way ground.
+  const FLYING_KINDS = new Set<EnemyKind>(["malware-bat"]);
 
   for (const [id, expected] of Object.entries(CONTENT) as [
     LevelId,
@@ -113,6 +136,7 @@ describe("level content requirements", () => {
       it("every spawn has standable ground beneath it (solid or one-way, never a hazard or open air)", () => {
         const lvl = parseLevel(def);
         for (const spawn of lvl.spawns) {
+          if (FLYING_KINDS.has(spawn.kind)) continue; // flyers hover over gaps by design
           const { tx, ty } = spawn.at;
           let landedTy: number | null = null;
           for (let y = ty + 1; y < lvl.heightTiles; y++) {
@@ -136,8 +160,8 @@ describe("level content requirements", () => {
     });
   }
 
-  it("parser maps every enemy char and the checkpoint marker", () => {
-    const lvl = parseLevel(mini("PbpmBksCD"));
+  it("parser maps every enemy char, the checkpoint marker, and fake/boat spawns", () => {
+    const lvl = parseLevel(mini("PbpmBksCFoD"));
     expect(lvl.spawns).toEqual([
       { kind: "bugling", at: { tx: 1, ty: 0 } },
       { kind: "phishling", at: { tx: 2, ty: 0 } },
@@ -147,6 +171,8 @@ describe("level content requirements", () => {
       { kind: "rootkit-slime", at: { tx: 6, ty: 0 } },
     ]);
     expect(lvl.checkpoints).toEqual([{ tx: 7, ty: 0 }]);
+    expect(lvl.fakes).toEqual([{ tx: 8, ty: 0 }]);
+    expect(lvl.boats).toEqual([{ tx: 9, ty: 0 }]);
   });
 
   it("throws on an unknown map char", () => {

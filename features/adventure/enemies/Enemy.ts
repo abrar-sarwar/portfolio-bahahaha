@@ -16,6 +16,10 @@ export interface EnemyHostScene extends Phaser.Scene {
   spawnPickup(x: number, y: number, drop: DropItem): void;
   /** Apply contact damage to the player (honours iframes internally). */
   damagePlayer(n: number): void;
+  /** Launch an enemy projectile from a pooled group (Task 18 malware-bat
+   *  packets): a 4x4 hazard that damages the player on overlap and despawns on
+   *  solids or after ~2s. */
+  fireEnemyProjectile(x: number, y: number, vx: number, vy: number): void;
   /** The player sprite, for stomp-bounce and phishling targeting. */
   readonly playerSprite: Phaser.Physics.Arcade.Sprite;
 }
