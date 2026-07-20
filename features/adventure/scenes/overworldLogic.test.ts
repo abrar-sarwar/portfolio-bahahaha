@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   NODE_ORDER,
+  OVERWORLD_ACTIVATE_KEY_EVENTS,
   nodeStateFor,
   walkPath,
   type OverNodeId,
@@ -13,6 +14,12 @@ const FRESH: ProgressShape = { completed: [], unlocked: ["1-1"], gameCompleted: 
 describe("NODE_ORDER", () => {
   it("is the locked linear chain fields → harbor → factory → archive-level → castle → archive-gallery", () => {
     expect(NODE_ORDER).toEqual(["1-1", "1-2", "1-3", "1-4", "castle", "archive"]);
+  });
+});
+
+describe("OVERWORLD_ACTIVATE_KEY_EVENTS", () => {
+  it("keeps Space as a select/confirm input after the title screen starts the map", () => {
+    expect(OVERWORLD_ACTIVATE_KEY_EVENTS).toContain("keydown-SPACE");
   });
 });
 

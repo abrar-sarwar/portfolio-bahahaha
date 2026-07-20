@@ -19,6 +19,7 @@ import {
 } from "../art/sprites/overworld";
 import {
   NODE_ORDER,
+  OVERWORLD_ACTIVATE_KEY_EVENTS,
   nodeStateFor,
   walkPath,
   type OverNodeId,
@@ -116,8 +117,9 @@ export class OverworldScene extends Phaser.Scene {
     kb.on("keydown-DOWN", () => this.moveCursor(-1));
     kb.on("keydown-D", () => this.moveCursor(1));
     kb.on("keydown-A", () => this.moveCursor(-1));
-    kb.on("keydown-E", () => this.activate());
-    kb.on("keydown-ENTER", () => this.activate());
+    OVERWORLD_ACTIVATE_KEY_EVENTS.forEach((eventName) => {
+      kb.on(eventName, () => this.activate());
+    });
   }
 
   private stateOf(id: OverNodeId): NodeState {
@@ -231,7 +233,7 @@ export class OverworldScene extends Phaser.Scene {
       .setLetterSpacing(6)
       .setShadow(0, 0, "#8b6cf0", 12, false, true);
     this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT - 26, "←  →  MOVE      E / ENTER  SELECT", {
+      .text(GAME_WIDTH / 2, GAME_HEIGHT - 26, "←  →  MOVE      SPACE / ENTER / E  SELECT", {
         fontFamily: "monospace",
         fontSize: "11px",
         color: "#4a4a58",

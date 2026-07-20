@@ -12,6 +12,8 @@ export type OverNodeId = LevelId | "archive";
  *  factory → archive-theme level → castle) with the gallery archive last. */
 export const NODE_ORDER: OverNodeId[] = ["1-1", "1-2", "1-3", "1-4", "castle", "archive"];
 
+export const OVERWORLD_ACTIVATE_KEY_EVENTS = ["keydown-E", "keydown-ENTER", "keydown-SPACE"] as const;
+
 export type NodeState = "locked" | "unlocked" | "completed" | "hidden";
 
 /** The minimal progress shape nodeStateFor needs — satisfied by both an
