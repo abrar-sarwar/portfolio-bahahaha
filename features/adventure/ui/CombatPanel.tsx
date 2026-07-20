@@ -58,6 +58,10 @@ export default function CombatPanel() {
           onSeqAnalyze={onSeqAnalyze}
           seqReset={seqReset}
           onSeqStep={setSeqReset}
+          onRetryReset={() => {
+            setClueRevealed(false);
+            setSeqReset(false);
+          }}
         />
       </div>
 
@@ -151,6 +155,7 @@ function Interaction({
   onSeqAnalyze,
   seqReset,
   onSeqStep,
+  onRetryReset,
 }: {
   combat: CombatState;
   showItems: boolean;
@@ -159,6 +164,7 @@ function Interaction({
   onSeqAnalyze: () => void;
   seqReset: boolean;
   onSeqStep: (wasReset: boolean) => void;
+  onRetryReset: () => void;
 }) {
   // Boss intro (before the first turn) and boss defeat (inside the victory
   // flow) both play through the same Dialogue overlay — the controller opens
@@ -181,6 +187,9 @@ function Interaction({
           onPointerDown={(e) => {
             e.preventDefault();
             audio.sfx("select");
+            // Fresh attempt: clear sequence-fight UI flags so a stale
+            // wrong-verb banner or clue can't leak across the retry.
+            onRetryReset();
             retryCombat();
           }}
           className="min-h-[44px] rounded-sm border border-violet-300/50 bg-violet-500/20 px-6 text-[12px] font-bold uppercase tracking-[0.2em] text-white transition-colors hover:bg-violet-500/40"
