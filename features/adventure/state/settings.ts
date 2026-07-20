@@ -13,8 +13,12 @@ import { audio } from "../audio/synth";
  *  call before the AudioContext exists (they just prime the values that
  *  buildGraph() reads once unlock() actually creates it). */
 export function applyAudioSettings(save: AdventureSave): void {
-  audio.setVolume(save.settings.volume);
-  audio.setMuted(save.settings.muted);
+  // Guard against hand-edited/corrupted saves: the shallow shape check in
+  // loadSave doesn't validate nested settings, and a non-finite volume would
+  // silently corrupt the master gain (Math.min(1, undefined) -> NaN).
+  const v = save.settings.volume;
+  audio.setVolume(Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0.8);
+  audio.setMuted(save.settings.muted === true);
 }
 
 export function setVolume(save: AdventureSave, volume: number): AdventureSave {

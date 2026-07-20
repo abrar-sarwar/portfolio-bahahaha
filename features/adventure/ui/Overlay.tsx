@@ -11,7 +11,11 @@ import CombatPanel from "./CombatPanel";
 export default function Overlay() {
   const scene = useGameStore((s) => s.scene);
   const inCombat = useGameStore((s) => s.combat !== null);
-  const [muted, setMuted] = useState(() => audio.getState().muted);
+  // Initialize from the SAVE, not the audio engine: this component renders
+  // before BootScene applies the saved settings, so the engine still holds
+  // its defaults here — reading it made the label show the opposite of the
+  // persisted state after a mute-then-reload.
+  const [muted, setMuted] = useState(() => loadSave().settings.muted);
 
   const toggleSound = useCallback(() => {
     audio.unlock(); // must run inside the gesture before toggling
