@@ -202,7 +202,13 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     // stops Arcade's own gravity/velocity step, which runs independently of
     // this scene's update() body every frame.
     const offDialogueOpen = bus.on("dialogue:open", () => this.physics.pause());
-    const offDialogueClosed = bus.on("dialogue:closed", () => this.physics.resume());
+    const offDialogueClosed = bus.on("dialogue:closed", () => {
+      this.physics.resume();
+      // The Space/E press that closed the dialogue also set InputState's
+      // one-shot flags in the same tick; clear them so the next update()
+      // frame doesn't turn a dialogue-close into a jump or interact.
+      input.consume();
+    });
 
     // Level intro: plays intro-<levelId> once per save (seenIntros persisted
     // in the save — additive field, see state/save.ts's AdventureSave doc
