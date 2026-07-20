@@ -51,7 +51,9 @@ const BACKDROP_SCENE = "CombatBackdrop";
 // The scripted devil-king finale's parry is its second step (0 analyze,
 // 1 parry). Its tag stays "scripted" rather than "telegraph", so the controller
 // prompts the UI for it explicitly without arming the force-fail deadline.
-const SCRIPTED_PARRY_STEP = 1;
+// Exported so the UI (TimedPrompt, CombatPanel) shares this single literal
+// instead of each re-declaring "1".
+export const SCRIPTED_PARRY_STEP = 1;
 
 interface Session {
   bossId: BossId;
@@ -98,14 +100,33 @@ export function retryCombat(): void {
 }
 
 /** Exit the fight: tear down, resume the Level scene, stop the backdrop, clear
- *  the store's combat snapshot. Task 14 calls this after the reward flow. */
+ *  the store's combat snapshot. Task 14 calls this after the reward flow.
+ *  Guarded against a destroyed/null combatGame — e.g. a straggling call that
+ *  lands after `teardownCombat()` already nulled it during unmount — so it
+ *  never throws. */
 export function exitCombat(): void {
   teardownSession();
   if (combatGame) {
-    if (combatGame.scene.isActive(BACKDROP_SCENE)) combatGame.scene.stop(BACKDROP_SCENE);
-    combatGame.scene.resume(LEVEL_SCENE);
+    try {
+      if (combatGame.scene.isActive(BACKDROP_SCENE)) combatGame.scene.stop(BACKDROP_SCENE);
+      combatGame.scene.resume(LEVEL_SCENE);
+    } catch {
+      // Phaser game already destroyed — nothing left to resume/stop.
+    }
   }
-  gameStore.set({ combat: null });
+  gameStore.set({ combat: null, telegraph: null });
+}
+
+/** Full teardown for a React unmount: clears any pending force-fail timer,
+ *  nulls the module session and the registered Phaser game reference, and
+ *  clears the store's combat/telegraph/combatResult fields. Safe to call
+ *  when nothing is active, and safe to call twice. AdventureApp's effect
+ *  cleanup calls this BEFORE `game.destroy(true)` so no in-flight timer or
+ *  scene call can land on a torn-down Phaser game. */
+export function teardownCombat(): void {
+  teardownSession();
+  combatGame = null;
+  gameStore.set({ combat: null, telegraph: null, combatResult: null });
 }
 
 // beginCombat is the internal seam startCombat delegates to; the proof test
@@ -126,7 +147,7 @@ export function beginCombat(bossId: BossId, opts: StartCombatOpts, defOverride?:
   const state = createCombat(def, carry);
   session = { bossId, opts, state, deadline: null, timer: null, pendingSpec: null };
 
-  gameStore.set({ combat: state, combatResult: null });
+  gameStore.set({ combat: state, combatResult: null, telegraph: null });
 
   lastPaused = gameStore.get().paused;
   storeUnsub = gameStore.subscribe(onStoreChange);
@@ -158,9 +179,12 @@ export function dispatchCombat(event: CombatEvent): void {
     playFx(kind);
   }
 
-  // Any transition answers/invalidates the outstanding telegraph deadline.
+  // Any transition answers/invalidates the outstanding telegraph deadline —
+  // clear the store telegraph too so a resolved/expired prompt can never
+  // linger; handleTag() below re-arms it if the new state demands one.
   clearDeadline();
   session.pendingSpec = null;
+  gameStore.set({ telegraph: null });
 
   handleTag();
 
@@ -181,6 +205,18 @@ function handleTag(): void {
   const impactInMs = telegraphImpactMs(phase.tempoScale, s.assistScale);
   const moveId = s.pendingMoveId ?? "final-parry";
   session.pendingSpec = spec;
+
+  // Store-based telegraph (Task 13 review fix): write the absolute-timestamp
+  // snapshot the UI reads on render, so a TimedPrompt that mounts AFTER this
+  // synchronous dispatch (React's automatic batching defers the mount-driving
+  // re-render past the current stack) can still resolve the prompt correctly
+  // instead of missing an unrecoverable bus emit. Keep the bus emit too: it
+  // costs nothing, and it's the one already-verified contract for a future
+  // always-mounted consumer (checked: CombatBackdropScene only listens for
+  // "combat:fx", not "combat:telegraph", so nothing currently depends on it).
+  const startedAt = now();
+  const impactAt = startedAt + impactInMs;
+  gameStore.set({ telegraph: { moveId, spec, impactAt, startedAt } });
   bus.emit("combat:telegraph", { moveId, spec, impactInMs });
 
   // Only a real telegraph is force-failed on timeout. The scripted parry has no
@@ -188,7 +224,7 @@ function handleTag(): void {
   // it could spiral; there we simply wait for the player.
   if (isTelegraph) {
     const durationMs = telegraphDeadlineMs(phase.tempoScale, s.assistScale);
-    session.deadline = createDeadline(now(), durationMs);
+    session.deadline = createDeadline(startedAt, durationMs);
     armTimer(durationMs);
   }
 }
@@ -197,6 +233,7 @@ function handleOutcome(): void {
   if (!session) return;
   const { state, bossId } = session;
   clearDeadline();
+  gameStore.set({ telegraph: null });
   if (state.outcome === "defeat") {
     const deaths = { ...gameStore.get().deaths };
     deaths[bossId] = (deaths[bossId] ?? 0) + 1;

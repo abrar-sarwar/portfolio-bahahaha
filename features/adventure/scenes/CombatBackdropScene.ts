@@ -114,6 +114,12 @@ export class CombatBackdropScene extends Phaser.Scene {
 
   private onCombatFx(kind: CombatFxKind) {
     const key = (a: string) => animKey("player", a);
+    // Only the hit/parry kinds below call .play() on the player sprite; the
+    // arena-reaction kinds (breach/phase/summon) never start a new
+    // animation, so they must NOT register the once-listener either — doing
+    // so unconditionally left a stray ANIMATION_COMPLETE listener armed that
+    // would fire on whatever animation happened to finish next (e.g. a later
+    // unrelated attack), snapping the player back to idle mid-animation.
     switch (kind) {
       case "boss-hit":
       case "crit":
@@ -130,10 +136,11 @@ export class CombatBackdropScene extends Phaser.Scene {
       case "breach":
       case "phase":
       case "summon":
-        // Arena reacts: a quick camera shake + anchor flare.
+        // Arena reacts: a quick camera shake + anchor flare. No sprite
+        // animation plays, so return before arming the once-listener below.
         this.cameras.main.shake(220, 0.006);
         if (this.anchorRing) this.anchorRing.setStrokeStyle(3, 0xef4444, 0.9);
-        break;
+        return;
     }
     // Return to idle after a one-shot anim finishes (attack/parry/hurt = repeat 0).
     this.player.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {

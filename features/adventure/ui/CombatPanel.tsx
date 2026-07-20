@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useGameStore } from "../bridge/GameStore";
 import type { CombatState, PlayerActionKind } from "../combat/types";
 import { playerAttackDamage, isUltimateReady } from "../combat/engine";
-import { dispatchCombat, retryCombat } from "../combat/controller";
+import { dispatchCombat, retryCombat, SCRIPTED_PARRY_STEP } from "../combat/controller";
 import { audio } from "../audio/synth";
 import Bar from "./Bars";
 import TypingBox from "./TypingBox";
@@ -137,12 +137,16 @@ function Interaction({
     );
   }
 
-  // Awaiting a defense-result → the timed defense mini-game.
+  // Awaiting a defense-result → the timed defense mini-game. The scripted
+  // banner renders here too (not just in the action-menu branch below) so
+  // the finalStep-1 parry prompt still shows what step of the finale it is.
   const awaitingDefense =
-    combat.tag === "telegraph" || (combat.tag === "scripted" && combat.mechanic.finalStep === 1);
+    combat.tag === "telegraph" ||
+    (combat.tag === "scripted" && combat.mechanic.finalStep === SCRIPTED_PARRY_STEP);
   if (awaitingDefense) {
     return (
-      <div className="pointer-events-auto w-full">
+      <div className="pointer-events-auto flex w-full max-w-md flex-col items-center gap-2">
+        {combat.tag === "scripted" && <ScriptedBanner step={combat.mechanic.finalStep} />}
         <TimedPrompt />
       </div>
     );

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { gradeTyping } from "../combat/typing";
 import { dispatchCombat } from "../combat/controller";
 import { audio } from "../audio/synth";
+import CountdownBar from "./CountdownBar";
 
 interface TypingBoxProps {
   /** The command to type (verbatim target). */
@@ -63,22 +64,8 @@ export default function TypingBox({ text, display, timeLimitMs }: TypingBoxProps
         aria-label="Type the command"
         className="min-h-[44px] w-full rounded-sm border border-violet-300/40 bg-black/70 px-2 font-mono text-[14px] text-white caret-violet-300 outline-none focus:border-violet-200/80 focus:shadow-[0_0_16px_rgba(167,139,250,0.4)]"
       />
-      {/* shrinking timer bar — pure CSS transition, no rAF */}
-      <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
-        <div
-          key={promptKey}
-          className="h-full bg-violet-300"
-          style={{ width: "0%", transition: `width ${timeLimitMs}ms linear`, animation: "none" }}
-          ref={(el) => {
-            if (!el) return;
-            // Start at full width, then let the transition drive it to 0.
-            el.style.width = "100%";
-            requestAnimationFrame(() => {
-              el.style.width = "0%";
-            });
-          }}
-        />
-      </div>
+      {/* shrinking timer bar; remounts once per prompt via the key */}
+      <CountdownBar key={promptKey} durationMs={timeLimitMs} />
     </div>
   );
 }

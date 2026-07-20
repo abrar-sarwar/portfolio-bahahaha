@@ -23,7 +23,25 @@ export function createStore<S extends object>(initial: S) {
 
 import type { SceneKey, LevelId, BossId, BuffId, AbilityId } from "../ids";
 import type { CombatState } from "../combat/types";
+import type { QteSpec } from "../combat/timedEvents";
 import { PLAYER_BASE } from "../config";
+
+/** Active telegraph the UI should render a defense mini-game against; null
+ *  when nothing is armed. Timestamps are absolute `performance.now()` values
+ *  (not durations) rather than the transient `combat:telegraph` bus event's
+ *  relative `impactInMs` — a component that mounts on a LATER render than
+ *  the one that armed the telegraph (a real risk: React's automatic
+ *  batching mounts TimedPrompt only after dispatchCombat's synchronous work
+ *  unwinds) can still compute correct parry timing by reading this state
+ *  directly instead of racing a bus emit against its own mount. */
+export interface TelegraphState {
+  moveId: string;
+  spec: QteSpec;
+  /** performance.now() timestamp the boss move lands. */
+  impactAt: number;
+  /** performance.now() timestamp the telegraph was armed. */
+  startedAt: number;
+}
 
 /** Player-facing HUD snapshot (hearts, buff chips, fragment count). */
 export interface HudState {
@@ -46,6 +64,10 @@ export interface GameUIState {
   /** Live combat snapshot while a boss fight is active; null otherwise. The
    *  React CombatPanel renders entirely from this. */
   combat: CombatState | null;
+  /** Active telegraph awaiting a defense-result; null otherwise. Store-based
+   *  (not the `combat:telegraph` bus event) so TimedPrompt can never miss it
+   *  to a mount-order race. See TelegraphState. */
+  telegraph: TelegraphState | null;
   /** Deaths per boss, driving the quiet assist curve. No save system yet
    *  (Task 15) — the controller stashes deaths here for the session. */
   deaths: Partial<Record<BossId, number>>;
@@ -67,6 +89,7 @@ export const gameStore = createStore<GameUIState>({
   levelBuffs: [],
   abilities: { dash: false, analyze: false, improvedParry: false },
   combat: null,
+  telegraph: null,
   deaths: {},
   combatResult: null,
 });

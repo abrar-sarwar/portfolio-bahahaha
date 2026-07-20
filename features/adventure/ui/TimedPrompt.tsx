@@ -2,55 +2,46 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useGameStore } from "../bridge/GameStore";
-import { bus } from "../bridge/EventBus";
-import { dispatchCombat } from "../combat/controller";
+import { dispatchCombat, SCRIPTED_PARRY_STEP } from "../combat/controller";
 import { audio } from "../audio/synth";
-import {
-  resolveParry,
-  markerPosition,
-  resolveMarker,
-  type QteSpec,
-  type ParryGrade,
-} from "../combat/timedEvents";
-
-interface Telegraph {
-  moveId: string;
-  spec: QteSpec;
-  impactInMs: number;
-  startedAt: number;
-}
-
-const SCRIPTED_PARRY_STEP = 1;
+import CountdownBar from "./CountdownBar";
+import { resolveParry, markerPosition, resolveMarker, type QteSpec, type ParryGrade } from "../combat/timedEvents";
 
 // Renders the active defense mini-game against the telegraphed boss move: a
 // parry flash ring (Space or pointerdown = press), a moving-pip marker bar, a
 // timed choice, or a type-word mini input. Resolution is dispatched exactly
 // once per telegraph; the controller's deadline handles a total no-answer.
+//
+// The telegraph is read straight off the store (`s.telegraph`), not from the
+// `combat:telegraph` bus event. A bus subscription only starts listening once
+// this component's mount-time effect runs — and under React's automatic
+// batching, dispatchCombat's store write happens synchronously while the
+// re-render that MOUNTS this component (when `combat` first flips into a
+// defense-awaiting tag) is deferred until the current stack unwinds. That
+// ordering means a bus emit fired during dispatchCombat always arrives before
+// TimedPrompt exists to hear it, and the event has no replay — the prompt
+// would render null forever, auto-force-failing every normal telegraph and
+// permanently soft-locking the devil-king's scripted parry step (which
+// deliberately has no force-fail timer). Reading store state on every render,
+// including the first, closes that race by construction.
 export default function TimedPrompt() {
   const combat = useGameStore((s) => s.combat);
-  const [tel, setTel] = useState<Telegraph | null>(null);
+  const tel = useGameStore((s) => s.telegraph);
   const resolvedFor = useRef<number>(-1);
 
-  // A prompt is live only while the engine actually awaits a defense-result.
+  // A prompt is live only while the engine actually awaits a defense-result
+  // AND the controller has armed a telegraph for it.
   const awaiting =
     !!combat &&
+    !!tel &&
     (combat.tag === "telegraph" ||
       (combat.tag === "scripted" && combat.mechanic.finalStep === SCRIPTED_PARRY_STEP));
 
-  useEffect(() => {
-    const off = bus.on("combat:telegraph", (p) => {
-      setTel({ ...p, startedAt: performance.now() });
-    });
-    return off;
-  }, []);
-
-  // Clear the local prompt once the engine has moved on.
-  useEffect(() => {
-    if (!awaiting) setTel(null);
-  }, [awaiting]);
-
   const spec = tel?.spec;
 
+  // Keyed off telegraph.startedAt (unique per arm) rather than a bus-derived
+  // local counter, so a resolution can never double-fire even if this
+  // component mounted mid-telegraph.
   const resolveOnce = (fn: () => void) => {
     if (!tel || resolvedFor.current === tel.startedAt) return;
     resolvedFor.current = tel.startedAt;
@@ -60,11 +51,10 @@ export default function TimedPrompt() {
   const submitParry = () => {
     resolveOnce(() => {
       if (!tel || !combat) return;
-      const impactAt = tel.startedAt + tel.impactInMs;
       const windowMs = tel.spec.kind === "parry" ? tel.spec.windowMs : combat.player.parryWindowMs;
       const grade: ParryGrade = resolveParry(
         performance.now(),
-        impactAt,
+        tel.impactAt,
         windowMs,
         combat.player.perfectParryMs,
       );
@@ -100,7 +90,9 @@ export default function TimedPrompt() {
     <div className="flex w-full flex-col items-center gap-2">
       {spec.kind === "parry" && <ParryRing onPress={submitParry} />}
       {spec.kind === "marker" && <MarkerBar spec={spec} startedAt={tel.startedAt} onPress={submitQte} />}
-      {spec.kind === "choice" && <ChoiceButtons spec={spec} onPick={submitQte} />}
+      {spec.kind === "choice" && (
+        <ChoiceButtons key={tel.startedAt} spec={spec} onPick={submitQte} />
+      )}
       {spec.kind === "type-word" && <TypeWord spec={spec} onSubmit={submitQte} />}
     </div>
   );
@@ -210,20 +202,10 @@ function ChoiceButtons({
           </button>
         ))}
       </div>
-      {/* shrinking countdown (visual; controller force-fails on timeout) */}
-      <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
-        <div
-          className="h-full bg-violet-300"
-          style={{ width: "0%", transition: `width ${spec.timeLimitMs}ms linear` }}
-          ref={(el) => {
-            if (!el) return;
-            el.style.width = "100%";
-            requestAnimationFrame(() => {
-              el.style.width = "0%";
-            });
-          }}
-        />
-      </div>
+      {/* shrinking countdown (visual; controller force-fails on timeout).
+          ChoiceButtons itself is remounted per-telegraph by its parent's
+          key, so this bar restarts exactly once per prompt too. */}
+      <CountdownBar durationMs={spec.timeLimitMs} />
     </div>
   );
 }
