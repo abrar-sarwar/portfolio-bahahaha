@@ -16,6 +16,13 @@ export interface Pt {
   ty: number;
 }
 
+/** A conveyor belt cell (legend `<` / `>`). The cell is also a solid the entity
+ *  stands on; `dir` is the horizontal push direction (-1 left, +1 right). */
+export interface Conveyor {
+  at: Pt;
+  dir: 1 | -1;
+}
+
 export type EnemyKind =
   | "bugling"
   | "phishling"
@@ -41,4 +48,13 @@ export interface ParsedLevel {
   /** Boat spawn cells (legend `o`): 32x16 moving platforms that tween ±64px
    *  horizontally and carry a rider (see PlatformLevelScene). */
   boats: Pt[];
+  /** Conveyor cells (legend `<` / `>`): solid floor that adds ±60px/s to a
+   *  grounded entity's x-velocity in `dir` (see PlatformLevelScene, factory). */
+  conveyors: Conveyor[];
+  /** Timed-gate cells (legend `G`): a 16x32 barrier (this cell + the one below)
+   *  that cycles solid/open on a fixed period (see PlatformLevelScene). */
+  gates: Pt[];
+  /** Laser-emitter cells (legend `L`): a floor device firing an upward beam
+   *  that cycles on/off; attacking the emitter disables it (PlatformLevelScene). */
+  lasers: Pt[];
 }

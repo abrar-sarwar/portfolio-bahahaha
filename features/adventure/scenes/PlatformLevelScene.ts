@@ -14,8 +14,13 @@ import {
   HARBOR_TILES, HARBOR_PARALLAX, HARBOR_BOAT_SPRITE, HARBOR_TILE_KEYS,
   HARBOR_PARALLAX_KEYS, HARBOR_BOAT_KEY, HARBOR_WATER_ANIM, HARBOR_FAKE_ANIM,
 } from "../art/sprites/tiles-harbor";
+import {
+  FACTORY_TILES, FACTORY_PARALLAX, FACTORY_TILE_KEYS, FACTORY_PARALLAX_KEYS,
+  FACTORY_MOLTEN_ANIM, FACTORY_CONVEYOR_ANIM, FACTORY_LASER_ANIM, FACTORY_BEAM_ANIM,
+} from "../art/sprites/tiles-factory";
 import { ENEMY_SPRITES } from "../art/sprites/enemies1";
 import { ENEMIES2_SPRITES } from "../art/sprites/enemies2";
+import { ENEMIES3_SPRITES } from "../art/sprites/enemies3";
 import { PICKUP_SPRITES, pickupKeyFor } from "../art/sprites/pickups";
 import { audio } from "../audio/synth";
 import { bus } from "../bridge/EventBus";
@@ -30,6 +35,9 @@ import { Enemy, type EnemyHostScene } from "../enemies/Enemy";
 import { Bugling } from "../enemies/Bugling";
 import { MalwareBat } from "../enemies/MalwareBat";
 import { Phishling, ANALYZE_RANGE_PX } from "../enemies/Phishling";
+import { BruteForceBrute } from "../enemies/BruteForceBrute";
+import { FirewallKnight } from "../enemies/FirewallKnight";
+import { RootkitSlime } from "../enemies/RootkitSlime";
 import { resolvePlayerContact, applyRestompWindow } from "../enemies/enemyLogic";
 import type { DropItem } from "../enemies/drops";
 
@@ -58,11 +66,20 @@ interface ThemeTiles {
   oneWay: string;
   hazard: string;
   /** When set, hazard cells render as animated sprites playing this anim
-   *  (harbor code-water) rather than a static image (fields glitch-spikes). */
+   *  (harbor code-water / factory molten) rather than a static image. */
   hazardAnim?: string;
   fakeKey: string;
   fakeAnim?: string;
   boatKey: string;
+  // Factory-only hazard-set tiles (Task 19); undefined in other themes, where
+  // the parser yields no conveyors/gates/lasers so they are never referenced.
+  conveyorKey?: string;
+  conveyorAnim?: string;
+  gateKey?: string;
+  laserEmitterKey?: string;
+  laserAnim?: string;
+  laserBeamKey?: string;
+  laserBeamAnim?: string;
 }
 
 function themeTilesFor(theme: LevelDefinition["theme"]): ThemeTiles {
@@ -82,6 +99,30 @@ function themeTilesFor(theme: LevelDefinition["theme"]): ThemeTiles {
       fakeKey: HARBOR_TILE_KEYS.fake,
       fakeAnim: HARBOR_FAKE_ANIM,
       boatKey: HARBOR_BOAT_KEY,
+    };
+  }
+  if (theme === "factory") {
+    return {
+      register: [...FACTORY_PARALLAX, ...FACTORY_TILES],
+      parallax: [
+        { key: FACTORY_PARALLAX_KEYS.bg0, depth: -30, factor: 0.2 },
+        { key: FACTORY_PARALLAX_KEYS.bg1, depth: -20, factor: 0.4 },
+        { key: FACTORY_PARALLAX_KEYS.bg2, depth: -10, factor: 0.6 },
+      ],
+      ground: FACTORY_TILE_KEYS.ground,
+      groundFill: FACTORY_TILE_KEYS.groundFill,
+      oneWay: FACTORY_TILE_KEYS.oneWay,
+      hazard: FACTORY_TILE_KEYS.molten,
+      hazardAnim: FACTORY_MOLTEN_ANIM,
+      fakeKey: FACTORY_TILE_KEYS.oneWay, // no fakes/boats in factory levels
+      boatKey: FACTORY_TILE_KEYS.oneWay,
+      conveyorKey: FACTORY_TILE_KEYS.conveyor,
+      conveyorAnim: FACTORY_CONVEYOR_ANIM,
+      gateKey: FACTORY_TILE_KEYS.gate,
+      laserEmitterKey: FACTORY_TILE_KEYS.laserEmitter,
+      laserAnim: FACTORY_LASER_ANIM,
+      laserBeamKey: FACTORY_TILE_KEYS.laserBeam,
+      laserBeamAnim: FACTORY_BEAM_ANIM,
     };
   }
   // Default: Bug Fields (Task 6). No fakes/boats are authored in fields levels,
@@ -119,6 +160,29 @@ interface Boat {
   prevX: number;
   dir: 1 | -1;
 }
+
+interface Gate {
+  rect: Phaser.GameObjects.Rectangle;
+  sprite: Phaser.GameObjects.Sprite;
+}
+
+interface Laser {
+  emitter: Phaser.GameObjects.Sprite;
+  beamSprite: Phaser.GameObjects.Sprite;
+  beamRect: Phaser.GameObjects.Rectangle;
+  disabledUntil: number;
+}
+
+// Factory hazard-set tuning (Task 19). Conveyors add ±60px/s to grounded
+// entities; gates cycle 1.6s closed / 1.6s open; lasers cycle 1.2s on / 0.8s
+// off and an attacked emitter goes dark for 4s.
+const CONVEYOR_PUSH = 60;
+const GATE_HALF_MS = 1600;
+const GATE_PERIOD_MS = GATE_HALF_MS * 2;
+const LASER_ON_MS = 1200;
+const LASER_PERIOD_MS = LASER_ON_MS + 800;
+const LASER_DISABLE_MS = 4000;
+const BEAM_W = 6;
 
 export interface LevelSceneData {
   levelId: LevelId;
@@ -180,8 +244,17 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private projectileGroup!: Phaser.Physics.Arcade.Group;
   private fakeGroup!: Phaser.Physics.Arcade.StaticGroup;
   private boatGroup!: Phaser.Physics.Arcade.Group;
+  private gateGroup!: Phaser.Physics.Arcade.StaticGroup;
+  private laserBeamGroup!: Phaser.Physics.Arcade.StaticGroup;
+  private laserEmitterGroup!: Phaser.Physics.Arcade.StaticGroup;
   private fakes: FakePlatform[] = [];
   private boats: Boat[] = [];
+  private gates: Gate[] = [];
+  private lasers: Laser[] = [];
+  /** Conveyor cells keyed "tx,ty" -> push direction (Task 19 factory). */
+  private conveyorDir = new Map<string, 1 | -1>();
+  /** Monotonic swing id so one attack lands one hit per enemy (multi-hp). */
+  private attackSwingId = 0;
   /** Persistent attack hitbox: one zone + one overlap for the level's whole
    *  lifetime (created once in create()). doAttack() repositions it and flips
    *  its body on/off rather than creating+destroying a Collider per swing —
@@ -209,6 +282,9 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     // accumulated collections before building anything.
     this.fakes = [];
     this.boats = [];
+    this.gates = [];
+    this.lasers = [];
+    this.conveyorDir = new Map();
     this.bg = [];
     this.checkpointMarkers = [];
 
@@ -236,6 +312,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       ...this.theme.register,
       ...ENEMY_SPRITES,
       ...ENEMIES2_SPRITES,
+      ...ENEMIES3_SPRITES,
       ...PICKUP_SPRITES,
     ]);
 
@@ -247,6 +324,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.spawnEnemies(); // after buildTiles: enemies collide with the tile groups
     this.setupAttackHitbox(); // after spawnEnemies: overlap needs enemyGroup
     this.setupProjectiles(); // pooled enemy-projectile group (malware-bat packets)
+    this.buildFactoryHazards(); // gates + lasers (after attackHitbox: emitter overlap)
     this.setupCamera();
 
     // HUD / progression reset for this level.
@@ -359,6 +437,10 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private buildTiles() {
     const { solids, oneWays, hazards } = this.lvl;
 
+    // Conveyor lookup (Task 19): a conveyor cell is a solid the entity rides on,
+    // rendered as an animated belt instead of plain ground.
+    for (const c of this.lvl.conveyors) this.conveyorDir.set(`${c.at.tx},${c.at.ty}`, c.dir);
+
     // Visual tile images (one per set cell). A solid draws the grass-lip GROUND
     // only when its top face is exposed; covered cells in a stack draw the
     // lip-less GROUND_FILL so grass shows on the crown, not through the soil.
@@ -366,7 +448,13 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       for (let tx = 0; tx < this.lvl.widthTiles; tx++) {
         const cx = tx * TILE + TILE / 2;
         const cy = ty * TILE + TILE / 2;
-        if (solids[ty][tx]) {
+        const convDir = this.conveyorDir.get(`${tx},${ty}`);
+        if (convDir && this.theme.conveyorKey) {
+          const belt = this.add.sprite(cx, cy, frameKey(this.theme.conveyorKey, 0)).setDepth(0);
+          if (this.theme.conveyorAnim)
+            belt.play(animKey(this.theme.conveyorKey, this.theme.conveyorAnim));
+          belt.setFlipX(convDir < 0); // authored pointing right; flip for left
+        } else if (solids[ty][tx]) {
           const key = topExposed(solids, tx, ty) ? this.theme.ground : this.theme.groundFill;
           this.add.image(cx, cy, key).setDepth(0);
         } else if (oneWays[ty][tx]) this.add.image(cx, cy, this.theme.oneWay).setDepth(0);
@@ -569,6 +657,110 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     return onTop && xOverlap;
   }
 
+  // --- factory hazard set (Task 19) -----------------------------------------
+
+  /** Build timed gates (16x32 barriers that cycle solid/open) and laser
+   *  emitters (floor devices firing an upward beam that cycles on/off and can
+   *  be knocked out for 4s by attacking the emitter). No-op unless the theme
+   *  wires the keys (factory only) — other themes parse zero of these markers. */
+  private buildFactoryHazards() {
+    this.gateGroup = this.physics.add.staticGroup();
+    this.laserBeamGroup = this.physics.add.staticGroup();
+    this.laserEmitterGroup = this.physics.add.staticGroup();
+
+    // Timed gates: a 16x32 barrier over the marker cell and the one below it.
+    if (this.theme.gateKey) {
+      for (const g of this.lvl.gates) {
+        const cx = g.tx * TILE + TILE / 2;
+        const topY = g.ty * TILE;
+        const cy = topY + TILE; // centre of a 32px-tall barrier
+        const sprite = this.add.sprite(cx, cy, frameKey(this.theme.gateKey, 0)).setDepth(2);
+        const rect = this.add.rectangle(cx, cy, TILE, TILE * 2).setVisible(false);
+        this.gateGroup.add(rect);
+        this.gates.push({ rect, sprite });
+      }
+      this.physics.add.collider(this.player, this.gateGroup);
+    }
+
+    // Laser emitters: floor-mounted, beam projects up to the first solid above.
+    if (this.theme.laserEmitterKey && this.theme.laserBeamKey) {
+      for (const l of this.lvl.lasers) {
+        const cx = l.tx * TILE + TILE / 2;
+        const cy = l.ty * TILE + TILE / 2;
+        const emitter = this.add.sprite(cx, cy, frameKey(this.theme.laserEmitterKey, 0)).setDepth(4);
+        if (this.theme.laserAnim)
+          emitter.play(animKey(this.theme.laserEmitterKey, this.theme.laserAnim));
+        this.laserEmitterGroup.add(emitter);
+
+        // Beam column: up from the top of the emitter cell to the first solid.
+        let r = l.ty - 1;
+        while (r >= 0 && !this.lvl.solids[r][l.tx]) r--;
+        const beamTopPx = (r + 1) * TILE;
+        const beamBottomPx = l.ty * TILE;
+        const beamH = Math.max(TILE, beamBottomPx - beamTopPx);
+        const beamCy = (beamTopPx + beamBottomPx) / 2;
+        const beamSprite = this.add
+          .sprite(cx, beamCy, frameKey(this.theme.laserBeamKey, 0))
+          .setDepth(3)
+          .setDisplaySize(BEAM_W, beamH);
+        if (this.theme.laserBeamAnim)
+          beamSprite.play(animKey(this.theme.laserBeamKey, this.theme.laserBeamAnim));
+        const beamRect = this.add.rectangle(cx, beamCy, BEAM_W, beamH).setVisible(false);
+        this.laserBeamGroup.add(beamRect);
+
+        const laser: Laser = { emitter, beamSprite, beamRect, disabledUntil: -Infinity };
+        emitter.setData("laser", laser);
+        this.lasers.push(laser);
+      }
+      this.physics.add.overlap(this.player, this.laserBeamGroup, () => this.onHazard());
+      // Attacking an emitter knocks its beam out for LASER_DISABLE_MS.
+      this.physics.add.overlap(this.attackHitbox, this.laserEmitterGroup, (_hb, emitterObj) => {
+        const laser = (emitterObj as Phaser.GameObjects.Sprite).getData("laser") as Laser | undefined;
+        if (!laser) return;
+        if (this.time.now >= laser.disabledUntil - LASER_DISABLE_MS + 200) audio.sfx("crit");
+        laser.disabledUntil = this.time.now + LASER_DISABLE_MS;
+      });
+    }
+  }
+
+  private updateGates() {
+    if (this.gates.length === 0) return;
+    const closed = this.time.now % GATE_PERIOD_MS < GATE_HALF_MS;
+    for (const gate of this.gates) {
+      (gate.rect.body as Phaser.Physics.Arcade.StaticBody).enable = closed;
+      gate.sprite.setTexture(frameKey(this.theme.gateKey!, closed ? 0 : 1));
+    }
+  }
+
+  private updateLasers() {
+    if (this.lasers.length === 0) return;
+    const cycleOn = this.time.now % LASER_PERIOD_MS < LASER_ON_MS;
+    for (const laser of this.lasers) {
+      const on = cycleOn && this.time.now >= laser.disabledUntil;
+      laser.beamSprite.setVisible(on);
+      (laser.beamRect.body as Phaser.Physics.Arcade.StaticBody).enable = on;
+      laser.emitter.setAlpha(this.time.now < laser.disabledUntil ? 0.4 : 1);
+    }
+  }
+
+  /** Conveyors add ±60px/s to any grounded entity (player + enemies) standing
+   *  on a conveyor cell, layered on top of its own movement velocity. */
+  private applyConveyors() {
+    if (this.conveyorDir.size === 0) return;
+    this.pushIfOnConveyor(this.player);
+    for (const obj of this.enemyGroup.getChildren())
+      this.pushIfOnConveyor(obj as Phaser.Physics.Arcade.Sprite);
+  }
+
+  private pushIfOnConveyor(sprite: Phaser.Physics.Arcade.Sprite) {
+    const body = sprite.body as Body | null;
+    if (!body || !body.blocked.down) return;
+    const tx = Math.floor(sprite.x / TILE);
+    const ty = Math.floor((body.bottom + 1) / TILE);
+    const dir = this.conveyorDir.get(`${tx},${ty}`);
+    if (dir) body.velocity.x += dir * CONVEYOR_PUSH;
+  }
+
   // --- enemy projectiles (Task 18) ------------------------------------------
 
   /** Pooled 4x4 hazard packets (malware-bat fire). One group + one collider +
@@ -630,7 +822,9 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       if (s.kind === "bugling") enemy = new Bugling(this, x, y);
       else if (s.kind === "phishling") enemy = new Phishling(this, x, y);
       else if (s.kind === "malware-bat") enemy = new MalwareBat(this, x, y);
-      // brute / firewall-knight / rootkit-slime land in Task 19.
+      else if (s.kind === "brute") enemy = new BruteForceBrute(this, x, y);
+      else if (s.kind === "firewall-knight") enemy = new FirewallKnight(this, x, y);
+      else if (s.kind === "rootkit-slime") enemy = new RootkitSlime(this, x, y);
       if (enemy) this.enemyGroup.add(enemy);
     }
 
@@ -669,8 +863,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     body.enable = false;
     this.attackHitbox = hitbox;
     this.physics.add.overlap(hitbox, this.enemyGroup, (_hb, enemyObj) => {
-      const enemy = enemyObj as Enemy;
-      if (!enemy.dying) enemy.die("attack");
+      (enemyObj as Enemy).hitByAttack(this.attackSwingId);
     });
   }
 
@@ -686,7 +879,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     const decision = applyRestompWindow(raw, enemy.stompable, this.time.now, this.lastStompAt);
     if (decision === "stomp") {
       this.lastStompAt = this.time.now;
-      enemy.die("stomp");
+      enemy.hitByStomp();
     } else enemy.hurtPlayer();
   };
 
@@ -735,6 +928,23 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   /** EnemyHostScene: the player sprite (stomp-bounce + phishling targeting). */
   get playerSprite(): Phaser.Physics.Arcade.Sprite {
     return this.player;
+  }
+
+  /** EnemyHostScene: add a runtime-spawned enemy (slime split) to the live
+   *  group so it inherits the group colliders + the player overlap. */
+  registerEnemy(enemy: Enemy) {
+    this.enemyGroup.add(enemy);
+  }
+
+  /** EnemyHostScene: drop a short-lived corrupt hazard tile (slime burrow). It
+   *  joins the hazardGroup so the existing player-overlap damages on contact,
+   *  then self-destructs (time events + GameObjects are cleared on shutdown, so
+   *  no persistent array to reset). */
+  spawnCorruptHazard(x: number, y: number, ttlMs: number) {
+    const rect = this.add.rectangle(x, y, 12, 12, 0xa02030).setDepth(6).setAngle(45).setAlpha(0.85);
+    this.hazardGroup.add(rect);
+    this.tweens.add({ targets: rect, alpha: 0.4, duration: 300, yoyo: true, repeat: -1 });
+    this.time.delayedCall(ttlMs, () => rect.destroy());
   }
 
   private spawnPlayer(spawnAt: "start" | "checkpoint" | "door") {
@@ -861,6 +1071,12 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.updateBoats();
     this.updateProjectiles();
 
+    // Task 19 factory hazard set: conveyor push (after enemy ticks so it layers
+    // on their velocity), timed gates, and laser on/off cycles.
+    this.applyConveyors();
+    this.updateGates();
+    this.updateLasers();
+
     if (snap.pausePressed) {
       gameStore.set({ paused: true });
       this.pausedText?.setPosition(cam.midPoint.x, cam.midPoint.y).setVisible(true);
@@ -885,8 +1101,15 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private doAttack() {
     this.attacking = true;
     this.attackUntil = this.time.now + ATTACK_MS;
+    this.attackSwingId++; // one swing = one hit per enemy (multi-hp guard)
     this.player.play(animKey("player", "attack"), true);
     audio.sfx("stomp");
+
+    // In-level charge parry: a well-timed swing negates + stuns a charging Brute
+    // (each brute grades the press against its own predicted contact time).
+    for (const obj of this.enemyGroup.getChildren()) {
+      if (obj instanceof BruteForceBrute) obj.tryChargeParry(this.time.now);
+    }
     // Reposition the persistent hitbox in front of the player and enable its
     // body for the ATTACK_MS window; overlapping enemies die by "attack". No
     // new zone/Collider is created per swing (see setupAttackHitbox).

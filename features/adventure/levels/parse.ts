@@ -1,4 +1,4 @@
-import type { LevelDefinition, ParsedLevel, Pt, EnemyKind } from "./types";
+import type { LevelDefinition, ParsedLevel, Pt, EnemyKind, Conveyor } from "./types";
 
 const ENEMY_CHARS: Record<string, EnemyKind> = {
   b: "bugling", p: "phishling", m: "malware-bat",
@@ -15,6 +15,9 @@ export function parseLevel(def: LevelDefinition): ParsedLevel {
   const spawns: { kind: EnemyKind; at: Pt }[] = [];
   const fakes: Pt[] = [];
   const boats: Pt[] = [];
+  const conveyors: Conveyor[] = [];
+  const gates: Pt[] = [];
+  const lasers: Pt[] = [];
 
   rows.forEach((row, ty) => {
     if (row.length !== w) throw new Error(`ragged map at row ${ty}`);
@@ -29,6 +32,13 @@ export function parseLevel(def: LevelDefinition): ParsedLevel {
       else if (ch === "C") checkpoints.push(at);
       else if (ch === "F") fakes.push(at); // fake platform (Task 18)
       else if (ch === "o") boats.push(at); // boat / moving platform (Task 18)
+      // Conveyors (Task 19): the cell is ALSO a solid the entity rides on, so
+      // it collides/merges/renders as floor; the {at,dir} record drives the
+      // per-frame horizontal push in the scene.
+      else if (ch === "<") { solids[ty][tx] = true; conveyors.push({ at, dir: -1 }); }
+      else if (ch === ">") { solids[ty][tx] = true; conveyors.push({ at, dir: 1 }); }
+      else if (ch === "G") gates.push(at); // timed gate (Task 19)
+      else if (ch === "L") lasers.push(at); // laser emitter (Task 19)
       else if (ENEMY_CHARS[ch]) spawns.push({ kind: ENEMY_CHARS[ch], at });
       else if (ch !== ".") throw new Error(`unknown map char "${ch}" at ${tx},${ty}`);
     });
@@ -39,6 +49,6 @@ export function parseLevel(def: LevelDefinition): ParsedLevel {
     widthTiles: w, heightTiles: rows.length,
     solids, oneWays, hazards,
     playerStart, checkpoints, fragment, bossDoor, spawns,
-    fakes, boats,
+    fakes, boats, conveyors, gates, lasers,
   };
 }

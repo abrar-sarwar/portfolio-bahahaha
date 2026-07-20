@@ -41,6 +41,28 @@ describe("parseLevel", () => {
     expect(lvl.boats).toEqual([]);
   });
 
+  it("classifies conveyors (< left / > right), timed gates (G), lasers (L)", () => {
+    const lvl = parseLevel(mini(["P.<.>.G.L.D", "###########"].join("\n")));
+    expect(lvl.conveyors).toEqual([
+      { at: { tx: 2, ty: 0 }, dir: -1 },
+      { at: { tx: 4, ty: 0 }, dir: 1 },
+    ]);
+    expect(lvl.gates).toEqual([{ tx: 6, ty: 0 }]);
+    expect(lvl.lasers).toEqual([{ tx: 8, ty: 0 }]);
+    // Conveyor cells double as solids (floor you stand on); gates/lasers do not.
+    expect(lvl.solids[0][2]).toBe(true);
+    expect(lvl.solids[0][4]).toBe(true);
+    expect(lvl.solids[0][6]).toBe(false);
+    expect(lvl.solids[0][8]).toBe(false);
+  });
+
+  it("gives every parsed level empty conveyors/gates/lasers when it has none", () => {
+    const lvl = parseLevel(mini(["P....D", "######"].join("\n")));
+    expect(lvl.conveyors).toEqual([]);
+    expect(lvl.gates).toEqual([]);
+    expect(lvl.lasers).toEqual([]);
+  });
+
   it("throws when P or D is missing", () => {
     expect(() => parseLevel(mini("...\n###"))).toThrow(/player start/i);
     expect(() => parseLevel(mini("P..\n###"))).toThrow(/boss door/i);
@@ -67,6 +89,8 @@ describe("level content requirements", () => {
              spawnMins: { bugling: 4, phishling: 2 }, hazards: true, oneWays: true },
     "1-2": { rowLen: 170, checkpointsMin: 2, fragments: 1,
              spawnMins: { bugling: 3, phishling: 2, "malware-bat": 3 }, hazards: true, oneWays: true },
+    "1-3": { rowLen: 180, checkpointsMin: 2, fragments: 1,
+             spawnMins: { brute: 2, "firewall-knight": 2, "rootkit-slime": 2 }, hazards: true, oneWays: true },
   };
 
   // Enemy kinds that fly (no gravity): exempt from the ground-standability check

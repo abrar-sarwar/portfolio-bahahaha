@@ -2,6 +2,7 @@ import type { BossId } from "../ids";
 import type { BossDefinition } from "../combat/types";
 import { GLITCH_TOAD } from "./glitchToad";
 import { CAPTAIN_SPOOF } from "./captainSpoof";
+import { WARDEN } from "./warden";
 
 // Boss definition registry. Task 14 (Glitch Toad) and later boss tasks populate
 // this map. The combat controller looks bosses up here by id and throws a clear
@@ -10,4 +11,5 @@ import { CAPTAIN_SPOOF } from "./captainSpoof";
 export const BOSSES: Partial<Record<BossId, BossDefinition>> = {
   "glitch-toad": GLITCH_TOAD,
   "captain-spoof": CAPTAIN_SPOOF,
+  "warden": WARDEN,
 };

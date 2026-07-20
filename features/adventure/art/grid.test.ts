@@ -4,6 +4,7 @@ import { PALETTE } from "./palette";
 import { PLAYER_SPRITES } from "./sprites/player";
 import { ENEMY_SPRITES } from "./sprites/enemies1";
 import { ENEMIES2_SPRITES } from "./sprites/enemies2";
+import { ENEMIES3_SPRITES } from "./sprites/enemies3";
 import { BOSS_SPRITES } from "./sprites/bosses";
 import { OW_MAP_PLAYER } from "./sprites/overworld";
 import type { SpriteDef } from "./textures";
@@ -35,7 +36,7 @@ describe("parseGrid", () => {
  * anim frame index actually exists in the frames array.
  */
 const SPRITE_SHEETS: SpriteDef[] = [
-  PLAYER_SPRITES, ...ENEMY_SPRITES, ...ENEMIES2_SPRITES, ...BOSS_SPRITES, OW_MAP_PLAYER,
+  PLAYER_SPRITES, ...ENEMY_SPRITES, ...ENEMIES2_SPRITES, ...ENEMIES3_SPRITES, ...BOSS_SPRITES, OW_MAP_PLAYER,
 ];
 
 describe("sprite sheet integrity", () => {

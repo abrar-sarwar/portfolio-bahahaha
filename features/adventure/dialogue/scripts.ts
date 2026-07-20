@@ -24,6 +24,13 @@ export const SCRIPTS: Record<string, string[]> = {
     "Ride the honest boats. Trust the water even less than the captains.",
   ],
 
+  // Firewall Factory (1-3) level intro (Task 19) — industrial / defense tone.
+  "intro-1-3": [
+    "FIREWALL FACTORY: the automated defenses never clocked out. They just forgot who was friendly.",
+    "Belts, molten vats, blast gates, tripwire lasers — all still running the old rules.",
+    "Bait the heavies into a wall. Parry the strikes. The Warden holds the gate at the end.",
+  ],
+
   // Memory fragment notes — VERBATIM per task-17-brief.md. Do not paraphrase.
   // One line each: a fragment note is a single dialogue "page", not a script.
   "frag-1-1": [

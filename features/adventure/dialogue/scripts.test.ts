@@ -40,8 +40,8 @@ describe("resolveScript", () => {
   });
 
   it("returns null for boss-shaped ids naming an unregistered boss", () => {
-    expect(resolveScript("boss-intro-warden")).toBeNull();
-    expect(resolveScript("boss-defeat-warden")).toBeNull();
+    expect(resolveScript("boss-intro-blank-page")).toBeNull();
+    expect(resolveScript("boss-defeat-blank-page")).toBeNull();
   });
 
   it("returns null for a totally unknown id", () => {
