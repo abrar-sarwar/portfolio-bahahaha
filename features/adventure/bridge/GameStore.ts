@@ -78,6 +78,13 @@ export interface GameUIState {
    *  system yet (Task 15) — like `deaths`, this is a session-only stash the
    *  controller's victory seam writes into via combat/rewards.ts. */
   keyFragments: KeyFragment[];
+  /** Whether the Castle Key has been forged — set when the third key fragment
+   *  lands OR by The Blank Page's explicit `castle-key` reward (Task 20). The
+   *  durable mirror is save.castleKey; this is the session copy the reward flow
+   *  maps through applyRewards/grantRewards (combat/rewards.ts). The castle
+   *  DOOR (Task 21) gates on it; the overworld castle NODE unlocks off the
+   *  normal completion chain, not this. */
+  castleKey: boolean;
   /** Live combat snapshot while a boss fight is active; null otherwise. The
    *  React CombatPanel renders entirely from this. */
   combat: CombatState | null;
@@ -118,6 +125,7 @@ export const gameStore = createStore<GameUIState>({
   levelBuffs: [],
   abilities: { dash: false, analyze: false, improvedParry: false },
   keyFragments: [],
+  castleKey: false,
   combat: null,
   telegraph: null,
   deaths: {},

@@ -58,6 +58,11 @@ export abstract class Enemy extends Phaser.Physics.Arcade.Sprite {
   /** False = death rolls no drop (Task 19 slime minis). */
   protected dropsLoot = true;
 
+  /** Archive "shadow" palette-swap tint (Task 20). null = normal enemy. When
+   *  set, hit-flash / blocked-hit / death tint restores TO this instead of
+   *  clearing, so a shadow enemy stays visibly dark through combat. */
+  private shadowTint: number | null = null;
+
   /** Per-swing hit guard: the last attack-swing id that landed on this enemy,
    *  so one swing deals exactly one hit even though the hitbox overlaps every
    *  frame of the 220ms window (matters once hp > 1 — Task 19 heavies). */
@@ -81,6 +86,22 @@ export abstract class Enemy extends Phaser.Physics.Arcade.Sprite {
 
   protected get host(): EnemyHostScene {
     return this.scene as EnemyHostScene;
+  }
+
+  /** Turn this into an archive "shadow" variant (Task 20): a dark palette-swap
+   *  tint that survives hit flashes plus +1 hp. Called by the scene right after
+   *  construction for theme "archive", so the base kind's own hp is set first. */
+  makeShadow(tint = 0x333333): void {
+    this.shadowTint = tint;
+    this.setTint(tint);
+    this.hp += 1;
+  }
+
+  /** Restore the resting tint after a flash: back to the shadow tint for a
+   *  shadow enemy, or a full clear for a normal one. */
+  protected restoreTint(): void {
+    if (this.shadowTint !== null) this.setTint(this.shadowTint);
+    else this.clearTint();
   }
 
   /** Per-frame AI. Base behaviour is a ground patrol; subclasses may override. */
@@ -154,7 +175,7 @@ export abstract class Enemy extends Phaser.Physics.Arcade.Sprite {
   protected onBlockedHit(): void {
     this.setTint(0x6ec1ff);
     this.scene.time.delayedCall(90, () => {
-      if (!this.dying) this.clearTint();
+      if (!this.dying) this.restoreTint();
     });
     audio.sfx("error");
   }
@@ -163,7 +184,7 @@ export abstract class Enemy extends Phaser.Physics.Arcade.Sprite {
   protected flashHit(): void {
     this.setTint(0xffffff);
     this.scene.time.delayedCall(90, () => {
-      if (!this.dying) this.clearTint();
+      if (!this.dying) this.restoreTint();
     });
     audio.sfx("damage");
   }
@@ -186,7 +207,7 @@ export abstract class Enemy extends Phaser.Physics.Arcade.Sprite {
       this.play(animKey(this.animBase, "squash"));
     else this.setScale(1.25, 0.5);
     this.setTint(0xffffff);
-    this.scene.time.delayedCall(90, () => this.clearTint());
+    this.scene.time.delayedCall(90, () => this.restoreTint());
 
     const drop = this.dropsLoot ? rollDrop(this.kind, Math.random()) : null;
     if (drop) this.host.spawnPickup(this.x, this.y, drop);

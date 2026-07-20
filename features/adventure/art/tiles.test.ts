@@ -5,6 +5,7 @@ import type { SpriteDef } from "./textures";
 import { FIELDS_TILES, FIELDS_PARALLAX } from "./sprites/tiles-fields";
 import { HARBOR_TILES, HARBOR_PARALLAX, HARBOR_BOAT_SPRITE } from "./sprites/tiles-harbor";
 import { FACTORY_TILES, FACTORY_PARALLAX } from "./sprites/tiles-factory";
+import { ARCHIVE_TILES, ARCHIVE_PARALLAX } from "./sprites/tiles-archive";
 import { PICKUP_SPRITES } from "./sprites/pickups";
 import { OVERWORLD_TILES } from "./sprites/overworld";
 
@@ -22,6 +23,8 @@ const TILE_SHEETS: SpriteDef[] = [
   HARBOR_BOAT_SPRITE,
   ...FACTORY_TILES,
   ...FACTORY_PARALLAX,
+  ...ARCHIVE_TILES,
+  ...ARCHIVE_PARALLAX,
   ...PICKUP_SPRITES,
   ...OVERWORLD_TILES,
 ];

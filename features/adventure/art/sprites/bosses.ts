@@ -1706,7 +1706,158 @@ export const WARDEN_SPRITES: SpriteDef = {
   ],
 };
 
-export const BOSS_SPRITES: SpriteDef[] = [GLITCH_TOAD_SPRITES, CAPTAIN_SPOOF_SPRITES, WARDEN_SPRITES];
+// Task 20 — The Blank Page, 48x64. A featureless white humanoid (W body / C
+// soft shade) with ragged ink-drip O edges. Its FACE appears ONLY in the defeat
+// frames — idle/attack/hurt are deliberately blank, selling "I am every chapter
+// you never started." Built by a deterministic generator (like the parallax
+// layers) so every frame is provably 48x64 and palette-clean; the sprite-sheet
+// integrity test still guards it. Anims: idle (2f, a quiet breathing shimmer),
+// attack (2f, arms reach out into ink-drip hands — the telegraphed grasp), hurt
+// (1f, a ripple crosses the sheet), defeat (3f: eyes open -> a small smile ->
+// a dissolve into falling pages, the held final frame CombatBackdropScene keeps
+// under the victory panel).
+const BP_W = 48;
+const BP_H = 64;
+const BP_CX = 24;
+
+function bpHalf(y: number): number {
+  if (y < 4 || y > 60) return 0;
+  if (y <= 18) {
+    const dy = y - 11;
+    const r = 8;
+    const v = r * r - dy * dy;
+    return v > 0 ? Math.round(Math.sqrt(v)) : 0; // rounded head
+  }
+  if (y <= 22) return 5; // neck
+  if (y <= 30) return 9 + (y - 22); // shoulders widen 9 -> 17
+  if (y <= 52) return 17; // torso
+  return Math.max(7, 17 - (y - 52) * 2); // taper to base
+}
+
+function bpHash(x: number, y: number): number {
+  let h = (x * 374761393 + y * 668265263) >>> 0;
+  h = (h ^ (h >>> 13)) >>> 0;
+  return h;
+}
+
+interface BpOpts {
+  shimmer: 0 | 1 | 2; // idle breathing phase
+  reach: 0 | 1 | 2; // attack: 0 none, 1 windup, 2 full reach
+  ripple: boolean; // hurt bands
+  eyes: boolean; // defeat face
+  smile: boolean; // defeat face
+  dissolve: boolean; // defeat final: scatter into pages
+}
+
+function blankFrame(o: BpOpts): string[] {
+  const g: string[][] = Array.from({ length: BP_H }, () => Array<string>(BP_W).fill("."));
+
+  if (o.dissolve) {
+    for (let y = 4; y < BP_H; y++) {
+      const half = bpHalf(Math.min(y, 60));
+      for (let x = BP_CX - half; x <= BP_CX + half; x++) {
+        if (x < 0 || x >= BP_W) continue;
+        const keep = bpHash(x, y) % 5;
+        if (keep === 0) g[y][x] = "W";
+        else if (keep === 1) g[y][x] = "C";
+      }
+    }
+    const flakes: [number, number][] = [[10, 40], [30, 46], [18, 54], [34, 58], [8, 60], [24, 50]];
+    for (const [fx, fy] of flakes)
+      for (let yy = 0; yy < 3; yy++)
+        for (let xx = 0; xx < 4; xx++) {
+          const px = fx + xx;
+          const py = fy + yy;
+          if (px < BP_W && py < BP_H) g[py][px] = yy === 0 ? "W" : "C";
+        }
+    return g.map((r) => r.join(""));
+  }
+
+  for (let y = 4; y <= 60; y++) {
+    const half = bpHalf(y);
+    if (half <= 0) continue;
+    const left = BP_CX - half;
+    const right = BP_CX + half;
+    for (let x = left; x <= right; x++) {
+      if (x < 0 || x >= BP_W) continue;
+      if (x === left || x === right) g[y][x] = "O"; // ink-drip outline
+      else if (x > BP_CX + half * 0.35) g[y][x] = "C"; // soft shade
+      else g[y][x] = "W";
+    }
+    if (o.shimmer && y % 6 === (o.shimmer === 1 ? 2 : 4) && half > 6) {
+      g[y][BP_CX + (o.shimmer === 1 ? -3 : 3)] = "C"; // breathing fleck
+    }
+  }
+
+  // Base ink drips.
+  for (const dx of [18, 24, 30])
+    for (let y = 61; y <= 61 + (bpHash(dx, 7) % 2); y++) if (y < BP_H) g[y][dx] = "O";
+
+  if (o.reach > 0) {
+    const armY = o.reach === 2 ? 30 : 26;
+    const extent = o.reach === 2 ? 20 : 13;
+    for (let dy = 0; dy < 4; dy++) {
+      const y = armY + dy;
+      for (let d = 0; d <= extent; d++) {
+        const xs = [BP_CX - 17 - d, BP_CX + 17 + d];
+        for (const x of xs) {
+          if (x < 0 || x >= BP_W) continue;
+          g[y][x] = d === extent ? "O" : dy === 0 ? "W" : "C";
+        }
+      }
+    }
+  }
+
+  if (o.ripple) {
+    for (let y = 12; y <= 56; y += 6) {
+      const half = bpHalf(y);
+      for (let x = BP_CX - half + 1; x < BP_CX + half; x++) {
+        if (x >= 0 && x < BP_W && g[y][x] === "W") g[y][x] = "C";
+      }
+    }
+  }
+
+  if (o.eyes) {
+    for (let dy = 0; dy < 2; dy++)
+      for (let dx = 0; dx < 2; dx++) {
+        g[10 + dy][20 + dx] = "O";
+        g[10 + dy][27 + dx] = "O";
+      }
+  }
+  if (o.smile) {
+    const smile: [number, number][] = [
+      [18, 15], [19, 16], [20, 16], [21, 16], [22, 16], [23, 16],
+      [24, 16], [25, 16], [26, 16], [27, 16], [28, 15],
+    ];
+    for (const [x, y] of smile) g[y][x] = "O";
+  }
+
+  return g.map((r) => r.join(""));
+}
+
+const BLANK_IDLE_0 = blankFrame({ shimmer: 1, reach: 0, ripple: false, eyes: false, smile: false, dissolve: false });
+const BLANK_IDLE_1 = blankFrame({ shimmer: 2, reach: 0, ripple: false, eyes: false, smile: false, dissolve: false });
+const BLANK_ATTACK_0 = blankFrame({ shimmer: 0, reach: 1, ripple: false, eyes: false, smile: false, dissolve: false });
+const BLANK_ATTACK_1 = blankFrame({ shimmer: 0, reach: 2, ripple: false, eyes: false, smile: false, dissolve: false });
+const BLANK_HURT_0 = blankFrame({ shimmer: 0, reach: 0, ripple: true, eyes: false, smile: false, dissolve: false });
+const BLANK_DEFEAT_0 = blankFrame({ shimmer: 0, reach: 0, ripple: false, eyes: true, smile: false, dissolve: false });
+const BLANK_DEFEAT_1 = blankFrame({ shimmer: 0, reach: 0, ripple: false, eyes: true, smile: true, dissolve: false });
+const BLANK_DEFEAT_2 = blankFrame({ shimmer: 0, reach: 0, ripple: false, eyes: false, smile: false, dissolve: true });
+
+export const BLANK_PAGE_SPRITES: SpriteDef = {
+  key: "boss-blank-page",
+  w: 48,
+  h: 64,
+  frames: [BLANK_IDLE_0, BLANK_IDLE_1, BLANK_ATTACK_0, BLANK_ATTACK_1, BLANK_HURT_0, BLANK_DEFEAT_0, BLANK_DEFEAT_1, BLANK_DEFEAT_2],
+  anims: [
+    { key: "idle", frames: [0, 1], frameRate: 2, repeat: -1 },
+    { key: "attack", frames: [2, 3], frameRate: 8, repeat: 0 },
+    { key: "hurt", frames: [4], frameRate: 1, repeat: 0 },
+    { key: "defeat", frames: [5, 6, 7], frameRate: 4, repeat: 0 },
+  ],
+};
+
+export const BOSS_SPRITES: SpriteDef[] = [GLITCH_TOAD_SPRITES, CAPTAIN_SPOOF_SPRITES, WARDEN_SPRITES, BLANK_PAGE_SPRITES];
 
 // bossId -> its SpriteDef, for CombatBackdropScene to look up (mirrors
 // tilesetFor's theme -> tile-sprite lookup in tiles-fields.ts). Bosses without
@@ -1716,4 +1867,5 @@ export const BOSS_SPRITE_BY_ID: Partial<Record<BossId, SpriteDef>> = {
   "glitch-toad": GLITCH_TOAD_SPRITES,
   "captain-spoof": CAPTAIN_SPOOF_SPRITES,
   "warden": WARDEN_SPRITES,
+  "blank-page": BLANK_PAGE_SPRITES,
 };

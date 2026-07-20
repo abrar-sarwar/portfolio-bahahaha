@@ -18,6 +18,7 @@ export function parseLevel(def: LevelDefinition): ParsedLevel {
   const conveyors: Conveyor[] = [];
   const gates: Pt[] = [];
   const lasers: Pt[] = [];
+  const rotators: Pt[] = [];
 
   rows.forEach((row, ty) => {
     if (row.length !== w) throw new Error(`ragged map at row ${ty}`);
@@ -39,6 +40,7 @@ export function parseLevel(def: LevelDefinition): ParsedLevel {
       else if (ch === ">") { solids[ty][tx] = true; conveyors.push({ at, dir: 1 }); }
       else if (ch === "G") gates.push(at); // timed gate (Task 19)
       else if (ch === "L") lasers.push(at); // laser emitter (Task 19)
+      else if (ch === "@") rotators.push(at); // rotator pivot (Task 20 archive)
       else if (ENEMY_CHARS[ch]) spawns.push({ kind: ENEMY_CHARS[ch], at });
       else if (ch !== ".") throw new Error(`unknown map char "${ch}" at ${tx},${ty}`);
     });
@@ -49,6 +51,6 @@ export function parseLevel(def: LevelDefinition): ParsedLevel {
     widthTiles: w, heightTiles: rows.length,
     solids, oneWays, hazards,
     playerStart, checkpoints, fragment, bossDoor, spawns,
-    fakes, boats, conveyors, gates, lasers,
+    fakes, boats, conveyors, gates, lasers, rotators,
   };
 }

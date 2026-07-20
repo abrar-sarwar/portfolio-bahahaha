@@ -31,6 +31,14 @@ export const SCRIPTS: Record<string, string[]> = {
     "Bait the heavies into a wall. Parry the strikes. The Warden holds the gate at the end.",
   ],
 
+  // The Corrupted Archive (1-4) level intro (Task 20) — melancholy, self-aware:
+  // this world is made of unfinished things, and its shadows are your own.
+  "intro-1-4": [
+    "THE CORRUPTED ARCHIVE: shelves of chapters no one finished. Yours are here too.",
+    "The pages still turn. The enemies wear your shadow — darker, heavier, harder to end.",
+    "Something waits at the back that has never been written. It would rather you didn't start.",
+  ],
+
   // Memory fragment notes — VERBATIM per task-17-brief.md. Do not paraphrase.
   // One line each: a fragment note is a single dialogue "page", not a script.
   "frag-1-1": [

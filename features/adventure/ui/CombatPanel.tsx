@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { useGameStore } from "../bridge/GameStore";
-import type { CombatState, PlayerActionKind, Reward } from "../combat/types";
+import { useState, type ReactNode } from "react";
+import { useGameStore, gameStore } from "../bridge/GameStore";
+import type { CombatEvent, CombatState, PlayerActionKind, Reward } from "../combat/types";
 import { playerAttackDamage, isUltimateReady } from "../combat/engine";
 import { dispatchCombat, retryCombat, returnToOverworld, SCRIPTED_PARRY_STEP } from "../combat/controller";
+import { loadSave } from "../state/save";
 import { audio } from "../audio/synth";
+
+// The four verbs of the making-order, in engine order (see engine.ts SEQ_ORDER).
+// Drives the sequence-puzzle glyph tracker + the ≥2-fragment ANALYZE clue.
+const SEQ_GLYPHS = ["A", "D", "R", "C"] as const;
+const SEQ_LABELS = ["ANALYZE", "DEFEND", "REMEMBER", "CREATE"] as const;
 import Bar from "./Bars";
 import TypingBox from "./TypingBox";
 import TimedPrompt from "./TimedPrompt";
@@ -23,7 +29,19 @@ const SCRIPTED_STEP_LABELS = [
 export default function CombatPanel() {
   const combat = useGameStore((s) => s.combat);
   const [showItems, setShowItems] = useState(false);
+  // The ≥2-fragment ANALYZE clue (Task 20): revealed the moment the player
+  // presses ANALYZE in the sequence fight while holding ≥2 memory fragments —
+  // read from the durable save, NOT the engine (the clue is a UI/save hook).
+  const [clueRevealed, setClueRevealed] = useState(false);
+  // Wrong-verb reset flag (Task 20): set when a sequence verb drops seqIndex to
+  // 0, cleared when a step advances — persists across the intervening boss turn
+  // (the engine's own reset log line is masked by the telegraph line by the time
+  // the menu returns, so a log scrape can't drive this; local state can).
+  const [seqReset, setSeqReset] = useState(false);
   if (!combat) return null;
+  const onSeqAnalyze = () => {
+    if (loadSave().memoryFragments.length >= 2) setClueRevealed(true);
+  };
   return (
     <div className="pointer-events-none absolute inset-0 z-30 flex flex-col justify-between p-3 font-mono sm:p-4">
       {/* boss header */}
@@ -32,7 +50,15 @@ export default function CombatPanel() {
       {/* center: log + active interaction */}
       <div className="pointer-events-none mx-auto flex w-full max-w-lg flex-col items-center gap-2">
         <LogPanel log={combat.log} />
-        <Interaction combat={combat} showItems={showItems} setShowItems={setShowItems} />
+        <Interaction
+          combat={combat}
+          showItems={showItems}
+          setShowItems={setShowItems}
+          clueRevealed={clueRevealed}
+          onSeqAnalyze={onSeqAnalyze}
+          seqReset={seqReset}
+          onSeqStep={setSeqReset}
+        />
       </div>
 
       {/* footer: player stats */}
@@ -45,6 +71,7 @@ export default function CombatPanel() {
 function BossHeader({ combat }: { combat: CombatState }) {
   const { def } = combat;
   const breach = def.mechanic === "breach-meter";
+  const sequence = def.mechanic === "sequence-puzzle";
   return (
     <div className="pointer-events-none mx-auto w-full max-w-lg">
       <div className="mb-1 flex items-center justify-between">
@@ -68,9 +95,36 @@ function BossHeader({ combat }: { combat: CombatState }) {
             </span>
           </span>
         )}
+        {sequence && <SequenceTracker seqIndex={combat.mechanic.seqIndex} breached={combat.mechanic.breached} />}
       </div>
       <Bar label="Corruption" value={combat.bossHealth} max={def.maxHealth} tone="boss" />
     </div>
+  );
+}
+
+// The 4-slot glyph tracker for a sequence-puzzle boss (Task 20 Blank Page): one
+// pip per verb of the making-order, filled as combat.mechanic.seqIndex advances
+// and reset with it on a wrong verb. All four lit + breached reads UNDERSTOOD.
+function SequenceTracker({ seqIndex, breached }: { seqIndex: number; breached: boolean }) {
+  return (
+    <span className="flex items-center gap-1">
+      {SEQ_GLYPHS.map((glyph, i) => (
+        <span
+          key={glyph}
+          title={SEQ_LABELS[i]}
+          className={`flex h-4 w-4 items-center justify-center rounded-sm border text-[8px] font-bold ${
+            seqIndex > i
+              ? "border-amber-200 bg-amber-400/30 text-amber-100 shadow-[0_0_8px_rgba(255,215,94,0.7)]"
+              : "border-violet-300/40 bg-transparent text-violet-200/50"
+          }`}
+        >
+          {glyph}
+        </span>
+      ))}
+      <span className="text-[7px] uppercase tracking-widest text-violet-200/70">
+        {breached ? "UNDERSTOOD" : "ARMORED"}
+      </span>
+    </span>
   );
 }
 
@@ -93,10 +147,18 @@ function Interaction({
   combat,
   showItems,
   setShowItems,
+  clueRevealed,
+  onSeqAnalyze,
+  seqReset,
+  onSeqStep,
 }: {
   combat: CombatState;
   showItems: boolean;
   setShowItems: (v: boolean) => void;
+  clueRevealed: boolean;
+  onSeqAnalyze: () => void;
+  seqReset: boolean;
+  onSeqStep: (wasReset: boolean) => void;
 }) {
   // Boss intro (before the first turn) and boss defeat (inside the victory
   // flow) both play through the same Dialogue overlay — the controller opens
@@ -162,18 +224,41 @@ function Interaction({
   }
 
   // Otherwise: the action menu (player-turn or a scripted non-parry step).
+  const isSeq = combat.def.mechanic === "sequence-puzzle";
   return (
     <div className="pointer-events-auto flex w-full max-w-md flex-col gap-2">
       {combat.tag === "scripted" && <ScriptedBanner step={combat.mechanic.finalStep} />}
       {/* Tutorial mechanic (Task 14): hint chips on the player's first turn
           only — additive UI, no engine/controller changes. */}
       {combat.def.mechanic === "tutorial" && combat.turn === 0 && <TutorialHints />}
-      <ActionMenu combat={combat} showItems={showItems} setShowItems={setShowItems} />
+      {isSeq && seqReset && <SeqBanner tone="reset">The page swallows your effort. Start from seeing.</SeqBanner>}
+      {isSeq && clueRevealed && (
+        <SeqBanner tone="clue">The fragments whisper the order: {combat.def.weaknesses[2]}</SeqBanner>
+      )}
+      <ActionMenu
+        combat={combat}
+        showItems={showItems}
+        setShowItems={setShowItems}
+        onSeqAnalyze={onSeqAnalyze}
+        onSeqStep={onSeqStep}
+      />
       {showItems && (
         <div className="rounded-sm border border-violet-300/30 bg-black/60 p-2">
           <BuffTray items={combat.items} />
         </div>
       )}
+    </div>
+  );
+}
+
+function SeqBanner({ tone, children }: { tone: "reset" | "clue"; children: ReactNode }) {
+  const cls =
+    tone === "reset"
+      ? "border-red-400/50 bg-red-500/10 text-red-200 shadow-[0_0_16px_rgba(239,68,68,0.25)]"
+      : "border-amber-300/50 bg-amber-500/10 text-amber-100 shadow-[0_0_16px_rgba(255,215,94,0.3)]";
+  return (
+    <div className={`rounded-sm border px-3 py-1.5 text-center text-[10px] font-bold uppercase tracking-[0.12em] ${cls}`}>
+      {children}
     </div>
   );
 }
@@ -246,7 +331,8 @@ function rewardLabel(r: Reward): string {
     case "key-fragment":
       return `${r.id} key fragment`;
     case "castle-key":
-      return `Castle key: ${r.id}`;
+      // The three fragments fuse here (Task 20 Blank Page) — the victory chip.
+      return "CASTLE KEY FORGED";
   }
 }
 
@@ -263,15 +349,20 @@ function ActionMenu({
   combat,
   showItems,
   setShowItems,
+  onSeqAnalyze,
+  onSeqStep,
 }: {
   combat: CombatState;
   showItems: boolean;
   setShowItems: (v: boolean) => void;
+  onSeqAnalyze: () => void;
+  onSeqStep: (wasReset: boolean) => void;
 }) {
   const scripted = combat.tag === "scripted";
   const step = combat.mechanic.finalStep;
   const ultReady = isUltimateReady(combat);
   const dmg = playerAttackDamage(combat);
+  const isSeq = combat.def.mechanic === "sequence-puzzle";
 
   const act = (kind: PlayerActionKind, sfx = true) => {
     if (sfx) audio.sfx("select");
@@ -281,8 +372,20 @@ function ActionMenu({
     audio.sfx("select");
     dispatchCombat({ type: "mechanic", choice });
   };
+  // A sequence verb: dispatch it, then report to the panel whether it RESET the
+  // order (seqIndex fell to 0) so the wrong-verb banner can persist across the
+  // boss turn. ANALYZE also fires the ≥2-fragment clue seam.
+  const seqVerb = (verb: "analyze" | "defend" | "remember" | "create") => {
+    audio.sfx("select");
+    if (verb === "analyze") onSeqAnalyze();
+    const ev: CombatEvent =
+      verb === "analyze" || verb === "defend"
+        ? { type: "action", kind: verb }
+        : { type: "mechanic", choice: verb };
+    dispatchCombat(ev);
+    onSeqStep((gameStore.get().combat?.mechanic.seqIndex ?? 0) === 0);
+  };
 
-  const isSeq = combat.def.mechanic === "sequence-puzzle";
   const showRootAccess = (scripted && step === 3) || (!scripted && combat.fx.rootAccessCharges > 0);
   const rootChoice = scripted && step === 3 ? "root-access" : "use-root-access";
   const showStrikeAdds = scripted && step === 4 && combat.mechanic.summons > 0;
@@ -296,9 +399,9 @@ function ActionMenu({
         onPress={() => act("attack")}
       />
       <MenuButton label="Command" onPress={() => act("command")} />
-      <MenuButton label="Defend" onPress={() => act("defend")} />
+      <MenuButton label="Defend" onPress={() => (isSeq && !scripted ? seqVerb("defend") : act("defend"))} />
       <MenuButton label="Parry Stance" onPress={() => act("parry-stance")} />
-      <MenuButton label="Analyze" onPress={() => act("analyze")} />
+      <MenuButton label="Analyze" onPress={() => (isSeq && !scripted ? seqVerb("analyze") : act("analyze"))} />
       <MenuButton
         label={showItems ? "Close" : `Items (${combat.items.length})`}
         onPress={() => {
@@ -307,8 +410,8 @@ function ActionMenu({
         }}
       />
 
-      {isSeq && !scripted && <MenuButton label="Remember" onPress={() => mech("remember")} />}
-      {isSeq && !scripted && <MenuButton label="Create" onPress={() => mech("create")} />}
+      {isSeq && !scripted && <MenuButton label="Remember" onPress={() => seqVerb("remember")} />}
+      {isSeq && !scripted && <MenuButton label="Create" onPress={() => seqVerb("create")} />}
       {showRootAccess && (
         <MenuButton label="Use Root Access" highlight onPress={() => mech(rootChoice)} />
       )}

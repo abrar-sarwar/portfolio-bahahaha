@@ -212,6 +212,7 @@ function seedStore(save: AdventureSave) {
   gameStore.set({
     abilities: save.abilities,
     keyFragments: save.keyFragments,
+    castleKey: save.castleKey,
     deaths: save.deaths,
     completed: save.completed,
     unlocked: save.unlocked,

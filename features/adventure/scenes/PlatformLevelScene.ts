@@ -18,6 +18,10 @@ import {
   FACTORY_TILES, FACTORY_PARALLAX, FACTORY_TILE_KEYS, FACTORY_PARALLAX_KEYS,
   FACTORY_MOLTEN_ANIM, FACTORY_CONVEYOR_ANIM, FACTORY_LASER_ANIM, FACTORY_BEAM_ANIM,
 } from "../art/sprites/tiles-factory";
+import {
+  ARCHIVE_TILES, ARCHIVE_PARALLAX, ARCHIVE_TILE_KEYS, ARCHIVE_PARALLAX_KEYS,
+  ARCHIVE_PAGE_ANIM, ARCHIVE_INK_ANIM,
+} from "../art/sprites/tiles-archive";
 import { ENEMY_SPRITES } from "../art/sprites/enemies1";
 import { ENEMIES2_SPRITES } from "../art/sprites/enemies2";
 import { ENEMIES3_SPRITES } from "../art/sprites/enemies3";
@@ -64,13 +68,21 @@ interface ThemeTiles {
   ground: string;
   groundFill: string;
   oneWay: string;
+  /** When set, one-way cells render as animated sprites playing this anim
+   *  (archive floating pages) rather than a static image. */
+  oneWayAnim?: string;
   hazard: string;
   /** When set, hazard cells render as animated sprites playing this anim
-   *  (harbor code-water / factory molten) rather than a static image. */
+   *  (harbor code-water / factory molten / archive ink) rather than a static
+   *  image. */
   hazardAnim?: string;
   fakeKey: string;
   fakeAnim?: string;
   boatKey: string;
+  /** Archive rotator-arm platform tile + its flutter anim (Task 20). Undefined
+   *  in other themes, where the parser yields no rotators so they're unused. */
+  rotatorKey?: string;
+  rotatorAnim?: string;
   // Factory-only hazard-set tiles (Task 19); undefined in other themes, where
   // the parser yields no conveyors/gates/lasers so they are never referenced.
   conveyorKey?: string;
@@ -125,6 +137,30 @@ function themeTilesFor(theme: LevelDefinition["theme"]): ThemeTiles {
       laserBeamAnim: FACTORY_BEAM_ANIM,
     };
   }
+  if (theme === "archive") {
+    // The Corrupted Archive (Task 20). One tile — the fluttering floating PAGE
+    // — is the one-way, the fake, AND the rotator-arm platform, so one-ways
+    // render as animated sprites (oneWayAnim) like the harbor water hazard does.
+    return {
+      register: [...ARCHIVE_PARALLAX, ...ARCHIVE_TILES],
+      parallax: [
+        { key: ARCHIVE_PARALLAX_KEYS.bg0, depth: -30, factor: 0.2 },
+        { key: ARCHIVE_PARALLAX_KEYS.bg1, depth: -20, factor: 0.4 },
+        { key: ARCHIVE_PARALLAX_KEYS.bg2, depth: -10, factor: 0.6 },
+      ],
+      ground: ARCHIVE_TILE_KEYS.ground,
+      groundFill: ARCHIVE_TILE_KEYS.groundFill,
+      oneWay: ARCHIVE_TILE_KEYS.page,
+      oneWayAnim: ARCHIVE_PAGE_ANIM,
+      hazard: ARCHIVE_TILE_KEYS.ink,
+      hazardAnim: ARCHIVE_INK_ANIM,
+      fakeKey: ARCHIVE_TILE_KEYS.page,
+      fakeAnim: ARCHIVE_PAGE_ANIM,
+      boatKey: ARCHIVE_TILE_KEYS.ground, // no boats in archive levels
+      rotatorKey: ARCHIVE_TILE_KEYS.page,
+      rotatorAnim: ARCHIVE_PAGE_ANIM,
+    };
+  }
   // Default: Bug Fields (Task 6). No fakes/boats are authored in fields levels,
   // so fakeKey/boatKey fall back to the one-way tile and are never referenced.
   return {
@@ -173,6 +209,21 @@ interface Laser {
   disabledUntil: number;
 }
 
+/** A single orbiting one-way platform on a rotator arm (Task 20 archive). */
+interface RotatorArm {
+  sprite: Phaser.Physics.Arcade.Sprite; // static one-way body
+  prevX: number;
+  prevY: number;
+}
+
+/** A rotator cluster (legend `@`): a fixed pivot with 3 arm platforms at tile
+ *  distances 1/2/3 that orbit it in 90° steps every 2s. */
+interface Rotator {
+  cx: number; // pivot centre in world px
+  cy: number;
+  arms: RotatorArm[];
+}
+
 // Factory hazard-set tuning (Task 19). Conveyors add ±60px/s to grounded
 // entities; gates cycle 1.6s closed / 1.6s open; lasers cycle 1.2s on / 0.8s
 // off and an attacked emitter goes dark for 4s.
@@ -183,6 +234,23 @@ const LASER_ON_MS = 1200;
 const LASER_PERIOD_MS = LASER_ON_MS + 800;
 const LASER_DISABLE_MS = 4000;
 const BEAM_W = 6;
+
+// Rotator tuning (Task 20 archive): a 90° step every 2s. Each arm RESTS at its
+// current orientation for the first ~1.55s (ride-able), then tweens to the next
+// orientation over ROTATOR_TWEEN_MS. Clockwise in screen space (right → down →
+// left → up). A rider standing on an arm is CARRIED (glued) through the whole
+// step by per-frame delta-position transfer on BOTH axes — the graceful choice
+// documented in the brief: you never get flung off mid-swing, only dropped when
+// you step off. (One-way sides/bottom don't push, so the manual carry is what
+// keeps a rider on through horizontal and downward legs of the orbit.)
+const ROTATOR_STEP_MS = 2000;
+const ROTATOR_TWEEN_MS = 450;
+const ROTATOR_ORIENT: readonly [number, number][] = [
+  [1, 0], // right
+  [0, 1], // down
+  [-1, 0], // left
+  [0, -1], // up
+];
 
 export interface LevelSceneData {
   levelId: LevelId;
@@ -247,10 +315,12 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private gateGroup!: Phaser.Physics.Arcade.StaticGroup;
   private laserBeamGroup!: Phaser.Physics.Arcade.StaticGroup;
   private laserEmitterGroup!: Phaser.Physics.Arcade.StaticGroup;
+  private rotatorGroup!: Phaser.Physics.Arcade.StaticGroup;
   private fakes: FakePlatform[] = [];
   private boats: Boat[] = [];
   private gates: Gate[] = [];
   private lasers: Laser[] = [];
+  private rotators: Rotator[] = [];
   /** Conveyor cells keyed "tx,ty" -> push direction (Task 19 factory). */
   private conveyorDir = new Map<string, 1 | -1>();
   /** Monotonic swing id so one attack lands one hit per enemy (multi-hp). */
@@ -284,6 +354,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.boats = [];
     this.gates = [];
     this.lasers = [];
+    this.rotators = [];
     this.conveyorDir = new Map();
     this.bg = [];
     this.checkpointMarkers = [];
@@ -325,6 +396,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.setupAttackHitbox(); // after spawnEnemies: overlap needs enemyGroup
     this.setupProjectiles(); // pooled enemy-projectile group (malware-bat packets)
     this.buildFactoryHazards(); // gates + lasers (after attackHitbox: emitter overlap)
+    this.buildRotators(); // rotating page clusters (Task 20 archive)
     this.setupCamera();
 
     // HUD / progression reset for this level.
@@ -457,8 +529,15 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
         } else if (solids[ty][tx]) {
           const key = topExposed(solids, tx, ty) ? this.theme.ground : this.theme.groundFill;
           this.add.image(cx, cy, key).setDepth(0);
-        } else if (oneWays[ty][tx]) this.add.image(cx, cy, this.theme.oneWay).setDepth(0);
-        else if (hazards[ty][tx]) {
+        } else if (oneWays[ty][tx]) {
+          if (this.theme.oneWayAnim) {
+            // Animated one-way (archive floating page): a Sprite playing its
+            // flutter anim. Its multi-frame texture has no bare-key alias, so
+            // address frame 0 explicitly rather than add.image(bareKey).
+            const page = this.add.sprite(cx, cy, frameKey(this.theme.oneWay, 0)).setDepth(0);
+            page.play(animKey(this.theme.oneWay, this.theme.oneWayAnim));
+          } else this.add.image(cx, cy, this.theme.oneWay).setDepth(0);
+        } else if (hazards[ty][tx]) {
           if (this.theme.hazardAnim) {
             // Animated hazard (harbor code-water): a Sprite playing its wave anim.
             const water = this.add.sprite(cx, cy, frameKey(this.theme.hazard, 0)).setDepth(1);
@@ -761,6 +840,88 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     if (dir) body.velocity.x += dir * CONVEYOR_PUSH;
   }
 
+  // --- rotators (Task 20 archive) -------------------------------------------
+
+  /** Build rotator clusters: a fixed pivot hub with 3 one-way page platforms at
+   *  tile distances 1/2/3, starting laid out to the RIGHT of the pivot. They
+   *  orbit in updateRotators(). No-op unless the theme wires a rotator tile
+   *  (archive only) — other themes parse zero `@` markers. */
+  private buildRotators() {
+    this.rotatorGroup = this.physics.add.staticGroup();
+    if (!this.theme.rotatorKey) return;
+    for (const r of this.lvl.rotators) {
+      const cx = r.tx * TILE + TILE / 2;
+      const cy = r.ty * TILE + TILE / 2;
+      // Pivot hub decoration (a small sepia disc the arms swing around).
+      this.add.circle(cx, cy, 3, 0x8f7a55).setDepth(1).setAlpha(0.9);
+      const arms: RotatorArm[] = [];
+      for (let d = 1; d <= 3; d++) {
+        const ax = cx + d * TILE; // orientation 0 = right
+        const ay = cy;
+        const sprite = this.rotatorGroup.create(ax, ay, frameKey(this.theme.rotatorKey, 0)) as Phaser.Physics.Arcade.Sprite;
+        sprite.setDepth(2);
+        if (this.theme.rotatorAnim) sprite.play(animKey(this.theme.rotatorKey, this.theme.rotatorAnim));
+        const body = sprite.body as Phaser.Physics.Arcade.StaticBody;
+        body.checkCollision.down = false; // one-way: ride the crown, pass from below/sides
+        body.checkCollision.left = false;
+        body.checkCollision.right = false;
+        arms.push({ sprite, prevX: ax, prevY: ay });
+      }
+      this.rotators.push({ cx, cy, arms });
+    }
+    this.physics.add.collider(this.player, this.rotatorGroup);
+  }
+
+  private updateRotators() {
+    if (this.rotators.length === 0) return;
+    const t = this.time.now;
+    const stepIndex = Math.floor(t / ROTATOR_STEP_MS);
+    const cur = stepIndex % 4;
+    const next = (stepIndex + 1) % 4;
+    const phase = t % ROTATOR_STEP_MS;
+    const tweenStart = ROTATOR_STEP_MS - ROTATOR_TWEEN_MS;
+    let f = 0;
+    if (phase > tweenStart) {
+      const p = (phase - tweenStart) / ROTATOR_TWEEN_MS;
+      f = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2; // easeInOutQuad
+    }
+    const [cx0, cy0] = ROTATOR_ORIENT[cur];
+    const [nx0, ny0] = ROTATOR_ORIENT[next];
+    for (const rot of this.rotators) {
+      for (let i = 0; i < rot.arms.length; i++) {
+        const d = (i + 1) * TILE;
+        const curX = rot.cx + cx0 * d;
+        const curY = rot.cy + cy0 * d;
+        const nxtX = rot.cx + nx0 * d;
+        const nxtY = rot.cy + ny0 * d;
+        const px = curX + (nxtX - curX) * f;
+        const py = curY + (nxtY - curY) * f;
+        const arm = rot.arms[i];
+        const dx = px - arm.prevX;
+        const dy = py - arm.prevY;
+        arm.sprite.setPosition(px, py);
+        (arm.sprite.body as Phaser.Physics.Arcade.StaticBody).updateFromGameObject();
+        // Carry a rider through the swing (both axes) — the graceful choice.
+        if ((dx !== 0 || dy !== 0) && this.isRidingRotator(arm.sprite)) {
+          this.player.x += dx;
+          this.player.y += dy;
+        }
+        arm.prevX = px;
+        arm.prevY = py;
+      }
+    }
+  }
+
+  private isRidingRotator(sprite: Phaser.Physics.Arcade.Sprite): boolean {
+    const pb = this.player.body as Body;
+    const top = sprite.y - TILE / 2;
+    const left = sprite.x - TILE / 2;
+    const right = sprite.x + TILE / 2;
+    const onTop = pb.blocked.down && Math.abs(pb.bottom - top) < 8;
+    const xOverlap = pb.right > left + 2 && pb.left < right - 2;
+    return onTop && xOverlap;
+  }
+
   // --- enemy projectiles (Task 18) ------------------------------------------
 
   /** Pooled 4x4 hazard packets (malware-bat fire). One group + one collider +
@@ -825,7 +986,13 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       else if (s.kind === "brute") enemy = new BruteForceBrute(this, x, y);
       else if (s.kind === "firewall-knight") enemy = new FirewallKnight(this, x, y);
       else if (s.kind === "rootkit-slime") enemy = new RootkitSlime(this, x, y);
-      if (enemy) this.enemyGroup.add(enemy);
+      if (enemy) {
+        // Shadow-enemy rule (Task 20): in the Corrupted Archive, every spawned
+        // walker/flyer is a darker, tankier "shadow" of itself — a 0x333333
+        // palette-swap that survives hit flashes, plus +1 hp.
+        if (this.def.theme === "archive") enemy.makeShadow();
+        this.enemyGroup.add(enemy);
+      }
     }
 
     // All enemies collide with solids; only gravity enemies (walkers) collide
@@ -1079,6 +1246,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.applyConveyors();
     this.updateGates();
     this.updateLasers();
+    this.updateRotators(); // Task 20 archive: orbiting page platforms + rider carry
 
     if (snap.pausePressed) {
       gameStore.set({ paused: true });

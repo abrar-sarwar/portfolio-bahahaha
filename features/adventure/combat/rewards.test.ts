@@ -7,6 +7,7 @@ function state(overrides: Partial<RewardTargetState> = {}): RewardTargetState {
   return {
     abilities: { dash: false, analyze: false, improvedParry: false },
     keyFragments: [],
+    castleKey: false,
     ...overrides,
   };
 }
@@ -77,6 +78,23 @@ describe("applyRewards (pure)", () => {
     const afterSecond = applyRewards(afterFirst, [{ kind: "key-fragment", id: "silver" }]);
     expect(afterSecond.keyFragments).toEqual(["bronze", "silver"]);
   });
+
+  it("forges the castle key from an explicit castle-key reward (Task 20 Blank Page)", () => {
+    const next = applyRewards(state(), [{ kind: "castle-key", id: "castle" }]);
+    expect(next.castleKey).toBe(true); // previously DROPPED on the way out of applyRewards
+  });
+
+  it("auto-forges the castle key when the third fragment lands", () => {
+    const two = state({ keyFragments: ["bronze", "silver"] });
+    const next = applyRewards(two, [{ kind: "key-fragment", id: "gold" }]);
+    expect(next.keyFragments).toEqual(["bronze", "silver", "gold"]);
+    expect(next.castleKey).toBe(true);
+  });
+
+  it("leaves castleKey false (reference-stable) below three fragments", () => {
+    const next = applyRewards(state(), [{ kind: "key-fragment", id: "bronze" }]);
+    expect(next.castleKey).toBe(false);
+  });
 });
 
 // ─────────────────────────────────────────────── grantRewards (store glue) ──
@@ -95,6 +113,7 @@ describe("grantRewards (store glue)", () => {
     gameStore.set({
       abilities: { dash: false, analyze: false, improvedParry: false },
       keyFragments: [],
+      castleKey: false,
     });
   });
 
@@ -120,5 +139,10 @@ describe("grantRewards (store glue)", () => {
     const abilitiesAfterFirst = gameStore.get().abilities;
     grantRewards(boss);
     expect(gameStore.get().abilities).toBe(abilitiesAfterFirst);
+  });
+
+  it("writes castleKey onto the store from The Blank Page's castle-key reward", () => {
+    grantRewards(testBoss([{ kind: "castle-key", id: "castle" }]));
+    expect(gameStore.get().castleKey).toBe(true);
   });
 });

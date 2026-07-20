@@ -15,22 +15,29 @@ import { defaultSave, grantReward, loadSave, persistSave, type AdventureSave } f
 export interface RewardTargetState {
   abilities: Record<AbilityId, boolean>;
   keyFragments: KeyFragment[];
+  castleKey: boolean;
 }
 
 /** Apply a boss's reward list to a store-shaped snapshot. Never mutates the
  *  input; returns a NEW object only where something actually changed (the
  *  untouched field keeps its original reference, so callers can cheaply
- *  detect a no-op with `!==`). Idempotent: an ability already unlocked or a
- *  fragment already held is skipped, so replaying a cleared boss (future
- *  overworld re-entry) can never double-grant. Delegates the per-reward
- *  logic to save.ts's grantReward via a throwaway AdventureSave seeded from
- *  this state — a "castle-key" reward's effect on that throwaway save's
- *  castleKey is intentionally dropped on the way back out; gameStore doesn't
- *  track castleKey (it's save-only, read by a future task's castle door). */
+ *  detect a no-op with `!==`). Idempotent: an ability already unlocked, a
+ *  fragment already held, or a castle key already forged is skipped, so
+ *  replaying a cleared boss (future overworld re-entry) can never double-grant.
+ *  Delegates the per-reward logic to save.ts's grantReward via a throwaway
+ *  AdventureSave seeded from this state. Task 20: castleKey is now mapped back
+ *  out (previously dropped — grantReward auto-forges it at three fragments AND
+ *  handles The Blank Page's explicit `castle-key` reward, so the store must
+ *  mirror it). */
 export function applyRewards(state: RewardTargetState, rewards: Reward[]): RewardTargetState {
-  let save: AdventureSave = { ...defaultSave(), abilities: state.abilities, keyFragments: state.keyFragments };
+  let save: AdventureSave = {
+    ...defaultSave(),
+    abilities: state.abilities,
+    keyFragments: state.keyFragments,
+    castleKey: state.castleKey,
+  };
   for (const reward of rewards) save = grantReward(save, reward);
-  return { abilities: save.abilities, keyFragments: save.keyFragments };
+  return { abilities: save.abilities, keyFragments: save.keyFragments, castleKey: save.castleKey };
 }
 
 /** Controller victory seam (see controller.ts's handleOutcome): read the
@@ -41,10 +48,14 @@ export function applyRewards(state: RewardTargetState, rewards: Reward[]): Rewar
  *  the write entirely when nothing actually changed. */
 export function grantRewards(def: BossDefinition): void {
   const store = gameStore.get();
-  const next = applyRewards({ abilities: store.abilities, keyFragments: store.keyFragments }, def.rewards);
+  const next = applyRewards(
+    { abilities: store.abilities, keyFragments: store.keyFragments, castleKey: store.castleKey },
+    def.rewards,
+  );
   const patch: Partial<RewardTargetState> = {};
   if (next.abilities !== store.abilities) patch.abilities = next.abilities;
   if (next.keyFragments !== store.keyFragments) patch.keyFragments = next.keyFragments;
+  if (next.castleKey !== store.castleKey) patch.castleKey = next.castleKey;
   if (Object.keys(patch).length > 0) gameStore.set(patch);
 
   const before = loadSave();

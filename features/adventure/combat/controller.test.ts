@@ -73,7 +73,7 @@ const OPTS = { levelId: "1-1", returnTo: "level" } as const;
 
 describe("combat controller", () => {
   it("startCombat throws for a boss with no registered definition", () => {
-    expect(() => startCombat("blank-page", OPTS)).toThrow(/no boss definition/i);
+    expect(() => startCombat("devil-king", OPTS)).toThrow(/no boss definition/i);
   });
 
   it("beginCombat builds the carry, seeds the engine, and publishes to the store", () => {

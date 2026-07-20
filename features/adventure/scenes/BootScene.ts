@@ -26,6 +26,7 @@ export class BootScene extends Phaser.Scene {
       scene: "Boot",
       abilities: save.abilities,
       keyFragments: save.keyFragments,
+      castleKey: save.castleKey,
       deaths: save.deaths,
       completed: save.completed,
       unlocked: save.unlocked,
