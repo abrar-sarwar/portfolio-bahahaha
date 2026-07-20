@@ -202,6 +202,16 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   }
 
   create(data: LevelSceneData) {
+    // Phaser reuses this scene instance for every level. All GameObjects from
+    // the previous run were destroyed on SHUTDOWN, but these arrays still hold
+    // references to them — a stale fake-platform timer firing in the NEXT
+    // level would touch a destroyed body and crash the frame loop. Reset all
+    // accumulated collections before building anything.
+    this.fakes = [];
+    this.boats = [];
+    this.bg = [];
+    this.checkpointMarkers = [];
+
     const def = LEVELS[data.levelId];
     if (!def) throw new Error(`unknown level ${data.levelId}`);
     this.def = def;
