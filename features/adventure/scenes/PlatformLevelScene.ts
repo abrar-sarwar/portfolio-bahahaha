@@ -174,7 +174,20 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
 
     this.detachInput = input.attachKeyboard();
     input.consume();
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.detachInput?.());
+
+    // Combat resume (e.g. a boss victory that just granted `dash`) doesn't
+    // re-run create() — Phaser only fires RESUME on the paused scene instance
+    // — so the abilities snapshot above would otherwise go stale until a full
+    // scene restart. Re-read the store every time this scene resumes.
+    const onResume = () => {
+      this.abilities = { ...gameStore.get().abilities };
+    };
+    this.events.on(Phaser.Scenes.Events.RESUME, onResume);
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.detachInput?.();
+      this.events.off(Phaser.Scenes.Events.RESUME, onResume);
+    });
   }
 
   // --- build ----------------------------------------------------------------

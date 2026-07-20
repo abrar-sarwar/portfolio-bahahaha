@@ -46,6 +46,11 @@ export class CombatBackdropScene extends Phaser.Scene {
   }
 
   create(data: CombatBackdropData) {
+    // Phaser reuses this scene instance across re-fights (walk out, re-enter
+    // the door) — reset the one-shot defeat-dissolve flag every create(), or
+    // a second fight's boss-hit/player-hit fx stay frozen out on the guard
+    // left true by the previous victory (see onBossFx / onCombatOver).
+    this.bossDefeated = false;
     const theme: LevelThemeId = data.theme ?? "fields";
     this.bossDef = BOSS_SPRITE_BY_ID[data.bossId];
     registerSprites(this, [PLAYER_SPRITES, ...(this.bossDef ? [this.bossDef] : [])]);
