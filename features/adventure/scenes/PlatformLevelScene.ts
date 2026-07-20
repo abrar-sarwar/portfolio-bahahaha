@@ -200,7 +200,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private lvl!: ParsedLevel;
   private player!: Phaser.Physics.Arcade.Sprite;
 
-  private mapWidthPx = 0;
+  public mapWidthPx = 0; // public: EnemyHostScene exposes it for spawn clamping
   private mapHeightPx = 0;
 
   // controller timing state
@@ -831,6 +831,9 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     // All enemies collide with solids; only gravity enemies (walkers) collide
     // with one-ways — floaters (phishling) pass through so lunges aren't caught.
     this.physics.add.collider(this.enemyGroup, this.solidGroup);
+    // Enemies respect closed timed gates too — without this a patrolling
+    // Brute/Knight walks straight through a visually-solid barrier.
+    this.physics.add.collider(this.enemyGroup, this.gateGroup);
     this.physics.add.collider(
       this.enemyGroup,
       this.oneWayGroup,

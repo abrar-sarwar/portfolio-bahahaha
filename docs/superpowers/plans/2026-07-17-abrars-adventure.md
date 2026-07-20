@@ -2273,7 +2273,7 @@ export const WARDEN: BossDefinition = {
                "Once breached, COMMAND and ULTIMATE hit full force."],
   typingPrompts: ["nmap", "deny", "allow", "encrypt", "sudo"],
   moves: [
-    { id: "crush", name: "Gate Crush", damage: 2, parryable: true, telegraph: "The Warden's gauntlet rises…" }, // 3→2 balance sim; lockdown keeps the heavy 3
+    { id: "crush", name: "Gate Crush", damage: 2, parryable: true, telegraph: "a massive gauntlet rises to crush the gate…" }, // 3→2 balance sim; lockdown keeps the heavy 3; telegraph must not start with the boss name (engine prepends it)
     { id: "beam", name: "Deny Beam", damage: 2, parryable: false,
       qte: { kind: "marker", travelMs: 1100, targetStart: 0.45, targetEnd: 0.6 },
       telegraph: "A red scanline sweeps toward you…" },

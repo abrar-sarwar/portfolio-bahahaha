@@ -85,8 +85,12 @@ export class RootkitSlime extends Enemy {
 
   private resurface(now: number): void {
     const player = this.host.playerSprite;
-    const nx = player.x + Phaser.Math.Between(-RESURFACE_RANGE_PX, RESURFACE_RANGE_PX);
+    // Clamp inside the map and back away from solid geometry so the slime
+    // can never materialize out-of-bounds or embedded in a wall.
+    const rawX = player.x + Phaser.Math.Between(-RESURFACE_RANGE_PX, RESURFACE_RANGE_PX);
+    let nx = Phaser.Math.Clamp(rawX, 12, this.host.mapWidthPx - 12);
     const ny = player.y - 8;
+    if (this.host.isSolidAt(nx, ny)) nx = player.x;
     this.setPosition(nx, ny);
     const body = this.body as Body;
     body.reset(nx, ny);

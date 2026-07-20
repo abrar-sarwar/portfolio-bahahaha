@@ -12,6 +12,8 @@ type Body = Phaser.Physics.Arcade.Body;
 export interface EnemyHostScene extends Phaser.Scene {
   /** Solid-tile lookup in world px, for ledge probing. */
   isSolidAt(px: number, py: number): boolean;
+  /** Map width in world px, for clamping runtime spawn positions in-bounds. */
+  mapWidthPx: number;
   /** Materialize a dropped pickup at a world position. */
   spawnPickup(x: number, y: number, drop: DropItem): void;
   /** Apply contact damage to the player (honours iframes internally). */
