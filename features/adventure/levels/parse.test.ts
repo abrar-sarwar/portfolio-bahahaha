@@ -78,6 +78,24 @@ describe("parseLevel", () => {
     expect(lvl.lasers).toEqual([]);
   });
 
+  it("classifies fireball fountains (!) and collapsing bridges (~) into their own lists", () => {
+    const lvl = parseLevel(mini(["P..!..~..D", "##########"].join("\n")));
+    expect(lvl.fountains).toEqual([{ tx: 3, ty: 0 }]);
+    expect(lvl.bridges).toEqual([{ tx: 6, ty: 0 }]);
+    // A fountain is a marker (the scene spawns fireballs from it), and a bridge's
+    // collision body is scene-built — neither joins the solid/one-way/hazard grids.
+    expect(lvl.solids[0][3]).toBe(false);
+    expect(lvl.solids[0][6]).toBe(false);
+    expect(lvl.oneWays[0][6]).toBe(false);
+    expect(lvl.hazards[0][3]).toBe(false);
+  });
+
+  it("gives every parsed level empty fountains/bridges when it has none", () => {
+    const lvl = parseLevel(mini(["P....D", "######"].join("\n")));
+    expect(lvl.fountains).toEqual([]);
+    expect(lvl.bridges).toEqual([]);
+  });
+
   it("throws when P or D is missing", () => {
     expect(() => parseLevel(mini("...\n###"))).toThrow(/player start/i);
     expect(() => parseLevel(mini("P..\n###"))).toThrow(/boss door/i);
@@ -108,6 +126,11 @@ describe("level content requirements", () => {
              spawnMins: { brute: 2, "firewall-knight": 2, "rootkit-slime": 2 }, hazards: true, oneWays: true },
     "1-4": { rowLen: 160, checkpointsMin: 2, fragments: 1,
              spawnMins: { bugling: 3, "malware-bat": 2, "rootkit-slime": 3 }, hazards: true, oneWays: true },
+    // The castle has NO memory fragment (fragments: 0) — its door is unsealed by
+    // the castle key, not by finding an M. The content checks below must handle
+    // fragments:0 (no M anywhere; parsed fragment stays null).
+    castle: { rowLen: 200, checkpointsMin: 2, fragments: 0,
+              spawnMins: { brute: 2, "firewall-knight": 2 }, hazards: true, oneWays: true },
   };
 
   // Enemy kinds that fly (no gravity): exempt from the ground-standability check

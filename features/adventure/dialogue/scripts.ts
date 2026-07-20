@@ -39,6 +39,20 @@ export const SCRIPTS: Record<string, string[]> = {
     "Something waits at the back that has never been written. It would rather you didn't start.",
   ],
 
+  // The Devil King's Castle intro (Task 21) — the tone shift: storm, dread, and
+  // the resolve to finish what was started. This is the last climb.
+  "intro-castle": [
+    "THE DEVIL KING'S CASTLE: the sky bleeds red and the stone drinks the light.",
+    "Fireballs, falling bridges, a rising tide that wants you to stop climbing.",
+    "Three fragments forged the key. Everything after this is just the stairs. Go up.",
+  ],
+
+  // Shown at the throne DOOR when the player lacks the castle key (Task 21).
+  // A single short line — a locked-door beat, not a full script.
+  "castle-seal": [
+    "The seal holds. Three fragments forge the key.",
+  ],
+
   // Memory fragment notes — VERBATIM per task-17-brief.md. Do not paraphrase.
   // One line each: a fragment note is a single dialogue "page", not a script.
   "frag-1-1": [

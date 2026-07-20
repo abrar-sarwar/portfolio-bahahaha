@@ -24,6 +24,17 @@ describe("SCRIPTS", () => {
     expect(lines.length).toBeLessThanOrEqual(3);
     for (const line of lines) expect(line.length).toBeGreaterThan(0);
   });
+
+  it("has a 2-3 line, non-empty castle intro (Task 21)", () => {
+    const lines = SCRIPTS["intro-castle"];
+    expect(lines.length).toBeGreaterThanOrEqual(2);
+    expect(lines.length).toBeLessThanOrEqual(3);
+    for (const line of lines) expect(line.length).toBeGreaterThan(0);
+  });
+
+  it("has the castle door seal line VERBATIM (Task 21)", () => {
+    expect(SCRIPTS["castle-seal"]).toEqual(["The seal holds. Three fragments forge the key."]);
+  });
 });
 
 describe("resolveScript", () => {

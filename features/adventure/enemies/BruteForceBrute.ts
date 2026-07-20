@@ -121,7 +121,7 @@ export class BruteForceBrute extends Enemy {
     (this.body as Body).setVelocityX(0);
     this.stompable = true; // open to a stomp / heavy hit while stunned
     this.touchDamage = 0;
-    this.clearTint();
+    this.restoreTint(); // keep the strong/shadow tint (castle) through the stun
     this.play(animKey(this.animBase, "stun"));
   }
 
@@ -130,7 +130,7 @@ export class BruteForceBrute extends Enemy {
     this.stompable = false;
     this.touchDamage = 1;
     this.chargeReadyAt = now + CHARGE_COOLDOWN_MS;
-    this.clearTint();
+    this.restoreTint(); // keep the strong/shadow tint (castle) after the stun
     this.play(animKey(this.animBase, "charge"));
   }
 

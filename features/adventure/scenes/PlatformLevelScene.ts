@@ -22,6 +22,10 @@ import {
   ARCHIVE_TILES, ARCHIVE_PARALLAX, ARCHIVE_TILE_KEYS, ARCHIVE_PARALLAX_KEYS,
   ARCHIVE_PAGE_ANIM, ARCHIVE_INK_ANIM,
 } from "../art/sprites/tiles-archive";
+import {
+  CASTLE_TILES, CASTLE_PARALLAX, CASTLE_TILE_KEYS, CASTLE_PARALLAX_KEYS,
+  CASTLE_LAVA_ANIM, CASTLE_BANNER_ANIM,
+} from "../art/sprites/tiles-castle";
 import { ENEMY_SPRITES } from "../art/sprites/enemies1";
 import { ENEMIES2_SPRITES } from "../art/sprites/enemies2";
 import { ENEMIES3_SPRITES } from "../art/sprites/enemies3";
@@ -30,6 +34,7 @@ import { audio } from "../audio/synth";
 import { bus } from "../bridge/EventBus";
 import { gameStore } from "../bridge/GameStore";
 import { startCombat, registerCombatGame } from "../combat/controller";
+import { BOSSES } from "../bosses";
 import { collectMemoryFragment, loadSave, markIntroSeen, persistSave } from "../state/save";
 import { openDialogue } from "../dialogue/dialogueController";
 import { input } from "../input/InputState";
@@ -161,6 +166,27 @@ function themeTilesFor(theme: LevelDefinition["theme"]): ThemeTiles {
       rotatorAnim: ARCHIVE_PAGE_ANIM,
     };
   }
+  if (theme === "castle") {
+    // The Devil King's Castle (Task 21). Black basalt ground, an iron-grate
+    // one-way, and an animated red-lava hazard. Fireball fountains, collapsing
+    // bridges, rising corruption, and decor are castle-only and driven from
+    // CASTLE_TILE_KEYS directly in the castle build methods (gated on theme).
+    return {
+      register: [...CASTLE_PARALLAX, ...CASTLE_TILES],
+      parallax: [
+        { key: CASTLE_PARALLAX_KEYS.bg0, depth: -30, factor: 0.2 },
+        { key: CASTLE_PARALLAX_KEYS.bg1, depth: -20, factor: 0.4 },
+        { key: CASTLE_PARALLAX_KEYS.bg2, depth: -10, factor: 0.6 },
+      ],
+      ground: CASTLE_TILE_KEYS.ground,
+      groundFill: CASTLE_TILE_KEYS.groundFill,
+      oneWay: CASTLE_TILE_KEYS.oneWay,
+      hazard: CASTLE_TILE_KEYS.lava,
+      hazardAnim: CASTLE_LAVA_ANIM,
+      fakeKey: CASTLE_TILE_KEYS.oneWay, // no fakes/boats in castle levels
+      boatKey: CASTLE_TILE_KEYS.oneWay,
+    };
+  }
   // Default: Bug Fields (Task 6). No fakes/boats are authored in fields levels,
   // so fakeKey/boatKey fall back to the one-way tile and are never referenced.
   return {
@@ -252,6 +278,45 @@ const ROTATOR_ORIENT: readonly [number, number][] = [
   [0, -1], // up
 ];
 
+// Castle hazard tuning (Task 21). Fountains spit an arcing fireball every 2.2s
+// (staggered per fountain so a row doesn't fire in unison); a fireball is
+// gravity-affected, deals 1, and despawns on a solid / off the bottom / after
+// its flight. Collapsing bridges shake 400ms after the first touch then fall
+// (body off, sprite drops + fades) and respawn 3s later. Corruption rises
+// 12px/s. Strong castle spawns get a blood-dark tint + 10 patrol speed.
+const FOUNTAIN_PERIOD_MS = 2200;
+const FIREBALL_VY = -390; // launch velocity (up); gravity pulls it back to arc
+const FIREBALL_VX = 44; // horizontal arc (alternates sign per fountain)
+const FIREBALL_TTL_MS = 4000;
+const BRIDGE_SHAKE_MS = 400;
+const BRIDGE_RESPAWN_MS = 3000;
+const CORRUPTION_RISE_PXPS = 12;
+const CASTLE_SHADOW_TINT = 0x6a1212; // blood-dark red multiply
+const CASTLE_SPEED_BONUS = 10;
+
+/** A collapsing bridge cell (legend `~`): a one-way tile that shakes then drops
+ *  after the first touch and respawns (Task 21 castle). */
+interface Bridge {
+  sprite: Phaser.GameObjects.Sprite;
+  rect: Phaser.GameObjects.Rectangle;
+  cx: number;
+  cy: number;
+  /** null = intact/armed; a timestamp = shaking, will fall at this time. */
+  fallAt: number | null;
+  /** null = up; a timestamp = fallen, will respawn at this time. */
+  respawnAt: number | null;
+  gone: boolean;
+}
+
+/** A fireball fountain (legend `!`): a lava spout that launches pooled fireballs
+ *  on its own 2.2s cycle (Task 21 castle). */
+interface Fountain {
+  x: number;
+  y: number;
+  nextAt: number;
+  dir: 1 | -1; // arc direction for its fireballs
+}
+
 export interface LevelSceneData {
   levelId: LevelId;
   spawnAt?: "start" | "checkpoint" | "door";
@@ -316,11 +381,21 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private laserBeamGroup!: Phaser.Physics.Arcade.StaticGroup;
   private laserEmitterGroup!: Phaser.Physics.Arcade.StaticGroup;
   private rotatorGroup!: Phaser.Physics.Arcade.StaticGroup;
+  private bridgeGroup!: Phaser.Physics.Arcade.StaticGroup;
+  private fireballGroup!: Phaser.Physics.Arcade.Group;
   private fakes: FakePlatform[] = [];
   private boats: Boat[] = [];
   private gates: Gate[] = [];
   private lasers: Laser[] = [];
   private rotators: Rotator[] = [];
+  private bridges: Bridge[] = [];
+  private fountains: Fountain[] = [];
+  // Rising-corruption shaft state (Task 21 castle). `tideTop` is the world-y of
+  // the tide surface; it rises while the player is in the segment span and
+  // resets to the floor when they leave / respawn. tideRect is the drawn tide.
+  private tideTop = Infinity;
+  private tideRect?: Phaser.GameObjects.Rectangle;
+  private lightningFlash?: Phaser.GameObjects.Rectangle;
   /** Conveyor cells keyed "tx,ty" -> push direction (Task 19 factory). */
   private conveyorDir = new Map<string, 1 | -1>();
   /** Monotonic swing id so one attack lands one hit per enemy (multi-hp). */
@@ -338,6 +413,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private checkpointMarkers: { pt: Pt; obj: Phaser.GameObjects.Rectangle }[] = [];
   private bg: { sprite: Phaser.GameObjects.TileSprite; factor: number }[] = [];
   private pausedText?: Phaser.GameObjects.Text;
+  private toast?: Phaser.GameObjects.Text;
   private detachInput?: () => void;
 
   constructor() {
@@ -355,9 +431,14 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.gates = [];
     this.lasers = [];
     this.rotators = [];
+    this.bridges = [];
+    this.fountains = [];
     this.conveyorDir = new Map();
     this.bg = [];
     this.checkpointMarkers = [];
+    this.tideTop = Infinity;
+    this.tideRect = undefined;
+    this.lightningFlash = undefined;
 
     const def = LEVELS[data.levelId];
     if (!def) throw new Error(`unknown level ${data.levelId}`);
@@ -397,6 +478,8 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.setupProjectiles(); // pooled enemy-projectile group (malware-bat packets)
     this.buildFactoryHazards(); // gates + lasers (after attackHitbox: emitter overlap)
     this.buildRotators(); // rotating page clusters (Task 20 archive)
+    this.buildCastleHazards(); // fountains + fireballs + bridges + corruption (Task 21)
+    this.buildCastleDecor(); // chains / banners / statues + lightning (Task 21)
     this.setupCamera();
 
     // HUD / progression reset for this level.
@@ -922,6 +1005,229 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     return onTop && xOverlap;
   }
 
+  // --- castle hazards (Task 21) ---------------------------------------------
+
+  /** Build the castle's fireball fountains (pooled arcing fireballs), collapsing
+   *  iron bridges, and the rising-corruption tide. No-op in other themes: the
+   *  parser yields no `!`/`~` cells and no level authors a corruption segment,
+   *  so the groups stay empty and the update loops early-return. */
+  private buildCastleHazards() {
+    // Pooled arcing fireballs (gravity-affected): one group + one solid-collider
+    // (despawn on hit) + one player-overlap (1 dmg + despawn) for the level's
+    // lifetime; members recycle via getFirstDead.
+    this.fireballGroup = this.physics.add.group();
+    this.physics.add.collider(this.fireballGroup, this.solidGroup, (fb) =>
+      this.despawnFireball(fb as Phaser.Physics.Arcade.Sprite),
+    );
+    this.physics.add.overlap(this.player, this.fireballGroup, (_pl, fb) => {
+      this.despawnFireball(fb as Phaser.Physics.Arcade.Sprite);
+      this.takeDamage(1);
+    });
+
+    // Fireball fountains: one record per `!` cell, staggered so a row of spouts
+    // doesn't erupt in unison; arc direction alternates.
+    const n = Math.max(1, this.lvl.fountains.length);
+    this.lvl.fountains.forEach((f, i) => {
+      const x = f.tx * TILE + TILE / 2;
+      const y = f.ty * TILE + TILE / 2;
+      this.add.rectangle(x, y + TILE / 2, 6, 4, 0xff9f45).setDepth(1).setAlpha(0.85); // spout base
+      this.fountains.push({
+        x,
+        y,
+        nextAt: this.time.now + (i * FOUNTAIN_PERIOD_MS) / n,
+        dir: i % 2 === 0 ? 1 : -1,
+      });
+    });
+
+    // Collapsing bridges: a one-way body + sprite per `~` cell.
+    this.bridgeGroup = this.physics.add.staticGroup();
+    for (const b of this.lvl.bridges) {
+      const cx = b.tx * TILE + TILE / 2;
+      const cy = b.ty * TILE + TILE / 2;
+      const sprite = this.add.sprite(cx, cy, frameKey(CASTLE_TILE_KEYS.bridge, 0)).setDepth(2);
+      const rect = this.add.rectangle(cx, cy, TILE, TILE).setVisible(false);
+      this.bridgeGroup.add(rect);
+      const body = rect.body as Phaser.Physics.Arcade.StaticBody;
+      body.checkCollision.down = false; // one-way: ride the deck, pass from below
+      body.checkCollision.left = false;
+      body.checkCollision.right = false;
+      this.bridges.push({ sprite, rect, cx, cy, fallAt: null, respawnAt: null, gone: false });
+    }
+    this.physics.add.collider(this.player, this.bridgeGroup);
+
+    // Rising-corruption shaft: the drawn tide surface, starting at the floor.
+    const seg = this.def.corruption;
+    if (seg) {
+      const x0 = seg.fromTx * TILE;
+      const x1 = (seg.toTx + 1) * TILE;
+      this.tideTop = seg.floorTy * TILE;
+      this.tideRect = this.add
+        .rectangle(x0, this.tideTop, x1 - x0, this.mapHeightPx - this.tideTop, 0x8a1020, 0.55)
+        .setOrigin(0, 0)
+        .setDepth(6);
+    }
+  }
+
+  /** Render the castle's decorative sprites (chains / banners / statues) and the
+   *  storm lightning-flash overlay. Purely cosmetic — no collision. */
+  private buildCastleDecor() {
+    for (const d of this.def.decor ?? []) {
+      const key =
+        d.kind === "chain"
+          ? CASTLE_TILE_KEYS.chain
+          : d.kind === "banner"
+            ? CASTLE_TILE_KEYS.banner
+            : CASTLE_TILE_KEYS.statue;
+      const w = d.kind === "chain" ? 8 : 16;
+      const h = d.kind === "banner" ? 24 : d.kind === "statue" ? 32 : 16;
+      // Anchor the sprite's top-left to the tile cell's top-left.
+      const sprite = this.add
+        .sprite(d.tx * TILE + w / 2, d.ty * TILE + h / 2, frameKey(key, 0))
+        .setDepth(d.kind === "statue" ? 3 : 1);
+      if (d.kind === "banner") sprite.play(animKey(CASTLE_TILE_KEYS.banner, CASTLE_BANNER_ANIM));
+    }
+
+    if (this.def.theme !== "castle") return;
+    // Lightning flicker: a world-covering red-white sheet (scrollFactor 1, so
+    // zoom-safe like the parallax) that flashes on a storm cadence.
+    this.lightningFlash = this.add
+      .rectangle(0, 0, this.mapWidthPx, this.mapHeightPx, 0xff6a6a, 0)
+      .setOrigin(0, 0)
+      .setDepth(-8);
+    const strike = () => {
+      if (!this.lightningFlash) return;
+      this.tweens.add({ targets: this.lightningFlash, alpha: { from: 0.3, to: 0 }, duration: 240, ease: "Quad.in" });
+      this.time.delayedCall(2200 + Math.floor(Math.random() * 3800), strike);
+    };
+    this.time.delayedCall(1400, strike);
+  }
+
+  private spawnFireball(f: Fountain) {
+    let fb = this.fireballGroup.getFirstDead(false) as Phaser.Physics.Arcade.Sprite | null;
+    if (!fb) {
+      fb = this.fireballGroup.create(f.x, f.y, CASTLE_TILE_KEYS.fireball) as Phaser.Physics.Arcade.Sprite;
+      fb.setDepth(7);
+    }
+    fb.setActive(true).setVisible(true);
+    const body = fb.body as Body;
+    body.enable = true;
+    body.reset(f.x, f.y);
+    body.setAllowGravity(true); // gravity-affected arc
+    body.setVelocity(f.dir * FIREBALL_VX, FIREBALL_VY);
+    fb.setData("bornAt", this.time.now);
+  }
+
+  private despawnFireball(fb: Phaser.Physics.Arcade.Sprite) {
+    if (!fb.active) return;
+    fb.setActive(false).setVisible(false);
+    const body = fb.body as Body;
+    body.stop();
+    body.enable = false;
+  }
+
+  private updateFountains() {
+    if (this.fountains.length === 0) return;
+    const now = this.time.now;
+    for (const f of this.fountains) {
+      if (now >= f.nextAt) {
+        f.nextAt = now + FOUNTAIN_PERIOD_MS;
+        this.spawnFireball(f);
+      }
+    }
+    // Expire fireballs that fell off the bottom or outlived their flight.
+    for (const obj of this.fireballGroup.getChildren()) {
+      const fb = obj as Phaser.Physics.Arcade.Sprite;
+      if (!fb.active) continue;
+      if (fb.y > this.mapHeightPx + 40 || now - (fb.getData("bornAt") as number) > FIREBALL_TTL_MS)
+        this.despawnFireball(fb);
+    }
+  }
+
+  private updateBridges() {
+    if (this.bridges.length === 0) return;
+    const now = this.time.now;
+    const pb = this.player.body as Body;
+    for (const br of this.bridges) {
+      if (br.gone) {
+        if (br.respawnAt !== null && now >= br.respawnAt) this.respawnBridge(br);
+        continue;
+      }
+      if (br.fallAt === null) {
+        // Arm on the FIRST touch: player's feet on this bridge's top face.
+        const standing =
+          pb.blocked.down &&
+          Math.abs(pb.bottom - (br.cy - TILE / 2)) < 6 &&
+          Math.abs(this.player.x - br.cx) < TILE / 2 + 2;
+        if (standing) {
+          br.fallAt = now + BRIDGE_SHAKE_MS;
+          audio.sfx("error");
+        }
+      } else {
+        // Shaking: jitter + advance the crack frames, then fall.
+        br.sprite.x = br.cx + Math.sin(now / 18) * 1.2;
+        const prog = 1 - (br.fallAt - now) / BRIDGE_SHAKE_MS; // 0..1
+        br.sprite.setTexture(frameKey(CASTLE_TILE_KEYS.bridge, prog > 0.6 ? 2 : 1));
+        if (now >= br.fallAt) this.collapseBridge(br);
+      }
+    }
+  }
+
+  private collapseBridge(br: Bridge) {
+    br.gone = true;
+    br.fallAt = null;
+    br.respawnAt = this.time.now + BRIDGE_RESPAWN_MS;
+    (br.rect.body as Phaser.Physics.Arcade.StaticBody).enable = false;
+    br.sprite.x = br.cx;
+    this.tweens.add({
+      targets: br.sprite,
+      y: br.cy + TILE * 3,
+      alpha: 0,
+      duration: 400,
+      onComplete: () => br.sprite.setVisible(false),
+    });
+    audio.sfx("damage");
+  }
+
+  private respawnBridge(br: Bridge) {
+    br.gone = false;
+    br.respawnAt = null;
+    br.fallAt = null;
+    (br.rect.body as Phaser.Physics.Arcade.StaticBody).enable = true;
+    this.tweens.killTweensOf(br.sprite);
+    br.sprite.setTexture(frameKey(CASTLE_TILE_KEYS.bridge, 0));
+    br.sprite.setPosition(br.cx, br.cy).setAlpha(1).setVisible(true);
+  }
+
+  /** Rising-corruption shaft (castle): while the player is within the segment's
+   *  column span the tide surface climbs 12px/s (capped at ceilTy); leaving the
+   *  span (or respawning) resets it to the floor. Feet below the surface inside
+   *  the span = 1 dmg + an upward knock out of the tide. */
+  private updateCorruption(dtMs: number) {
+    const seg = this.def.corruption;
+    if (!seg || !this.tideRect) return;
+    const x0 = seg.fromTx * TILE;
+    const x1 = (seg.toTx + 1) * TILE;
+    const floorY = seg.floorTy * TILE;
+    const ceilY = seg.ceilTy * TILE;
+    const inside = !this.dead && this.player.x >= x0 && this.player.x <= x1;
+    if (inside) this.tideTop = Math.max(ceilY, this.tideTop - CORRUPTION_RISE_PXPS * (dtMs / 1000));
+    else this.tideTop = floorY;
+
+    this.tideRect
+      .setPosition(x0, this.tideTop)
+      .setSize(x1 - x0, this.mapHeightPx - this.tideTop)
+      .setFillStyle(0x8a1020, 0.5 + 0.1 * Math.sin(this.time.now / 120));
+
+    const pb = this.player.body as Body;
+    if (inside && pb.bottom > this.tideTop && this.time.now >= this.iframesUntil) {
+      this.takeDamage(1);
+      if (!this.dead) {
+        pb.setVelocityY(-260); // knock upward out of the rising tide
+        this.knockbackUntil = this.time.now + KNOCKBACK_MS;
+      }
+    }
+  }
+
   // --- enemy projectiles (Task 18) ------------------------------------------
 
   /** Pooled 4x4 hazard packets (malware-bat fire). One group + one collider +
@@ -987,10 +1293,13 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       else if (s.kind === "firewall-knight") enemy = new FirewallKnight(this, x, y);
       else if (s.kind === "rootkit-slime") enemy = new RootkitSlime(this, x, y);
       if (enemy) {
-        // Shadow-enemy rule (Task 20): in the Corrupted Archive, every spawned
-        // walker/flyer is a darker, tankier "shadow" of itself — a 0x333333
-        // palette-swap that survives hit flashes, plus +1 hp.
+        // Shadow / strong-variant rule (Task 20 archive, Task 21 castle): a
+        // darker, tankier palette-swap that survives hit flashes, +1 hp. The
+        // archive uses the default 0x333333 shadow; the castle's strong gauntlet
+        // uses a blood-dark tint AND a +10 patrol-speed bonus (makeShadow stays
+        // additive — see Enemy.makeShadow).
         if (this.def.theme === "archive") enemy.makeShadow();
+        else if (this.def.theme === "castle") enemy.makeShadow(CASTLE_SHADOW_TINT, CASTLE_SPEED_BONUS);
         this.enemyGroup.add(enemy);
       }
     }
@@ -1248,6 +1557,12 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.updateLasers();
     this.updateRotators(); // Task 20 archive: orbiting page platforms + rider carry
 
+    // Task 21 castle hazards: fireball fountains, collapsing bridges, and the
+    // rising-corruption tide. Frozen with the rest while paused (return above).
+    this.updateFountains();
+    this.updateBridges();
+    this.updateCorruption(dtMs);
+
     if (snap.pausePressed) {
       gameStore.set({ paused: true });
       this.pausedText?.setPosition(cam.midPoint.x, cam.midPoint.y).setVisible(true);
@@ -1360,6 +1675,27 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   }
 
   private enterBoss() {
+    // The castle throne door is SEALED until the three fragments forge the
+    // castle key (Task 21). save.castleKey is granted by the Blank Page.
+    if (this.def.id === "castle") {
+      const save = loadSave();
+      if (!save.castleKey) {
+        // No key: a short seal line, not combat.
+        openDialogue("castle-seal");
+        return;
+      }
+      // Has the key. The devil-king BossDefinition arrives in Task 22 — until
+      // BOSSES["devil-king"] is registered, show a COMING SOON toast (the
+      // overworld pattern) instead of launching an empty fight that would throw.
+      // SEAM FOR TASK 22: once the devil-king def exists in BOSSES, this guard
+      // falls through to startCombat below and the fight begins normally.
+      if (!BOSSES[this.def.bossId]) {
+        audio.sfx("select");
+        this.showToast("COMING SOON");
+        return;
+      }
+    }
+
     gameStore.set({ levelBuffs: [...this.buffs] });
     bus.emit("level:enter-boss", { levelId: this.def.id, bossId: this.def.bossId });
     // Hand off to the combat controller: it pauses this Level scene, launches
@@ -1438,6 +1774,10 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.player.setAlpha(1);
     this.player.play(animKey("player", "idle"), true);
 
+    // Reset the rising-corruption tide (Task 21): a respawn drops the player at a
+    // checkpoint outside the shaft, so the tide returns to the floor.
+    if (this.def.corruption) this.tideTop = this.def.corruption.floorTy * TILE;
+
     this.iframesUntil = this.time.now + RESPAWN_IFRAMES_MS;
     this.blink(RESPAWN_IFRAMES_MS);
     this.pushHud();
@@ -1468,6 +1808,32 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
         fragments: this.fragments,
         levelId: this.def.id,
       },
+    });
+  }
+
+  /** A brief centred banner (the castle "seal held" / "COMING SOON" beats),
+   *  positioned at the camera's world midpoint so it reads under zoom. */
+  private showToast(msg: string) {
+    this.toast?.destroy();
+    const cam = this.cameras.main;
+    const t = this.add
+      .text(cam.midPoint.x, cam.midPoint.y - 28, msg, {
+        fontFamily: "monospace",
+        fontSize: "12px",
+        fontStyle: "bold",
+        color: "#ffd75e",
+        backgroundColor: "#000000cc",
+        padding: { x: 8, y: 5 },
+      })
+      .setOrigin(0.5)
+      .setDepth(100);
+    this.toast = t;
+    this.tweens.add({
+      targets: t,
+      alpha: { from: 1, to: 0 },
+      delay: 1000,
+      duration: 700,
+      onComplete: () => t.destroy(),
     });
   }
 }

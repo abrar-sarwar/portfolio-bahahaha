@@ -88,13 +88,17 @@ export abstract class Enemy extends Phaser.Physics.Arcade.Sprite {
     return this.scene as EnemyHostScene;
   }
 
-  /** Turn this into an archive "shadow" variant (Task 20): a dark palette-swap
-   *  tint that survives hit flashes plus +1 hp. Called by the scene right after
-   *  construction for theme "archive", so the base kind's own hp is set first. */
-  makeShadow(tint = 0x333333): void {
+  /** Turn this into a "shadow"/strong variant: a dark palette-swap tint that
+   *  survives hit flashes, plus +1 hp and an optional patrol-speed bonus.
+   *  Called by the scene right after construction (theme "archive" uses the
+   *  default 0x333333 shadow; theme "castle" passes a blood-dark tint + a speed
+   *  bonus for its strong gauntlet — see PlatformLevelScene.spawnEnemies). The
+   *  base kind's own hp/patrolSpeed are set first, so this stays additive. */
+  makeShadow(tint = 0x333333, speedBonus = 0): void {
     this.shadowTint = tint;
     this.setTint(tint);
     this.hp += 1;
+    this.patrolSpeed += speedBonus;
   }
 
   /** Restore the resting tint after a flash: back to the shadow tint for a
