@@ -29,6 +29,16 @@ const CHARGE_PARRY_PERFECT_MS = 60;
 type BruteState = "patrol" | "charging" | "stunned";
 
 export class BruteForceBrute extends Enemy {
+  /** Charge speed; strong (castle) variants raise it via makeShadow's
+   *  speedBonus so the +10 applies to the attack that matters, not just
+   *  the walk (T21 review finding). */
+  private chargeSpeed = CHARGE_SPEED;
+
+  override makeShadow(tint?: number, speedBonus = 0): void {
+    super.makeShadow(tint, speedBonus);
+    this.chargeSpeed += speedBonus;
+  }
+
   private phase: BruteState = "patrol";
   private stunUntil = 0;
   private chargeReadyAt = 0;
@@ -63,7 +73,7 @@ export class BruteForceBrute extends Enemy {
         if (now >= this.stunUntil) this.exitStun(now);
         break;
       case "charging": {
-        body.setVelocityX(this.chargeDir * CHARGE_SPEED);
+        body.setVelocityX(this.chargeDir * this.chargeSpeed);
         this.setFlipX(this.chargeDir < 0);
         const wall =
           (this.chargeDir > 0 && body.blocked.right) ||
@@ -111,7 +121,7 @@ export class BruteForceBrute extends Enemy {
     this.dir = dir;
     this.chargeStartedAt = now;
     const dist = Math.abs(this.host.playerSprite.x - this.x);
-    this.predictedContactAt = now + (dist / CHARGE_SPEED) * 1000;
+    this.predictedContactAt = now + (dist / this.chargeSpeed) * 1000;
     audio.sfx("dash");
   }
 

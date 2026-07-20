@@ -340,8 +340,9 @@ export class OverworldScene extends Phaser.Scene {
       return;
     }
 
-    // Unlocked / completed level (or castle). Gate the real scene.start on an
-    // actual level definition existing — 1-2..1-4 and the castle have none yet.
+    // Unlocked / completed level (or castle). All five levels exist now, so
+    // the COMING SOON branch is a defensive guard only (it protects against a
+    // level ever being unregistered, rather than crashing scene.start).
     const levelId = n.id as LevelId;
     if (LEVELS[levelId]) {
       audio.sfx("select");
