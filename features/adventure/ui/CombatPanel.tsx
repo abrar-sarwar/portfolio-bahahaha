@@ -10,6 +10,7 @@ import Bar from "./Bars";
 import TypingBox from "./TypingBox";
 import TimedPrompt from "./TimedPrompt";
 import BuffTray from "./BuffTray";
+import Dialogue from "../dialogue/Dialogue";
 
 const SCRIPTED_STEP_LABELS = [
   "Read the Devil King's pattern — ANALYZE.",
@@ -97,6 +98,15 @@ function Interaction({
   showItems: boolean;
   setShowItems: (v: boolean) => void;
 }) {
+  // Boss intro (before the first turn) and boss defeat (inside the victory
+  // flow) both play through the same Dialogue overlay — the controller opens
+  // `boss-intro-<bossId>` / `boss-defeat-<bossId>` (see combat/controller.ts's
+  // beginCombat / handleOutcome). This is the single gate that swaps Dialogue
+  // in ahead of everything else below: the action menu, the victory panel's
+  // reward chips, and the defeat/retry panel all wait behind it.
+  const dialogue = useGameStore((s) => s.dialogue);
+  if (dialogue) return <Dialogue />;
+
   if (combat.tag === "victory") {
     return <VictoryPanel combat={combat} />;
   }
@@ -193,18 +203,15 @@ function TutorialParryCallout() {
 }
 
 // ── victory ──────────────────────────────────────────────────────────────────
+// def.defeatLines play through the Dialogue overlay (Interaction()'s gate
+// above), opened by the controller BEFORE combatResult flips to "victory" is
+// even visible here — so by the time this panel renders, the lines have
+// already been shown or skipped. No static text list needed.
 function VictoryPanel({ combat }: { combat: CombatState }) {
   const { def } = combat;
   return (
     <div className="pointer-events-auto flex flex-col items-center gap-2 rounded-sm border border-amber-300/50 bg-black/70 px-6 py-3 text-center shadow-[0_0_24px_rgba(255,215,94,0.4)]">
       <div className="text-[14px] font-bold uppercase tracking-[0.3em] text-amber-200">Victory</div>
-      <div className="flex flex-col gap-0.5">
-        {def.defeatLines.map((line, i) => (
-          <div key={i} className="text-[10px] text-amber-100/70">
-            {line}
-          </div>
-        ))}
-      </div>
       {def.rewards.length > 0 && (
         <div className="flex flex-wrap items-center justify-center gap-1.5">
           {def.rewards.map((r, i) => (

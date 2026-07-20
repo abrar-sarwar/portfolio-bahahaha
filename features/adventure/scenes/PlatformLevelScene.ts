@@ -13,7 +13,8 @@ import { audio } from "../audio/synth";
 import { bus } from "../bridge/EventBus";
 import { gameStore } from "../bridge/GameStore";
 import { startCombat, registerCombatGame } from "../combat/controller";
-import { collectMemoryFragment, loadSave, persistSave } from "../state/save";
+import { collectMemoryFragment, loadSave, markIntroSeen, persistSave } from "../state/save";
+import { openDialogue } from "../dialogue/dialogueController";
 import { input } from "../input/InputState";
 import { mergeRowRuns, runToRect, topExposed } from "./levelGeometry";
 import { shouldClipAscent, movementLocked } from "./controllerGates";
@@ -112,8 +113,10 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
 
     // Save check (before buildTiles): a fragment collected in a prior
     // session must not spawn again — read this ahead of buildTiles() so its
-    // fragment-sprite block can skip the spawn entirely.
-    this.fragmentCollected = loadSave().memoryFragments.includes(def.id);
+    // fragment-sprite block can skip the spawn entirely. Read once and reuse
+    // below for the level-intro seenIntros check too.
+    const save = loadSave();
+    this.fragmentCollected = save.memoryFragments.includes(def.id);
 
     // Textures: idempotent — BootScene already registered these, but Level
     // must not assume it ran first (Task 16 will start Level from elsewhere).
@@ -189,9 +192,32 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     };
     this.events.on(Phaser.Scenes.Events.RESUME, onResume);
 
+    // Dialogue (Task 17): freeze Arcade physics while a Dialogue overlay is
+    // up, independent of the P/Esc `paused` toggle (see the dialogue gate at
+    // the top of update() for why the two must stay separate flags — reusing
+    // `paused` would let Escape silently resume the world out from under an
+    // open dialogue, since that toggle's own branch knows nothing about
+    // dialogue and Dialogue.tsx treats Space/Enter/E as "advance the line").
+    // update()'s early-return below already stops player/enemy logic; this
+    // stops Arcade's own gravity/velocity step, which runs independently of
+    // this scene's update() body every frame.
+    const offDialogueOpen = bus.on("dialogue:open", () => this.physics.pause());
+    const offDialogueClosed = bus.on("dialogue:closed", () => this.physics.resume());
+
+    // Level intro: plays intro-<levelId> once per save (seenIntros persisted
+    // in the save — additive field, see state/save.ts's AdventureSave doc
+    // comment). A level with no authored intro script yet (openDialogue
+    // returns false) is a silent no-op and nothing is marked seen, so it can
+    // play once a script lands.
+    if (!save.seenIntros.includes(def.id)) {
+      if (openDialogue(`intro-${def.id}`)) persistSave(markIntroSeen(loadSave(), def.id));
+    }
+
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.detachInput?.();
       this.events.off(Phaser.Scenes.Events.RESUME, onResume);
+      offDialogueOpen();
+      offDialogueClosed();
     });
   }
 
@@ -441,6 +467,17 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   update(_t: number, dtMs: number) {
     const snap = input.read();
 
+    if (gameStore.get().dialogue) {
+      // A Dialogue overlay owns the screen (level intro / fragment note) —
+      // freeze the world exactly like the `paused` branch below, but gated
+      // on its own flag (see the dialogue:open/:closed listeners in create()
+      // for why `paused` itself is deliberately not reused here). No P/Esc
+      // escape hatch on this branch — the dialogue is dismissed by advancing
+      // or SKIP (Dialogue.tsx), not by the pause key.
+      input.consume();
+      return;
+    }
+
     if (gameStore.get().paused) {
       // Consume input while paused; P/Esc toggles back out (no soft-lock).
       if (snap.pausePressed) {
@@ -614,6 +651,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       this.pushHud();
       bus.emit("level:fragment", { levelId: this.def.id });
       persistSave(collectMemoryFragment(loadSave(), this.def.id));
+      openDialogue(`frag-${this.def.id}`);
       return;
     }
     if (this.nearDoor) this.enterBoss();

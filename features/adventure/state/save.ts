@@ -32,6 +32,12 @@ export interface AdventureSave {
   deaths: Partial<Record<BossId, number>>;
   gameCompleted: boolean;
   codeReceived: boolean;
+  /** Level ids whose intro-<id> dialogue has already played this save (Task
+   *  17). Additive field, added with NO version bump: isSaveShape below
+   *  deliberately does not require it (a save written before it existed
+   *  must keep loading), and loadSave backfills a missing key with [] — see
+   *  both for the mechanics of that tolerance. */
+  seenIntros: LevelId[];
   settings: {
     volume: number;
     muted: boolean;
@@ -57,6 +63,7 @@ export function defaultSave(): AdventureSave {
     deaths: {},
     gameCompleted: false,
     codeReceived: false,
+    seenIntros: [],
     settings: {
       volume: 0.7,
       muted: false,
@@ -82,7 +89,10 @@ function defaultStorage(): StorageLike | undefined {
 /** Loose shape check: version must be 1 and the array/object fields must be
  *  the right JS type. Not a full schema validation — this only exists to
  *  keep a truncated/hand-edited/future-incompatible localStorage entry from
- *  crashing downstream code that assumes e.g. `save.completed.includes`. */
+ *  crashing downstream code that assumes e.g. `save.completed.includes`.
+ *  Deliberately does NOT check `seenIntros` (Task 17, additive/no version
+ *  bump): a save written before that field existed must still pass this
+ *  check; loadSave backfills the missing key with [] right after. */
 function isSaveShape(v: unknown): v is AdventureSave {
   if (typeof v !== "object" || v === null) return false;
   const s = v as Partial<AdventureSave>;
@@ -118,7 +128,11 @@ export function loadSave(storage: StorageLike | undefined = defaultStorage()): A
   if (raw === null) return defaultSave();
   try {
     const parsed: unknown = JSON.parse(raw);
-    return isSaveShape(parsed) ? parsed : defaultSave();
+    if (!isSaveShape(parsed)) return defaultSave();
+    // Additive field (Task 17, no version bump): a save written before
+    // seenIntros existed simply lacks the key — fill it in here so every
+    // downstream `.includes()` caller can rely on it without a null-check.
+    return Array.isArray(parsed.seenIntros) ? parsed : { ...parsed, seenIntros: [] };
   } catch {
     return defaultSave();
   }
@@ -202,4 +216,12 @@ export function markBossDefeated(save: AdventureSave, bossId: BossId): Adventure
 export function collectMemoryFragment(save: AdventureSave, levelId: LevelId): AdventureSave {
   if (save.memoryFragments.includes(levelId)) return save;
   return { ...save, memoryFragments: [...save.memoryFragments, levelId] };
+}
+
+/** Record a level's intro dialogue as played this save (Task 17, additive
+ *  `seenIntros` — see the AdventureSave doc comment above). Dedupes — a
+ *  replayed level entry never double-adds. */
+export function markIntroSeen(save: AdventureSave, levelId: LevelId): AdventureSave {
+  if (save.seenIntros.includes(levelId)) return save;
+  return { ...save, seenIntros: [...save.seenIntros, levelId] };
 }

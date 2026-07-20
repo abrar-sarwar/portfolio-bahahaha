@@ -43,6 +43,19 @@ export interface TelegraphState {
   startedAt: number;
 }
 
+/** Active typewriter dialogue overlay (Task 17); null when nothing is
+ *  showing. `line` is the index into `lines` currently on screen.
+ *  Dialogue.tsx renders entirely from this; dialogue/dialogueController.ts
+ *  is the only writer (openDialogue / advanceDialogue / closeDialogue).
+ *  Deliberately independent of `paused` below — see dialogueController.ts's
+ *  doc comment for why reusing that flag would fight PlatformLevelScene's
+ *  own P/Esc pause toggle instead of layering cleanly alongside it. */
+export interface DialogueState {
+  id: string;
+  lines: string[];
+  line: number;
+}
+
 /** Player-facing HUD snapshot (hearts, buff chips, fragment count). */
 export interface HudState {
   health: number;
@@ -88,6 +101,8 @@ export interface GameUIState {
    *  NEW GAME wipe). Non-null makes the Overlay render ConfirmDialog; the scene
    *  that raised it listens for the `ui:confirm` bus result and clears this. */
   confirm: { message: string } | null;
+  /** Active typewriter dialogue overlay (Task 17); see DialogueState. */
+  dialogue: DialogueState | null;
 }
 
 export const gameStore = createStore<GameUIState>({
@@ -110,6 +125,7 @@ export const gameStore = createStore<GameUIState>({
   completed: [],
   unlocked: ["1-1"],
   confirm: null,
+  dialogue: null,
 });
 
 /** Memoize a selector by store-state reference so getSnapshot returns a

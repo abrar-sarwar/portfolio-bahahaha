@@ -29,6 +29,7 @@ import { LEVELS } from "../levels";
 import { audio } from "../audio/synth";
 import { grantRewards } from "./rewards";
 import { completeLevel, loadSave, markBossDefeated, persistSave, recordDeath } from "../state/save";
+import { openDialogue } from "../dialogue/dialogueController";
 
 export interface StartCombatOpts {
   levelId: LevelId;
@@ -72,12 +73,13 @@ let combatGame: GameLike | null = null;
 let storeUnsub: (() => void) | null = null;
 let lastPaused = false;
 
-// Persist AND seed the runtime store wherever "level:complete" fires. Both the
-// old resume-to-level exitCombat() victory branch and Task 16's returnToOverworld()
-// emit this, so completion is durable (save) and immediately visible (store's
-// completed/unlocked, which the OverworldScene reads to light nodes) no matter
-// which seam finished the level. completeLevel is idempotent, so a replayed
-// clear is a reference-stable no-op.
+// Persist AND seed the runtime store wherever "level:complete" fires.
+// returnToOverworld() is the sole emitter (Task 17 review: removed the dead
+// exitCombat() victory branch that used to share this listener — see its
+// doc comment), so completion is durable (save) and immediately visible
+// (store's completed/unlocked, which the OverworldScene reads to light
+// nodes). completeLevel is idempotent, so a replayed clear is a
+// reference-stable no-op.
 bus.on("level:complete", ({ levelId }) => {
   const save = completeLevel(loadSave(), levelId);
   persistSave(save);
@@ -114,42 +116,26 @@ export function retryCombat(): void {
   startCombat(session.bossId, session.opts);
 }
 
-/** Exit the fight: tear down, resume the Level scene, stop the backdrop, clear
- *  the store's combat snapshot. The victory panel's "RETURN TO THE FIELDS"
- *  button calls this. Guarded against a destroyed/null combatGame — e.g. a
- *  straggling call that lands after `teardownCombat()` already nulled it
- *  during unmount — so it never throws. */
-export function exitCombat(): void {
-  const wasVictory = session?.state.outcome === "victory";
-  const levelId = session?.opts.levelId;
-  teardownSession();
-  if (combatGame) {
-    try {
-      if (combatGame.scene.isActive(BACKDROP_SCENE)) combatGame.scene.stop(BACKDROP_SCENE);
-      combatGame.scene.resume(LEVEL_SCENE);
-    } catch {
-      // Phaser game already destroyed — nothing left to resume/stop.
-    }
-  }
-  gameStore.set({ combat: null, telegraph: null });
-  // Level scene resumes at the door on a cleared boss; Task 16 wires this to
-  // an actual Overworld transition. No listener yet — a harmless no-op emit.
-  if (wasVictory && levelId) bus.emit("level:complete", { levelId });
-}
-
-/** Victory exit to the Overworld (Task 16's "RETURN TO THE MAP" button). Unlike
- *  exitCombat (which resumes the paused Level at the boss door), this tears down
- *  the fight, persists + seeds the level completion via the level:complete bus
- *  listener above, STOPS the Level scene, and starts the Overworld — the map is
- *  the post-victory home, not the level. `justCompleted` lets the Overworld pop
- *  the freshly-planted flag. Guarded against a destroyed/null combatGame. */
+/** Victory exit to the Overworld ("RETURN TO THE MAP" button). Tears down the
+ *  fight, persists + seeds the level completion via the level:complete bus
+ *  listener above, STOPS the Level scene, and starts the Overworld — the map
+ *  is the post-victory home, not the level. (Task 17 review: this used to sit
+ *  alongside a since-removed exitCombat(), which resumed the paused Level
+ *  instead of returning to the map; returnToOverworld is now the single
+ *  victory-exit seam, so that dead function and its stale comments were
+ *  deleted.) `justCompleted` lets the Overworld pop the freshly-planted flag.
+ *  Guarded against a destroyed/null combatGame. */
 export function returnToOverworld(): void {
   const levelId = session?.opts.levelId;
+  const wasVictory = session?.state.outcome === "victory";
   teardownSession();
   gameStore.set({ combat: null, telegraph: null });
   // Emit BEFORE the scene switch so the listener's store seed lands before the
-  // Overworld's create() reads completed/unlocked.
-  if (levelId) bus.emit("level:complete", { levelId });
+  // Overworld's create() reads completed/unlocked. Guarded on victory (Task
+  // 17 review fix c) — returnToOverworld is reachable today only from the
+  // victory panel, but the emit itself had no outcome check; a future or
+  // rogue call from a non-victory session must not mark the level complete.
+  if (wasVictory && levelId) bus.emit("level:complete", { levelId });
   if (combatGame) {
     try {
       // Stop BOTH unconditionally: the Level scene is PAUSED here (beginCombat
@@ -207,6 +193,14 @@ export function beginCombat(bossId: BossId, opts: StartCombatOpts, defOverride?:
     if (combatGame.scene.isActive(LEVEL_SCENE)) combatGame.scene.pause(LEVEL_SCENE);
     combatGame.scene.start(BACKDROP_SCENE, { bossId, levelId: opts.levelId, theme });
   }
+
+  // Dialogue (Task 17): the boss's intro plays as an overlay BEFORE the
+  // first player turn — CombatPanel swaps in <Dialogue/> instead of the
+  // action menu while gameStore.dialogue is set (see Interaction() there).
+  // The dynamic `boss-intro-<bossId>` id resolves BOSSES[bossId].intro
+  // through resolveScript, so any registered boss gets this for free; a
+  // boss with no resolvable script is a silent no-op.
+  openDialogue(`boss-intro-${bossId}`);
 
   // A fight can open already needing a defense (unlikely) — reconcile the tag.
   handleTag();
@@ -296,11 +290,17 @@ function handleOutcome(): void {
     audio.playTrack("victory");
     gameStore.set({ combatResult: { outcome: "victory", bossId } });
     persistSave(markBossDefeated(loadSave(), bossId));
+    // Dialogue (Task 17): defeat lines play through the same Dialogue
+    // overlay before CombatPanel's reward chips + RETURN button — see
+    // Interaction()'s dialogue gate. Dynamic id resolves
+    // BOSSES[bossId].defeatLines; a silent no-op if unresolved.
+    openDialogue(`boss-defeat-${bossId}`);
   }
   bus.emit("combat:over", { outcome: state.outcome === "defeat" ? "defeat" : "victory", bossId });
   // The combat snapshot stays in the store so the UI shows victory / retry.
-  // CombatPanel's victory branch reads combat.def.rewards + defeatLines
-  // directly; "RETURN TO THE FIELDS" calls exitCombat() to resume the level.
+  // CombatPanel's victory branch reads combat.def.rewards for the reward
+  // chips; defeatLines now play through the Dialogue overlay opened above
+  // instead of a static list. "RETURN TO THE MAP" calls returnToOverworld().
 }
 
 // ─────────────────────────────────────────────────── deadline / timer glue ──

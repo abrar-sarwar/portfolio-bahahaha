@@ -9,6 +9,7 @@ import { setMuted as setSaveMuted } from "../state/settings";
 import Hud from "./Hud";
 import CombatPanel from "./CombatPanel";
 import ConfirmDialog from "./ConfirmDialog";
+import Dialogue from "../dialogue/Dialogue";
 
 export default function Overlay() {
   const scene = useGameStore((s) => s.scene);
@@ -38,8 +39,12 @@ export default function Overlay() {
       className="pointer-events-none absolute inset-0 z-10 select-none font-mono"
       onPointerDown={() => audio.unlock()}
     >
-      {/* Later tasks mount dialogue panels here. */}
+      {/* Level-scene dialogue (intro / fragment notes). The in-combat case
+          (boss intro/defeat) is mounted by CombatPanel itself instead — see
+          its Interaction() gate — so this only covers the non-combat Level
+          scene, never both at once. */}
       {scene === "Level" && !inCombat && <Hud />}
+      {scene === "Level" && !inCombat && <Dialogue />}
       {inCombat && <CombatPanel />}
       {confirm && (
         <ConfirmDialog

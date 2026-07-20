@@ -1,10 +1,14 @@
 "use client";
 
-// A tiny, presentational confirm overlay (Task 16). No dialogue system yet
-// (Task 17) — this is the minimal panel the Title's NEW GAME wipe needs. It
-// owns no state: the Overlay wires `message` from gameStore.confirm and turns
-// the two buttons into `ui:confirm` bus results. Additive, self-contained.
+import { useEffect } from "react";
 
+// A tiny, presentational confirm overlay (Task 16). Not the Task 17 dialogue
+// system (that's script-driven typewriter lines for level/boss story beats;
+// this is a one-off yes/no prompt) — this is the minimal panel the Title's
+// NEW GAME wipe needs. It owns no state beyond its keyboard listener: the
+// Overlay wires `message` from gameStore.confirm and turns the two buttons
+// (or Enter/Escape — Task 17 review fold-in fix) into `ui:confirm` bus
+// results.
 export default function ConfirmDialog({
   message,
   onConfirm,
@@ -14,6 +18,24 @@ export default function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  // Enter = confirm, Escape = cancel. Mounted only while gameStore.confirm is
+  // set (Overlay's gate), so the listener's lifetime already matches the
+  // dialog's — still cleaned up on unmount to avoid leaking a handler that
+  // would otherwise fire Enter/Escape after the dialog closes.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        onConfirm();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        onCancel();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onConfirm, onCancel]);
+
   return (
     <div className="pointer-events-auto absolute inset-0 z-40 flex items-center justify-center bg-black/70 font-mono">
       <div className="flex flex-col items-center gap-4 rounded-sm border border-violet-300/50 bg-black/80 px-8 py-6 text-center shadow-[0_0_28px_rgba(167,139,250,0.35)]">

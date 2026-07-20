@@ -9,6 +9,7 @@ import {
   recordDeath,
   markBossDefeated,
   collectMemoryFragment,
+  markIntroSeen,
   type AdventureSave,
   type StorageLike,
 } from "./save";
@@ -45,6 +46,7 @@ describe("defaultSave", () => {
     expect(s.deaths).toEqual({});
     expect(s.gameCompleted).toBe(false);
     expect(s.codeReceived).toBe(false);
+    expect(s.seenIntros).toEqual([]);
   });
 
   it("starts with default audio settings and no accessibility toggles", () => {
@@ -98,6 +100,22 @@ describe("loadSave / persistSave roundtrip", () => {
 
   it("persistSave with no storage argument in a Node/SSR context does not throw", () => {
     expect(() => persistSave(defaultSave())).not.toThrow();
+  });
+
+  it("fills a missing seenIntros with [] for a save written before Task 17 (additive field, no version bump)", () => {
+    const storage = new FakeStorage();
+    const legacy = { ...defaultSave() } as Partial<AdventureSave>;
+    delete legacy.seenIntros;
+    storage.setItem(KEY, JSON.stringify(legacy));
+    const loaded = loadSave(storage);
+    expect(loaded.seenIntros).toEqual([]);
+    expect(loaded.unlocked).toEqual(["1-1"]); // rest of the shape is untouched
+  });
+
+  it("still returns defaults for a version-1 payload missing OTHER required fields, seenIntros absence alone is not enough to reject", () => {
+    const storage = new FakeStorage();
+    storage.setItem(KEY, JSON.stringify({ version: 1, unlocked: ["1-1"] })); // missing completed etc.
+    expect(loadSave(storage)).toEqual(defaultSave());
   });
 });
 
@@ -216,5 +234,24 @@ describe("collectMemoryFragment", () => {
     const once = collectMemoryFragment(defaultSave(), "1-1");
     const twice = collectMemoryFragment(once, "1-1");
     expect(twice).toBe(once);
+  });
+});
+
+describe("markIntroSeen", () => {
+  it("adds a level id to seenIntros", () => {
+    const next = markIntroSeen(defaultSave(), "1-1");
+    expect(next.seenIntros).toEqual(["1-1"]);
+  });
+
+  it("is idempotent (reference-stable no-op replay)", () => {
+    const once = markIntroSeen(defaultSave(), "1-1");
+    const twice = markIntroSeen(once, "1-1");
+    expect(twice).toBe(once);
+  });
+
+  it("does not mutate the input save", () => {
+    const save = defaultSave();
+    markIntroSeen(save, "1-1");
+    expect(save.seenIntros).toEqual([]);
   });
 });

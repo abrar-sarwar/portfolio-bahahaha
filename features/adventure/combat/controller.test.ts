@@ -3,7 +3,8 @@ import {
   startCombat,
   beginCombat,
   dispatchCombat,
-  exitCombat,
+  returnToOverworld,
+  registerCombatGame,
   teardownCombat,
   currentCombat,
   SCRIPTED_PARRY_STEP,
@@ -64,7 +65,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  exitCombat();
+  teardownCombat(); // also nulls the registered mock game — see registerCombatGame tests below
   for (const off of offs) off();
 });
 
@@ -254,5 +255,60 @@ describe("combat controller — store-based telegraph", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────── returnToOverworld ──
+// Fold-in fix (a) from the Task 16 review: a mock-scene unit test asserting
+// the scene-transition ORDER (stop Backdrop -> stop Level -> start
+// Overworld) and that the store's completed/unlocked — the fields
+// OverworldScene reads to light nodes — land before the scene switch. Also
+// covers fold-in fix (c): the level:complete emit must stay victory-gated.
+describe("returnToOverworld", () => {
+  it("stops Backdrop then Level, starts Overworld (in that order), and updates store completed/unlocked on a victory", () => {
+    const calls: string[] = [];
+    const mockGame = {
+      scene: {
+        isActive: () => true,
+        pause: (key: string) => { calls.push(`pause:${key}`); },
+        resume: (key: string) => { calls.push(`resume:${key}`); },
+        start: (key: string) => { calls.push(`start:${key}`); },
+        stop: (key: string) => { calls.push(`stop:${key}`); },
+      },
+    };
+    registerCombatGame(mockGame);
+    gameStore.set({ completed: [], unlocked: ["1-1"] });
+
+    beginCombat("glitch-toad", OPTS, testBoss({ maxHealth: 4 }));
+    dispatchCombat({ type: "action", kind: "attack" }); // boss 4 -> 2, telegraph
+    dispatchCombat({ type: "defense-result", parry: "perfect" }); // counter -> 0 -> victory
+    expect(gameStore.get().combat!.tag).toBe("victory");
+
+    calls.length = 0; // isolate the calls returnToOverworld itself makes
+    returnToOverworld();
+
+    const backdropIdx = calls.indexOf("stop:CombatBackdrop");
+    const levelIdx = calls.indexOf("stop:Level");
+    const overworldIdx = calls.indexOf("start:Overworld");
+    expect(backdropIdx).toBeGreaterThanOrEqual(0);
+    expect(levelIdx).toBeGreaterThan(backdropIdx);
+    expect(overworldIdx).toBeGreaterThan(levelIdx);
+
+    expect(gameStore.get().completed).toEqual(["1-1"]);
+    expect(gameStore.get().unlocked).toEqual(["1-1", "1-2"]);
+    expect(gameStore.get().combat).toBeNull();
+  });
+
+  it("does not mark the level complete when called without a victory outcome (fold-in fix c)", () => {
+    const completeEvents = capture("level:complete");
+    gameStore.set({ completed: [], unlocked: ["1-1"] });
+
+    beginCombat("glitch-toad", OPTS, testBoss({ maxHealth: 4 }));
+    expect(gameStore.get().combat!.outcome).toBe("ongoing");
+
+    returnToOverworld();
+
+    expect(completeEvents).toEqual([]);
+    expect(gameStore.get().completed).toEqual([]);
   });
 });

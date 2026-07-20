@@ -59,6 +59,13 @@ export interface AdventureEvents {
   };
   "combat:fx": { kind: import("../combat/controllerLogic").CombatFxKind };
   "combat:over": { outcome: "victory" | "defeat"; bossId: import("../ids").BossId };
+  // Dialogue overlay lifecycle (Task 17). Raised by
+  // dialogue/dialogueController's openDialogue/closeDialogue so other
+  // systems can react without polling gameStore.dialogue every frame —
+  // currently PlatformLevelScene's physics.pause()/resume() while a Dialogue
+  // panel is up outside combat (see its create()/update() doc comments).
+  "dialogue:open": { id: string };
+  "dialogue:closed": { id: string };
 }
 
 export const bus = new EventBus<AdventureEvents>();
