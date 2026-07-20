@@ -21,7 +21,7 @@ export function createStore<S extends object>(initial: S) {
   };
 }
 
-import type { SceneKey, LevelId, BossId, BuffId, AbilityId } from "../ids";
+import type { SceneKey, LevelId, BossId, BuffId, AbilityId, KeyFragment } from "../ids";
 import type { CombatState } from "../combat/types";
 import type { QteSpec } from "../combat/timedEvents";
 import { PLAYER_BASE } from "../config";
@@ -61,6 +61,10 @@ export interface GameUIState {
   levelBuffs: BuffId[];
   /** Unlocked movement/combat abilities. `dash` gates the platformer dash. */
   abilities: Record<AbilityId, boolean>;
+  /** Key fragments earned from boss rewards (Task 14's applyRewards). No save
+   *  system yet (Task 15) — like `deaths`, this is a session-only stash the
+   *  controller's victory seam writes into via combat/rewards.ts. */
+  keyFragments: KeyFragment[];
   /** Live combat snapshot while a boss fight is active; null otherwise. The
    *  React CombatPanel renders entirely from this. */
   combat: CombatState | null;
@@ -88,6 +92,7 @@ export const gameStore = createStore<GameUIState>({
   },
   levelBuffs: [],
   abilities: { dash: false, analyze: false, improvedParry: false },
+  keyFragments: [],
   combat: null,
   telegraph: null,
   deaths: {},

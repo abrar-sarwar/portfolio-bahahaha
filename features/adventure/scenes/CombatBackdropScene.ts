@@ -2,7 +2,9 @@ import Phaser from "phaser";
 import { GAME_WIDTH, GAME_HEIGHT } from "../config";
 import type { BossId, LevelId } from "../ids";
 import { registerSprites, frameKey, animKey } from "../art/textures";
+import type { SpriteDef } from "../art/textures";
 import { PLAYER_SPRITES } from "../art/sprites/player";
+import { BOSS_SPRITE_BY_ID } from "../art/sprites/bosses";
 import { bus } from "../bridge/EventBus";
 import type { CombatFxKind } from "../combat/controllerLogic";
 
@@ -14,10 +16,9 @@ export interface CombatBackdropData {
 
 type LevelThemeId = "fields" | "harbor" | "factory" | "archive" | "castle";
 
-// Per-theme arena gradient (top → bottom). Bosses get REAL sprites in their own
-// tasks; here we render the player side plus a boss ANCHOR (a summon portal ring
-// where the boss sprite will stand). No placeholder boss rect — Task 14 drops
-// the Glitch Toad sprite in at BOSS_ANCHOR.
+// Per-theme arena gradient (top → bottom). A boss with an authored sprite
+// (BOSS_SPRITE_BY_ID) mounts at BOSS_ANCHOR; a boss without one yet still gets
+// the placeholder summon-portal ring so its door doesn't render a blank arena.
 const THEME_GRADIENT: Record<LevelThemeId, [number, number]> = {
   fields: [0x1a3a5c, 0x0a0a0d],
   harbor: [0x20726e, 0x081413],
@@ -29,10 +30,15 @@ const THEME_GRADIENT: Record<LevelThemeId, [number, number]> = {
 const PLAYER_ANCHOR = { x: GAME_WIDTH * 0.28, y: GAME_HEIGHT * 0.66 };
 const BOSS_ANCHOR = { x: GAME_WIDTH * 0.72, y: GAME_HEIGHT * 0.6 };
 const PLAYER_SCALE = 5;
+const BOSS_SCALE = 2.25;
 
 export class CombatBackdropScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite | Phaser.GameObjects.Sprite;
+  private boss?: Phaser.GameObjects.Sprite;
+  private bossDef?: SpriteDef;
+  private bossDefeated = false;
   private busOff?: () => void;
+  private busOffOver?: () => void;
   private anchorRing?: Phaser.GameObjects.Arc;
 
   constructor() {
@@ -41,7 +47,8 @@ export class CombatBackdropScene extends Phaser.Scene {
 
   create(data: CombatBackdropData) {
     const theme: LevelThemeId = data.theme ?? "fields";
-    registerSprites(this, [PLAYER_SPRITES]);
+    this.bossDef = BOSS_SPRITE_BY_ID[data.bossId];
+    registerSprites(this, [PLAYER_SPRITES, ...(this.bossDef ? [this.bossDef] : [])]);
 
     // Static camera — no follow, no zoom (combat is a fixed head-on view).
     this.cameras.main.setZoom(1);
@@ -49,14 +56,22 @@ export class CombatBackdropScene extends Phaser.Scene {
 
     this.drawArena(theme);
     this.spawnPlayer();
-    this.drawBossAnchor();
+    if (this.bossDef) this.spawnBoss(this.bossDef);
+    else this.drawBossAnchor();
 
-    // Drive player combat animations off the controller's fx bus events.
+    // Drive player + boss combat animations off the controller's fx bus events.
     const onFx = (p: { kind: CombatFxKind }) => this.onCombatFx(p.kind);
     this.busOff = bus.on("combat:fx", onFx);
+    // "combat:over" (not an fx kind) is the victory/defeat signal Task 14's
+    // reward flow also reads off gameStore.combatResult — the scene listens
+    // separately so a victory can drive the boss's one-shot defeat dissolve.
+    const onOver = (p: { outcome: "victory" | "defeat"; bossId: BossId }) => this.onCombatOver(p.outcome);
+    this.busOffOver = bus.on("combat:over", onOver);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.busOff?.();
       this.busOff = undefined;
+      this.busOffOver?.();
+      this.busOffOver = undefined;
     });
   }
 
@@ -92,6 +107,16 @@ export class CombatBackdropScene extends Phaser.Scene {
       .setOrigin(0.5, 1);
     sprite.play(animKey("player", "idle"));
     this.player = sprite;
+  }
+
+  private spawnBoss(def: SpriteDef) {
+    const sprite = this.add
+      .sprite(BOSS_ANCHOR.x, BOSS_ANCHOR.y, frameKey(def.key, 0))
+      .setDepth(10)
+      .setScale(BOSS_SCALE)
+      .setOrigin(0.5, 1);
+    sprite.play(animKey(def.key, "idle"));
+    this.boss = sprite;
   }
 
   private drawBossAnchor() {
@@ -146,12 +171,66 @@ export class CombatBackdropScene extends Phaser.Scene {
     this.player.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
       this.player.play(key("idle"), true);
     });
+
+    this.onBossFx(kind);
+  }
+
+  // Mirror of onCombatFx's player-side switch, from the boss's point of view:
+  // "boss-hit" (the boss's own health dropped) plays its hurt flash; "player-hit"
+  // (the player's health dropped, i.e. the boss's attack just landed) plays its
+  // attack lunge. Everything else (parry / arena-reaction kinds) is a no-op for
+  // the boss sprite, same reasoning as the player switch above: no .play() call
+  // means no once-listener gets armed.
+  private onBossFx(kind: CombatFxKind) {
+    if (!this.boss || !this.bossDef || this.bossDefeated) return;
+    const key = (a: string) => animKey(this.bossDef!.key, a);
+    switch (kind) {
+      case "boss-hit":
+      case "crit":
+        this.boss.play(key("hurt"), true);
+        this.bossBump(10); // recoil away from the hit it just took
+        break;
+      case "player-hit":
+        this.boss.play(key("attack"), true);
+        this.bossBump(-14); // lunge toward the player it just struck
+        break;
+      default:
+        return;
+    }
+    this.boss.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+      // A victory can land mid-flight (the killing blow's own "boss-hit" fires
+      // this same listener) — guard so it never snaps back to idle over the
+      // defeat dissolve onCombatOver already started.
+      if (this.bossDefeated) return;
+      this.boss?.play(key("idle"), true);
+    });
+  }
+
+  // Victory plays the boss's one-shot defeat dissolve and — deliberately —
+  // registers no return-to-idle listener, so Phaser holds it on the last
+  // (repeat: 0) frame for the victory panel to sit over. A defeat (player
+  // lost) leaves the boss as-is; RETRY restarts the fight from scratch anyway.
+  private onCombatOver(outcome: "victory" | "defeat") {
+    if (!this.boss || !this.bossDef || outcome !== "victory") return;
+    this.bossDefeated = true;
+    this.boss.play(animKey(this.bossDef.key, "defeat"), true);
   }
 
   private lunge(dx: number) {
     this.tweens.add({
       targets: this.player,
       x: PLAYER_ANCHOR.x + dx,
+      duration: 90,
+      yoyo: true,
+      ease: "Quad.out",
+    });
+  }
+
+  private bossBump(dx: number) {
+    if (!this.boss) return;
+    this.tweens.add({
+      targets: this.boss,
+      x: BOSS_ANCHOR.x + dx,
       duration: 90,
       yoyo: true,
       ease: "Quad.out",

@@ -3,6 +3,7 @@ import { parseGrid } from "./grid";
 import { PALETTE } from "./palette";
 import { PLAYER_SPRITES } from "./sprites/player";
 import { ENEMY_SPRITES } from "./sprites/enemies1";
+import { BOSS_SPRITES } from "./sprites/bosses";
 import type { SpriteDef } from "./textures";
 
 describe("parseGrid", () => {
@@ -31,7 +32,7 @@ describe("parseGrid", () => {
  * same animation are byte-for-byte identical (lazy copies), and every
  * anim frame index actually exists in the frames array.
  */
-const SPRITE_SHEETS: SpriteDef[] = [PLAYER_SPRITES, ...ENEMY_SPRITES];
+const SPRITE_SHEETS: SpriteDef[] = [PLAYER_SPRITES, ...ENEMY_SPRITES, ...BOSS_SPRITES];
 
 describe("sprite sheet integrity", () => {
   const validChars = new Set([...Object.keys(PALETTE), "."]);

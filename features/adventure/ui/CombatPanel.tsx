@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useGameStore } from "../bridge/GameStore";
-import type { CombatState, PlayerActionKind } from "../combat/types";
+import type { CombatState, PlayerActionKind, Reward } from "../combat/types";
 import { playerAttackDamage, isUltimateReady } from "../combat/engine";
-import { dispatchCombat, retryCombat, SCRIPTED_PARRY_STEP } from "../combat/controller";
+import { dispatchCombat, retryCombat, exitCombat, SCRIPTED_PARRY_STEP } from "../combat/controller";
 import { audio } from "../audio/synth";
 import Bar from "./Bars";
 import TypingBox from "./TypingBox";
@@ -98,12 +98,7 @@ function Interaction({
   setShowItems: (v: boolean) => void;
 }) {
   if (combat.tag === "victory") {
-    return (
-      <div className="pointer-events-auto rounded-sm border border-amber-300/50 bg-black/70 px-6 py-3 text-center shadow-[0_0_24px_rgba(255,215,94,0.4)]">
-        <div className="text-[14px] font-bold uppercase tracking-[0.3em] text-amber-200">Victory</div>
-        <div className="mt-1 text-[10px] text-amber-100/70">{combat.def.name} is defeated.</div>
-      </div>
-    );
+    return <VictoryPanel combat={combat} />;
   }
   if (combat.tag === "defeat") {
     return (
@@ -147,6 +142,10 @@ function Interaction({
     return (
       <div className="pointer-events-auto flex w-full max-w-md flex-col items-center gap-2">
         {combat.tag === "scripted" && <ScriptedBanner step={combat.mechanic.finalStep} />}
+        {/* Tutorial mechanic (Task 14): the FIRST boss telegraph — bossTurns
+            ticks to 1 the instant it's armed — gets an enlarged callout so a
+            first-time player knows exactly what the parry ring is asking. */}
+        {combat.def.mechanic === "tutorial" && combat.mechanic.bossTurns === 1 && <TutorialParryCallout />}
         <TimedPrompt />
       </div>
     );
@@ -156,6 +155,9 @@ function Interaction({
   return (
     <div className="pointer-events-auto flex w-full max-w-md flex-col gap-2">
       {combat.tag === "scripted" && <ScriptedBanner step={combat.mechanic.finalStep} />}
+      {/* Tutorial mechanic (Task 14): hint chips on the player's first turn
+          only — additive UI, no engine/controller changes. */}
+      {combat.def.mechanic === "tutorial" && combat.turn === 0 && <TutorialHints />}
       <ActionMenu combat={combat} showItems={showItems} setShowItems={setShowItems} />
       {showItems && (
         <div className="rounded-sm border border-violet-300/30 bg-black/60 p-2">
@@ -164,6 +166,81 @@ function Interaction({
       )}
     </div>
   );
+}
+
+// ── tutorial mechanic (Task 14, Glitch Toad) ────────────────────────────────
+function TutorialHints() {
+  return (
+    <div className="flex flex-wrap justify-center gap-1.5">
+      {["COMMAND starts a typing attack.", "PARRY STANCE widens your parry window."].map((hint) => (
+        <span
+          key={hint}
+          className="rounded-sm border border-teal-300/40 bg-teal-500/10 px-2 py-1 text-[9px] uppercase tracking-wide text-teal-100"
+        >
+          {hint}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function TutorialParryCallout() {
+  return (
+    <div className="rounded-sm border border-teal-300/60 bg-teal-500/15 px-4 py-2 text-center text-[13px] font-bold uppercase tracking-[0.15em] text-teal-100 shadow-[0_0_20px_rgba(63,189,176,0.35)]">
+      Press Space on the Flash
+    </div>
+  );
+}
+
+// ── victory ──────────────────────────────────────────────────────────────────
+function VictoryPanel({ combat }: { combat: CombatState }) {
+  const { def } = combat;
+  return (
+    <div className="pointer-events-auto flex flex-col items-center gap-2 rounded-sm border border-amber-300/50 bg-black/70 px-6 py-3 text-center shadow-[0_0_24px_rgba(255,215,94,0.4)]">
+      <div className="text-[14px] font-bold uppercase tracking-[0.3em] text-amber-200">Victory</div>
+      <div className="flex flex-col gap-0.5">
+        {def.defeatLines.map((line, i) => (
+          <div key={i} className="text-[10px] text-amber-100/70">
+            {line}
+          </div>
+        ))}
+      </div>
+      {def.rewards.length > 0 && (
+        <div className="flex flex-wrap items-center justify-center gap-1.5">
+          {def.rewards.map((r, i) => (
+            <span
+              key={i}
+              className="rounded-sm border border-amber-300/50 bg-amber-500/10 px-2 py-0.5 text-[9px] uppercase tracking-widest text-amber-200"
+            >
+              {rewardLabel(r)}
+            </span>
+          ))}
+        </div>
+      )}
+      <button
+        type="button"
+        onPointerDown={(e) => {
+          e.preventDefault();
+          audio.sfx("select");
+          exitCombat();
+        }}
+        className="min-h-[44px] rounded-sm border border-amber-300/50 bg-amber-500/20 px-6 text-[12px] font-bold uppercase tracking-[0.2em] text-white transition-colors hover:bg-amber-500/40"
+      >
+        Return to the Fields
+      </button>
+    </div>
+  );
+}
+
+function rewardLabel(r: Reward): string {
+  switch (r.kind) {
+    case "ability":
+      return `Ability: ${r.id}`;
+    case "key-fragment":
+      return `${r.id} key fragment`;
+    case "castle-key":
+      return `Castle key: ${r.id}`;
+  }
 }
 
 function ScriptedBanner({ step }: { step: number }) {

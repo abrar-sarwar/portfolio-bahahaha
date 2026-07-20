@@ -27,6 +27,7 @@ import { gameStore } from "../bridge/GameStore";
 import { bus } from "../bridge/EventBus";
 import { LEVELS } from "../levels";
 import { audio } from "../audio/synth";
+import { grantRewards } from "./rewards";
 
 export interface StartCombatOpts {
   levelId: LevelId;
@@ -100,11 +101,13 @@ export function retryCombat(): void {
 }
 
 /** Exit the fight: tear down, resume the Level scene, stop the backdrop, clear
- *  the store's combat snapshot. Task 14 calls this after the reward flow.
- *  Guarded against a destroyed/null combatGame — e.g. a straggling call that
- *  lands after `teardownCombat()` already nulled it during unmount — so it
- *  never throws. */
+ *  the store's combat snapshot. The victory panel's "RETURN TO THE FIELDS"
+ *  button calls this. Guarded against a destroyed/null combatGame — e.g. a
+ *  straggling call that lands after `teardownCombat()` already nulled it
+ *  during unmount — so it never throws. */
 export function exitCombat(): void {
+  const wasVictory = session?.state.outcome === "victory";
+  const levelId = session?.opts.levelId;
   teardownSession();
   if (combatGame) {
     try {
@@ -115,6 +118,9 @@ export function exitCombat(): void {
     }
   }
   gameStore.set({ combat: null, telegraph: null });
+  // Level scene resumes at the door on a cleared boss; Task 16 wires this to
+  // an actual Overworld transition. No listener yet — a harmless no-op emit.
+  if (wasVictory && levelId) bus.emit("level:complete", { levelId });
 }
 
 /** Full teardown for a React unmount: clears any pending force-fail timer,
@@ -239,11 +245,17 @@ function handleOutcome(): void {
     deaths[bossId] = (deaths[bossId] ?? 0) + 1;
     gameStore.set({ deaths, combatResult: { outcome: "defeat", bossId } });
   } else {
+    // Victory seam: grant this boss's rewards (idempotent — see rewards.ts)
+    // and switch the music before publishing the result, so the UI's
+    // victory panel and the fanfare land together.
+    grantRewards(state.def);
+    audio.playTrack("victory");
     gameStore.set({ combatResult: { outcome: "victory", bossId } });
   }
   bus.emit("combat:over", { outcome: state.outcome === "defeat" ? "defeat" : "victory", bossId });
-  // The combat snapshot stays in the store so the UI shows victory / retry;
-  // Task 14 owns the reward flow and the return-to-level via exitCombat().
+  // The combat snapshot stays in the store so the UI shows victory / retry.
+  // CombatPanel's victory branch reads combat.def.rewards + defeatLines
+  // directly; "RETURN TO THE FIELDS" calls exitCombat() to resume the level.
 }
 
 // ─────────────────────────────────────────────────── deadline / timer glue ──
