@@ -4,6 +4,7 @@ import { PALETTE } from "./palette";
 import type { SpriteDef } from "./textures";
 import { FIELDS_TILES, FIELDS_PARALLAX } from "./sprites/tiles-fields";
 import { PICKUP_SPRITES } from "./sprites/pickups";
+import { OVERWORLD_TILES } from "./sprites/overworld";
 
 /**
  * Permanent integrity guard for the world-1 tileset + parallax, mirroring the
@@ -11,7 +12,12 @@ import { PICKUP_SPRITES } from "./sprites/pickups";
  * rows), matches its declared w/h, and uses only palette chars (or ".").
  * Any tileset SpriteDef added here gets the same checks.
  */
-const TILE_SHEETS: SpriteDef[] = [...FIELDS_TILES, ...FIELDS_PARALLAX, ...PICKUP_SPRITES];
+const TILE_SHEETS: SpriteDef[] = [
+  ...FIELDS_TILES,
+  ...FIELDS_PARALLAX,
+  ...PICKUP_SPRITES,
+  ...OVERWORLD_TILES,
+];
 
 describe("tileset integrity", () => {
   const validChars = new Set([...Object.keys(PALETTE), "."]);

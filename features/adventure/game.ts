@@ -1,12 +1,15 @@
 import Phaser from "phaser";
 import { GAME_WIDTH, GAME_HEIGHT, PHYSICS } from "./config";
 import { BootScene } from "./scenes/BootScene";
+import { TitleScene } from "./scenes/TitleScene";
+import { OverworldScene } from "./scenes/OverworldScene";
 import { PlatformLevelScene } from "./scenes/PlatformLevelScene";
 import { CombatBackdropScene } from "./scenes/CombatBackdropScene";
 
 export function sceneList(): Phaser.Types.Scenes.SceneType[] {
-  // Later tasks append scenes here (Title, Overworld, ...).
-  return [BootScene, PlatformLevelScene, CombatBackdropScene];
+  // Boot registers textures + seeds the store, then hands to Title → Overworld
+  // → Level. Later worlds add their own level/backdrop scenes here.
+  return [BootScene, TitleScene, OverworldScene, PlatformLevelScene, CombatBackdropScene];
 }
 
 export function buildConfig(parent: HTMLElement): Phaser.Types.Core.GameConfig {

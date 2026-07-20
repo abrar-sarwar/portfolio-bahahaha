@@ -78,6 +78,16 @@ export interface GameUIState {
   /** Terminal result of the most recent fight; Task 14 reads this to run the
    *  reward flow. Set on victory/defeat, cleared when combat re-launches. */
   combatResult: { outcome: "victory" | "defeat"; bossId: BossId } | null;
+  /** Overworld progression, seeded from the save at boot and kept as the
+   *  session source of truth the OverworldScene reads (it writes both here and
+   *  through to the save on every completion). Mirrors save.completed /
+   *  save.unlocked; `completeLevel`'s unlock chain drives which nodes light. */
+  completed: LevelId[];
+  unlocked: LevelId[];
+  /** A pending confirm-dialog request from a scene (currently only the Title's
+   *  NEW GAME wipe). Non-null makes the Overlay render ConfirmDialog; the scene
+   *  that raised it listens for the `ui:confirm` bus result and clears this. */
+  confirm: { message: string } | null;
 }
 
 export const gameStore = createStore<GameUIState>({
@@ -97,6 +107,9 @@ export const gameStore = createStore<GameUIState>({
   telegraph: null,
   deaths: {},
   combatResult: null,
+  completed: [],
+  unlocked: ["1-1"],
+  confirm: null,
 });
 
 /** Memoize a selector by store-state reference so getSnapshot returns a

@@ -50,6 +50,7 @@ interface GameLike {
 
 const LEVEL_SCENE = "Level";
 const BACKDROP_SCENE = "CombatBackdrop";
+const OVERWORLD_SCENE = "Overworld";
 // The scripted devil-king finale's parry is its second step (0 analyze,
 // 1 parry). Its tag stays "scripted" rather than "telegraph", so the controller
 // prompts the UI for it explicitly without arming the force-fail deadline.
@@ -71,13 +72,16 @@ let combatGame: GameLike | null = null;
 let storeUnsub: (() => void) | null = null;
 let lastPaused = false;
 
-// Persist level completion wherever "level:complete" fires — today that's
-// only this module's exitCombat() victory branch ("completing 1-1" = beating
-// its boss, per the current level layout), but a future overworld emitting
-// the same event from a different seam (Task 16+) gets persistence for free
-// without this module needing to know about it.
+// Persist AND seed the runtime store wherever "level:complete" fires. Both the
+// old resume-to-level exitCombat() victory branch and Task 16's returnToOverworld()
+// emit this, so completion is durable (save) and immediately visible (store's
+// completed/unlocked, which the OverworldScene reads to light nodes) no matter
+// which seam finished the level. completeLevel is idempotent, so a replayed
+// clear is a reference-stable no-op.
 bus.on("level:complete", ({ levelId }) => {
-  persistSave(completeLevel(loadSave(), levelId));
+  const save = completeLevel(loadSave(), levelId);
+  persistSave(save);
+  gameStore.set({ completed: save.completed, unlocked: save.unlocked });
 });
 
 function now(): number {
@@ -131,6 +135,35 @@ export function exitCombat(): void {
   // Level scene resumes at the door on a cleared boss; Task 16 wires this to
   // an actual Overworld transition. No listener yet — a harmless no-op emit.
   if (wasVictory && levelId) bus.emit("level:complete", { levelId });
+}
+
+/** Victory exit to the Overworld (Task 16's "RETURN TO THE MAP" button). Unlike
+ *  exitCombat (which resumes the paused Level at the boss door), this tears down
+ *  the fight, persists + seeds the level completion via the level:complete bus
+ *  listener above, STOPS the Level scene, and starts the Overworld — the map is
+ *  the post-victory home, not the level. `justCompleted` lets the Overworld pop
+ *  the freshly-planted flag. Guarded against a destroyed/null combatGame. */
+export function returnToOverworld(): void {
+  const levelId = session?.opts.levelId;
+  teardownSession();
+  gameStore.set({ combat: null, telegraph: null });
+  // Emit BEFORE the scene switch so the listener's store seed lands before the
+  // Overworld's create() reads completed/unlocked.
+  if (levelId) bus.emit("level:complete", { levelId });
+  if (combatGame) {
+    try {
+      // Stop BOTH unconditionally: the Level scene is PAUSED here (beginCombat
+      // paused it before launching the backdrop), and a paused scene reports
+      // isActive() === false yet still RENDERS — an isActive guard would leave
+      // it drawing on top of the Overworld. scene.stop() on a not-running scene
+      // is a harmless no-op, so no guard is needed.
+      combatGame.scene.stop(BACKDROP_SCENE);
+      combatGame.scene.stop(LEVEL_SCENE);
+      combatGame.scene.start(OVERWORLD_SCENE, { justCompleted: levelId });
+    } catch {
+      // Phaser game already destroyed — nothing to stop/start.
+    }
+  }
 }
 
 /** Full teardown for a React unmount: clears any pending force-fail timer,

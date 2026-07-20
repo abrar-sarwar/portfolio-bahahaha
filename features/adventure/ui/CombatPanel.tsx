@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useGameStore } from "../bridge/GameStore";
 import type { CombatState, PlayerActionKind, Reward } from "../combat/types";
 import { playerAttackDamage, isUltimateReady } from "../combat/engine";
-import { dispatchCombat, retryCombat, exitCombat, SCRIPTED_PARRY_STEP } from "../combat/controller";
+import { dispatchCombat, retryCombat, returnToOverworld, SCRIPTED_PARRY_STEP } from "../combat/controller";
 import { audio } from "../audio/synth";
 import Bar from "./Bars";
 import TypingBox from "./TypingBox";
@@ -222,11 +222,11 @@ function VictoryPanel({ combat }: { combat: CombatState }) {
         onPointerDown={(e) => {
           e.preventDefault();
           audio.sfx("select");
-          exitCombat();
+          returnToOverworld();
         }}
         className="min-h-[44px] rounded-sm border border-amber-300/50 bg-amber-500/20 px-6 text-[12px] font-bold uppercase tracking-[0.2em] text-white transition-colors hover:bg-amber-500/40"
       >
-        Return to the Fields
+        Return to the Map
       </button>
     </div>
   );

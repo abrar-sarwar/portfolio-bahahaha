@@ -14,25 +14,25 @@ export class BootScene extends Phaser.Scene {
 
   create() {
     // Register every texture the Level scene relies on (idempotent — Level
-    // also calls registerSprites for robustness), then hand straight off.
-    // Title / Overworld replace this direct start in Task 16.
+    // also calls registerSprites for robustness), then hand off to the Title.
     registerSprites(this, [PLAYER_SPRITES, ...tilesetFor("fields")]);
 
-    // Read the durable save once at boot and reseed gameStore's runtime
-    // fields from it (gameStore stays the session's source of truth from
-    // here on — see state/save.ts's header comment). completed/unlocked
-    // aren't seeded into gameStore yet — nothing reads them until Task 16's
-    // level select — but they're already persisted, ready for it.
+    // Read the durable save once at boot and reseed gameStore's runtime fields
+    // from it (gameStore stays the session's source of truth from here on —
+    // see state/save.ts's header comment). completed/unlocked seed the
+    // Overworld's unlock chain; abilities/keyFragments/deaths drive gameplay.
     const save = loadSave();
     gameStore.set({
       scene: "Boot",
       abilities: save.abilities,
       keyFragments: save.keyFragments,
       deaths: save.deaths,
+      completed: save.completed,
+      unlocked: save.unlocked,
     });
     applyAudioSettings(save);
 
     bus.emit("scene:changed", { scene: "Boot" });
-    this.scene.start("Level", { levelId: "1-1" });
+    this.scene.start("Title");
   }
 }

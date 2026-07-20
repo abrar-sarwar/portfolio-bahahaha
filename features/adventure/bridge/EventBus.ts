@@ -44,6 +44,10 @@ export interface AdventureEvents {
   "buff:collected": { buff: import("../ids").BuffId };
   "level:fragment": { levelId: import("../ids").LevelId };
   "nav:external": { href: string };
+  // Overworld → React → scene confirm-dialog result (Task 16). A scene raises a
+  // confirm request via gameStore.confirm; the React ConfirmDialog answers by
+  // emitting this, which the raising scene listens for (once) to act on.
+  "ui:confirm": { confirmed: boolean };
   // Combat side-effect events (Task 13). The controller reduces the pure engine
   // and publishes the snapshot to the store; these carry the transient signals
   // the store can't hold: a telegraphed move to run a defense mini-game against,
