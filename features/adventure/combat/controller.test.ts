@@ -13,6 +13,7 @@ import { gameStore } from "../bridge/GameStore";
 import { bus } from "../bridge/EventBus";
 import type { AdventureEvents } from "../bridge/EventBus";
 import type { BossDefinition } from "./types";
+import type { BossId } from "../ids";
 
 // A minimal tutorial boss driven directly (NOT registered in BOSSES) so the
 // controller's carry-build + reduce/publish loop can be exercised headlessly —
@@ -73,7 +74,9 @@ const OPTS = { levelId: "1-1", returnTo: "level" } as const;
 
 describe("combat controller", () => {
   it("startCombat throws for a boss with no registered definition", () => {
-    expect(() => startCombat("devil-king", OPTS)).toThrow(/no boss definition/i);
+    // Every real BossId is registered now (Task 22 registered the last, the
+    // Devil King), so a bogus id exercises the missing-definition guard.
+    expect(() => startCombat("no-such-boss" as BossId, OPTS)).toThrow(/no boss definition/i);
   });
 
   it("beginCombat builds the carry, seeds the engine, and publishes to the store", () => {

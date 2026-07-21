@@ -51,8 +51,10 @@ describe("resolveScript", () => {
   });
 
   it("returns null for boss-shaped ids naming an unregistered boss", () => {
-    expect(resolveScript("boss-intro-devil-king")).toBeNull();
-    expect(resolveScript("boss-defeat-devil-king")).toBeNull();
+    // The Devil King is registered now (Task 22); a boss-shaped id naming a
+    // boss that does not exist still resolves to null.
+    expect(resolveScript("boss-intro-nobody")).toBeNull();
+    expect(resolveScript("boss-defeat-nobody")).toBeNull();
   });
 
   it("returns null for a totally unknown id", () => {

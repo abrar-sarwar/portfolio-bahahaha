@@ -1857,7 +1857,424 @@ export const BLANK_PAGE_SPRITES: SpriteDef = {
   ],
 };
 
-export const BOSS_SPRITES: SpriteDef[] = [GLITCH_TOAD_SPRITES, CAPTAIN_SPOOF_SPRITES, WARDEN_SPRITES, BLANK_PAGE_SPRITES];
+// ── Task 22 — The Devil King, 80×96 (NOT 48×64 — the showpiece final boss is a
+// full head taller and broader than the world-1 bosses). A towering horned
+// demon ruler: a burning crown (R/M/Y flames) over great swept horns; a gaunt
+// crimson face (X/r skin) with molten Y eyes; colossal spiked black-crimson
+// pauldrons and plated armor (O/K/X/r/d); a cape of corrupted code (an X field
+// flecked with R glyphs) flaring behind him to the floor; a two-handed
+// greatsword (steel C/W/d with an R corrupted edge); and — spec-critical — THE
+// STOLEN ARCHIVE KEY (Y) on a chain (d/D) at his throat. Like the Blank Page it
+// is built by a deterministic generator, so every frame is provably 80×96 and
+// palette-clean under the sprite-sheet integrity guard (grid.test.ts).
+//
+// Anims map the brief's set onto the CombatBackdropScene contract (idle /
+// attack / hurt / defeat): idle (2f, slow breath + guttering crown flame);
+// "attack" IS the 2f slash (greatsword raised → cleaved down-left); cast (2f,
+// free hand gathers a corruption orb → hurls it — authored for future use);
+// hurt (1f, white flash + wide molten eyes); and the Task-23 finale cinematics
+// authored NOW so that task is pure wiring — kneel (2f, the king buckles → drops
+// to one knee on his planted sword, head bowed) and "defeat" IS the 4f dissolve
+// (the body shatters into red pixel motes, the stolen key lingering last for the
+// VictoryScene to drop).
+const DK_W = 80;
+const DK_H = 96;
+const DK_CX = 40;
+
+function dkHash(x: number, y: number): number {
+  let h = (x * 374761393 + y * 668265263) >>> 0;
+  h = (h ^ (h >>> 13)) >>> 0;
+  return h >>> 0;
+}
+
+type DkSword = "rest" | "raise" | "slash" | "plant";
+interface DkOpts {
+  breath: 0 | 1; // idle breathing phase (flame + torso shift)
+  flare: 0 | 1 | 2; // crown-flame intensity
+  sword: DkSword;
+  cast: 0 | 1 | 2; // 0 none, 1 gather orb, 2 release
+  hurt: boolean;
+  kneel: 0 | 1 | 2; // 0 standing, 1 buckling, 2 fully kneeling
+  dissolve: 0 | 1 | 2 | 3 | 4; // 0 none → 4 nearly gone
+}
+
+function devilFrame(o: DkOpts): string[] {
+  const g: string[][] = Array.from({ length: DK_H }, () => Array<string>(DK_W).fill("."));
+  const inb = (x: number, y: number) => x >= 0 && x < DK_W && y >= 0 && y < DK_H;
+  const put = (x: number, y: number, ch: string) => { if (inb(x, y)) g[y][x] = ch; };
+  const hput = (x: number, y: number, ch: string) => { put(x, y, ch); put(DK_W - 1 - x, y, ch); };
+  const rowc = (y: number, x0: number, x1: number, ch: string) => { for (let x = x0; x <= x1; x++) put(x, y, ch); };
+  const box = (x0: number, y0: number, x1: number, y1: number, ch: string) => {
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) put(x, y, ch);
+  };
+  const line = (x0: number, y0: number, x1: number, y1: number, ch: string, r: number) => {
+    const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1);
+    for (let i = 0; i <= steps; i++) {
+      const x = Math.round(x0 + ((x1 - x0) * i) / steps);
+      const y = Math.round(y0 + ((y1 - y0) * i) / steps);
+      for (let dy2 = -r; dy2 <= r; dy2++) for (let dx = -r; dx <= r; dx++) put(x + dx, y + dy2, ch);
+    }
+  };
+
+  const dy = o.kneel === 2 ? 12 : o.kneel === 1 ? 6 : 0; // upper-body sink when kneeling
+  const bow = o.kneel === 2 ? 4 : o.kneel === 1 ? 2 : 0; // head bow
+
+  // ── cape of corrupted code (painted first, behind everything) ────────────
+  {
+    const capeTop = 36 + dy;
+    const capeBot = 90;
+    for (let y = capeTop; y <= capeBot; y++) {
+      const t = (y - capeTop) / (capeBot - capeTop);
+      const half = Math.round(20 + t * 14); // 20 → 34
+      for (let x = DK_CX - half; x <= DK_CX - 1 + half; x++) {
+        if (!inb(x, y)) continue;
+        const h = dkHash(x, y);
+        if (y > capeBot - 3 && h % 3 === 0) continue; // ragged hem
+        put(x, y, h % 6 === 0 ? "R" : h % 13 === 0 ? "r" : "X");
+      }
+    }
+  }
+
+  // ── ground shadow ────────────────────────────────────────────────────────
+  for (let x = 20; x <= 59; x++) {
+    const tt = Math.abs(x - 39.5) / 20;
+    if (dkHash(x, 92) % 4 === 0 && tt > 0.7) continue;
+    put(x, 92, "K");
+    if (tt < 0.85) put(x, 93, "K");
+  }
+
+  // ── legs ──────────────────────────────────────────────────────────────────
+  const drawLegsStanding = () => {
+    const ly = 71 + dy;
+    const leg = (x0: number, x1: number) => {
+      box(x0, ly, x1, ly + 9, "O");
+      rowc(ly, x0, x1, "d");
+      rowc(ly + 8, x0, x1, "d"); // knee plate
+      rowc(ly + 9, x0, x1, "X");
+      box(x0, ly + 10, x1, ly + 17, "K");
+      for (let y = ly + 10; y <= ly + 17; y++) put(x0, y, "O");
+      put(x0 + 1, ly + 12, "d");
+      box(x0 - 2, ly + 17, x1 + 1, ly + 19, "O"); // sabaton
+      rowc(ly + 17, x0 - 2, x1 + 1, "d");
+      put(x0 - 2, ly + 19, "K");
+    };
+    leg(30, 37);
+    leg(42, 49);
+  };
+  const drawKneelLegs = () => {
+    const ly = 78;
+    // front (left) leg folded, knee + shin on the ground
+    box(28, ly, 36, ly + 6, "O");
+    rowc(ly, 28, 36, "d");
+    box(20, ly + 6, 36, ly + 10, "K");
+    rowc(ly + 6, 20, 36, "d");
+    box(17, ly + 8, 22, ly + 11, "O"); // knee on ground
+    // rear (right) leg bent, foot planted forward
+    box(42, ly, 50, ly + 8, "O");
+    rowc(ly, 42, 50, "d");
+    box(44, ly + 8, 52, ly + 13, "K");
+    put(44, ly + 10, "d");
+    box(43, ly + 13, 55, ly + 15, "O"); // planted foot
+    rowc(ly + 13, 43, 55, "d");
+  };
+
+  // ── pauldrons (huge spiked shoulders) ────────────────────────────────────
+  const drawPauldrons = () => {
+    const py = 35 + dy;
+    for (let y = py; y <= py + 12; y++) {
+      const ry = y - py;
+      const x0 = 15 + Math.round(Math.abs(ry - 6) / 3);
+      for (let x = x0; x <= 31; x++) {
+        const ch = ry < 2 ? "d" : x < x0 + 2 ? "X" : (x + y) % 5 === 0 ? "K" : "O";
+        put(x, y, ch);
+        put(DK_W - 1 - x, y, ch);
+      }
+    }
+    [16, 20, 24, 28].forEach((sx, i) => {
+      const hgt = [5, 7, 6, 4][i]; // tall jagged crest of spikes
+      for (let j = 0; j <= hgt; j++) {
+        const w = j > hgt - 2 ? 0 : 1;
+        for (let x = sx - w; x <= sx + w; x++) {
+          put(x, py - j, "K");
+          put(DK_W - 1 - x, py - j, "K");
+        }
+      }
+      put(sx, py - hgt, "d"); put(sx, py - hgt + 1, "d"); // lit spike tip
+      put(DK_W - 1 - sx, py - hgt, "d"); put(DK_W - 1 - sx, py - hgt + 1, "d");
+    });
+    // crimson trim streak across each pauldron so the black-crimson reads
+    for (let x = 17; x <= 28; x++) { put(x, py + 8, "r"); put(DK_W - 1 - x, py + 8, "r"); }
+  };
+
+  // ── torso armor ──────────────────────────────────────────────────────────
+  const drawTorso = () => {
+    const ty = 40 + dy;
+    for (let y = ty; y <= ty + 28; y++) {
+      const ry = y - ty;
+      let half = ry < 18 ? 13 : 13 - Math.round((ry - 18) / 3);
+      if (half < 9) half = 9;
+      for (let x = DK_CX - half; x <= DK_CX - 1 + half; x++) {
+        let ch: string;
+        if (x === DK_CX - half || x === DK_CX - 1 + half) ch = "d";
+        else if (Math.abs(x - (DK_CX - 0.5)) < 1.5) ch = "X";
+        else ch = (x + y) % 7 === 0 ? "K" : "O";
+        put(x, y, ch);
+      }
+    }
+    box(DK_CX - 10, ty + 2 + o.breath, DK_CX - 6, ty + 4 + o.breath, "X"); // pectoral crimson (breath shift)
+    box(DK_CX + 5, ty + 2 + o.breath, DK_CX + 9, ty + 4 + o.breath, "X");
+    const sy = ty + 14; // demonic sigil
+    put(DK_CX - 1, sy, "R"); put(DK_CX, sy, "R");
+    put(DK_CX - 3, sy + 1, "R"); put(DK_CX + 2, sy + 1, "R");
+    put(DK_CX - 1, sy + 1, "r"); put(DK_CX, sy + 1, "r");
+    put(DK_CX - 1, sy + 2, "R"); put(DK_CX, sy + 2, "R");
+    for (let y = ty + 20; y <= ty + 26; y += 2) rowc(y, DK_CX - 9, DK_CX + 8, "K"); // ab bands
+    const by = ty + 28;
+    rowc(by, DK_CX - 11, DK_CX + 10, "d");
+    box(DK_CX - 2, by - 1, DK_CX + 1, by + 1, "Y"); // gold buckle
+  };
+
+  // ── neck, gorget, and the STOLEN KEY on its chain ────────────────────────
+  const drawNeckKey = () => {
+    const ny = 32 + dy + bow;
+    box(DK_CX - 4, ny, DK_CX + 3, ny + 3, "X");
+    put(DK_CX - 4, ny + 1, "K"); put(DK_CX + 3, ny + 1, "K");
+    box(DK_CX - 7, ny + 3, DK_CX + 6, ny + 5, "K");
+    rowc(ny + 3, DK_CX - 7, DK_CX + 6, "d");
+    const chY = ny + 5;
+    for (let y = chY; y <= chY + 5; y++) { put(DK_CX - 3, y, "d"); put(DK_CX + 2, y, "d"); }
+    const ky = chY + 5;
+    box(DK_CX - 2, ky, DK_CX + 1, ky + 2, "Y"); // bow/ring
+    put(DK_CX - 1, ky + 1, "K"); put(DK_CX, ky + 1, "K"); // ring hole
+    put(DK_CX - 1, ky + 3, "Y"); put(DK_CX, ky + 3, "Y"); // shaft
+    put(DK_CX - 1, ky + 4, "y"); put(DK_CX, ky + 4, "y");
+    put(DK_CX + 1, ky + 4, "Y"); put(DK_CX + 1, ky + 5, "Y"); put(DK_CX, ky + 5, "y"); // bit/teeth
+  };
+
+  // ── head / face ────────────────────────────────────────────────────────────
+  const drawHead = () => {
+    const top = 17 + dy + bow;
+    for (let y = top; y <= top + 15; y++) {
+      const ry = y - top;
+      let half = ry <= 2 ? 6 : ry <= 8 ? 8 : ry <= 11 ? 7 : 6 - (ry - 12);
+      if (half < 2) half = 2;
+      for (let x = DK_CX - half; x <= DK_CX - 1 + half; x++) put(x, y, "r");
+      put(DK_CX - half, y, "X"); put(DK_CX - 1 + half, y, "X"); // shaded edges
+    }
+    const browY = top + 5;
+    for (let x = DK_CX - 8; x <= DK_CX + 7; x++) {
+      const d = Math.abs(x - (DK_CX - 0.5));
+      put(x, browY - Math.round((8 - d) / 5), "K");
+      put(x, browY, "K");
+    }
+    const eyeY = browY + 2;
+    box(DK_CX - 7, eyeY, DK_CX - 4, eyeY + 1, "O");
+    put(DK_CX - 6, eyeY, "M"); put(DK_CX - 5, eyeY, "Y");
+    put(DK_CX - 6, eyeY + 1, "Y"); put(DK_CX - 5, eyeY + 1, "M");
+    box(DK_CX + 3, eyeY, DK_CX + 6, eyeY + 1, "O");
+    put(DK_CX + 5, eyeY, "M"); put(DK_CX + 4, eyeY, "Y");
+    put(DK_CX + 5, eyeY + 1, "Y"); put(DK_CX + 4, eyeY + 1, "M");
+    put(DK_CX - 1, eyeY + 2, "X"); put(DK_CX, eyeY + 2, "X");
+    put(DK_CX - 1, eyeY + 3, "K"); put(DK_CX, eyeY + 3, "K"); // nose shadow
+    const mouthY = top + 13;
+    for (let x = DK_CX - 5; x <= DK_CX + 4; x++) put(x, mouthY, "K");
+    put(DK_CX - 4, mouthY - 1, "W"); put(DK_CX + 3, mouthY - 1, "W");
+    put(DK_CX - 2, mouthY + 1, "W"); put(DK_CX + 1, mouthY + 1, "W");
+    if (o.hurt) { // flash: wide eyes
+      hput(DK_CX - 7, eyeY - 1, "W");
+      put(DK_CX - 5, eyeY, "W"); put(DK_CX + 4, eyeY, "W");
+    }
+  };
+
+  // ── horns (great demonic sweep, up-and-out past the crown) ───────────────
+  const drawHorns = () => {
+    const pts: [number, number][] = [[31, 22], [27, 18], [23, 14], [19, 10], [16, 6], [14, 2]];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [x0, y0] = pts[i]; const [x1, y1] = pts[i + 1];
+      const r = i < 1 ? 2 : i < 3 ? 1 : 0;
+      line(x0, y0 + dy + 1, x1, y1 + dy + 1, "K", r); // dark underside
+      line(DK_W - 1 - x0, y0 + dy + 1, DK_W - 1 - x1, y1 + dy + 1, "K", r);
+      line(x0, y0 + dy, x1, y1 + dy, "d", r > 0 ? 1 : 0); // lit outer edge — reads against the dark arena
+      line(DK_W - 1 - x0, y0 + dy, DK_W - 1 - x1, y1 + dy, "d", r > 0 ? 1 : 0);
+    }
+    hput(31, 22 + dy, "X"); hput(30, 21 + dy, "X"); // crimson root at the temple
+    hput(27, 18 + dy, "D"); hput(23, 14 + dy, "D"); hput(19, 10 + dy, "D"); // ridge bands
+    hput(14, 2 + dy, "d"); // sharp tips
+  };
+
+  // ── crown + flames ─────────────────────────────────────────────────────────
+  const drawCrown = () => {
+    const cy = 15 + dy;
+    rowc(cy - 1, DK_CX - 9, DK_CX + 8, "y");
+    rowc(cy, DK_CX - 10, DK_CX + 9, "y");
+    rowc(cy + 1, DK_CX - 9, DK_CX + 8, "y");
+    rowc(cy + 2, DK_CX - 8, DK_CX + 7, "k");
+    hput(DK_CX - 9, cy, "Y"); hput(DK_CX - 4, cy, "Y");
+    hput(DK_CX - 7, cy, "R"); // gem
+    put(DK_CX - 1, cy, "R"); put(DK_CX, cy, "R"); // center gem
+  };
+  const drawFlames = () => {
+    const baseY = 13 + dy;
+    const wob = o.breath;
+    const tongue = (cx: number, hgt: number, mirror: boolean) => {
+      for (let j = 0; j < hgt; j++) {
+        const y = baseY - j;
+        const t = hgt <= 1 ? 1 : j / (hgt - 1);
+        const w = t < 0.4 ? 1 : 0;
+        const ch = t < 0.35 ? "R" : t < 0.72 ? "M" : "Y";
+        for (let x = cx - w; x <= cx + w; x++) { put(x, y, ch); if (mirror) put(DK_W - 1 - x, y, ch); }
+      }
+    };
+    const H = o.flare;
+    tongue(31, 6 + H + wob, true);
+    tongue(35, 8 + H - wob, true);
+    tongue(39, 10 + H, false);
+    tongue(40, 9 + H + wob, false);
+  };
+
+  // ── arms + sword ───────────────────────────────────────────────────────────
+  const drawLeftArm = () => {
+    const ay = 47 + dy;
+    box(23, ay, 29, ay + 16, "O");
+    for (let y = ay; y <= ay + 16; y++) { put(23, y, "d"); put(29, y, "K"); }
+    box(22, ay + 16, 29, ay + 21, "K"); // gauntlet fist
+    box(23, ay + 17, 28, ay + 20, "O");
+    put(24, ay + 18, "d"); put(26, ay + 18, "d");
+  };
+  const drawSwordRest = () => {
+    const bx = 67; const tipY = 12 + dy; const guardY = 54 + dy;
+    for (let y = tipY; y <= guardY; y++) {
+      put(bx, y, "W"); put(bx - 1, y, "C"); put(bx + 1, y, "C");
+      if (y % 3 === 0) put(bx + 1, y, "R"); // corrupted edge
+    }
+    put(bx, tipY - 1, "C");
+    for (let y = tipY + 2; y <= guardY - 2; y += 2) put(bx, y, "d"); // fuller
+    rowc(guardY, bx - 4, bx + 4, "y");
+    put(bx - 4, guardY, "Y"); put(bx + 4, guardY, "Y");
+    rowc(guardY + 1, bx - 3, bx + 3, "d");
+    box(bx - 1, guardY + 2, bx + 1, guardY + 9, "k"); // grip
+    box(bx - 1, guardY + 9, bx + 1, guardY + 10, "Y"); // pommel
+    line(52, 56 + dy, bx, guardY + 5, "O", 1); // forearm
+    line(52, 56 + dy, bx, guardY + 5, "K", 0);
+    box(bx - 2, guardY + 3, bx + 2, guardY + 7, "K"); // gauntlet grip
+  };
+  const drawSwordRaise = () => {
+    line(58, 44 + dy, 76, 3 + dy, "C", 1);
+    line(58, 44 + dy, 76, 3 + dy, "W", 0);
+    put(70, 18 + dy, "R"); put(66, 26 + dy, "R"); put(73, 10 + dy, "R");
+    line(54, 48 + dy, 62, 42 + dy, "y", 0); // guard
+    box(55, 46 + dy, 58, 50 + dy, "K"); // grip/hand
+    line(50, 48 + dy, 56, 47 + dy, "O", 1); // raised arm
+  };
+  const drawSwordSlash = () => {
+    line(64, 40 + dy, 12, 74 + dy, "C", 1);
+    line(64, 40 + dy, 12, 74 + dy, "W", 0);
+    for (let i = 0; i <= 5; i++) put(Math.round(64 - 52 * (i / 5)), Math.round(40 + 34 * (i / 5)) - 1, "R");
+    for (let a = 0; a <= 17; a++) { // motion arc afterimage
+      const ang = (a / 17) * Math.PI * 0.8 + 0.2;
+      put(Math.round(52 - Math.cos(ang) * 44), Math.round((40 + dy) + Math.sin(ang) * 26), a % 2 ? "r" : "R");
+    }
+    line(60, 44 + dy, 68, 40 + dy, "y", 0); // guard
+    box(60, 42 + dy, 64, 46 + dy, "K"); // grip/hand
+    line(52, 47 + dy, 60, 44 + dy, "O", 1);
+  };
+  const drawSwordPlant = () => { // planted point-down as a crutch when kneeling
+    const bx = 56; const topY = 50 + dy; const groundY = 92;
+    for (let y = topY; y <= groundY; y++) {
+      put(bx, y, "W"); put(bx - 1, y, "C"); put(bx + 1, y, "C");
+      if (y % 3 === 0) put(bx - 1, y, "R");
+    }
+    rowc(topY, bx - 4, bx + 4, "y"); // guard
+    box(bx - 1, topY - 3, bx + 1, topY - 1, "Y"); // pommel above
+    box(bx - 2, topY + 1, bx + 2, topY + 6, "K"); // both hands grip
+    line(50, 52 + dy, bx, topY + 3, "O", 1);
+  };
+  const drawCast = () => {
+    line(28, 48 + dy, 16, 30 + dy, "O", 1);
+    line(28, 48 + dy, 16, 30 + dy, "K", 0);
+    box(13, 27 + dy, 18, 32 + dy, "K"); // raised gauntlet
+    const oy = 22 + dy; const ox = 15; const rad = o.cast === 2 ? 5 : 3;
+    for (let yy = -rad; yy <= rad; yy++) for (let xx = -rad; xx <= rad; xx++) {
+      const dd = Math.sqrt(xx * xx + yy * yy);
+      if (dd > rad) continue;
+      put(ox + xx, oy + yy, dd < rad * 0.4 ? "Y" : dd < rad * 0.75 ? "M" : "R");
+    }
+    if (o.cast === 2) for (let i = 0; i < 8; i++) { put(ox - i, oy + i, i % 2 ? "R" : "M"); put(ox + 2 - i, oy + 2 + i, "r"); }
+  };
+
+  // ── compose ────────────────────────────────────────────────────────────────
+  drawPauldrons();
+  if (o.kneel) drawKneelLegs(); else drawLegsStanding();
+  drawTorso();
+  drawNeckKey();
+  drawHead();
+  drawHorns();
+  drawCrown();
+  drawFlames();
+  if (o.kneel) {
+    drawSwordPlant();
+  } else {
+    if (o.cast) drawCast(); else drawLeftArm();
+    if (o.sword === "raise") drawSwordRaise();
+    else if (o.sword === "slash") drawSwordSlash();
+    else drawSwordRest();
+  }
+
+  // ── dissolve overlay (built on the kneeling king) ────────────────────────
+  if (o.dissolve) {
+    const thr = [0, 0.22, 0.5, 0.75, 0.92][o.dissolve];
+    for (let y = 0; y < DK_H; y++) for (let x = 0; x < DK_W; x++) {
+      if (g[y][x] === ".") continue;
+      const isKey = g[y][x] === "Y" && y > 40 && Math.abs(x - 39.5) < 4; // the stolen key lingers
+      const h = (dkHash(x, y) % 100) / 100;
+      if (h < thr && !isKey) g[y][x] = h < thr * 0.55 ? "." : dkHash(x + 3, y) % 2 ? "R" : "X";
+    }
+    const motes = o.dissolve * 7;
+    for (let i = 0; i < motes; i++) {
+      const mx = 16 + (dkHash(i * 7 + o.dissolve, 1) % 48);
+      const my = 18 + (dkHash(i, o.dissolve * 5) % 62);
+      if (inb(mx, my) && g[my][mx] === ".") g[my][mx] = i % 3 === 0 ? "R" : i % 3 === 1 ? "r" : "M";
+    }
+  }
+
+  return g.map((r) => r.join(""));
+}
+
+const DK_IDLE_0 = devilFrame({ breath: 0, flare: 0, sword: "rest", cast: 0, hurt: false, kneel: 0, dissolve: 0 });
+const DK_IDLE_1 = devilFrame({ breath: 1, flare: 1, sword: "rest", cast: 0, hurt: false, kneel: 0, dissolve: 0 });
+const DK_SLASH_0 = devilFrame({ breath: 0, flare: 1, sword: "raise", cast: 0, hurt: false, kneel: 0, dissolve: 0 });
+const DK_SLASH_1 = devilFrame({ breath: 1, flare: 2, sword: "slash", cast: 0, hurt: false, kneel: 0, dissolve: 0 });
+const DK_CAST_0 = devilFrame({ breath: 0, flare: 1, sword: "rest", cast: 1, hurt: false, kneel: 0, dissolve: 0 });
+const DK_CAST_1 = devilFrame({ breath: 1, flare: 2, sword: "rest", cast: 2, hurt: false, kneel: 0, dissolve: 0 });
+const DK_HURT_0 = devilFrame({ breath: 0, flare: 1, sword: "rest", cast: 0, hurt: true, kneel: 0, dissolve: 0 });
+const DK_KNEEL_0 = devilFrame({ breath: 0, flare: 0, sword: "plant", cast: 0, hurt: false, kneel: 1, dissolve: 0 });
+const DK_KNEEL_1 = devilFrame({ breath: 0, flare: 0, sword: "plant", cast: 0, hurt: false, kneel: 2, dissolve: 0 });
+const DK_DISSOLVE_0 = devilFrame({ breath: 0, flare: 0, sword: "plant", cast: 0, hurt: false, kneel: 2, dissolve: 1 });
+const DK_DISSOLVE_1 = devilFrame({ breath: 0, flare: 0, sword: "plant", cast: 0, hurt: false, kneel: 2, dissolve: 2 });
+const DK_DISSOLVE_2 = devilFrame({ breath: 0, flare: 0, sword: "plant", cast: 0, hurt: false, kneel: 2, dissolve: 3 });
+const DK_DISSOLVE_3 = devilFrame({ breath: 0, flare: 0, sword: "plant", cast: 0, hurt: false, kneel: 2, dissolve: 4 });
+
+export const DEVIL_KING_SPRITES: SpriteDef = {
+  key: "boss-devil-king",
+  w: DK_W,
+  h: DK_H,
+  frames: [
+    DK_IDLE_0, DK_IDLE_1, DK_SLASH_0, DK_SLASH_1, DK_CAST_0, DK_CAST_1, DK_HURT_0,
+    DK_KNEEL_0, DK_KNEEL_1, DK_DISSOLVE_0, DK_DISSOLVE_1, DK_DISSOLVE_2, DK_DISSOLVE_3,
+  ],
+  anims: [
+    { key: "idle", frames: [0, 1], frameRate: 3, repeat: -1 },
+    // "attack" IS the 2f slash — the scene plays it on the boss's "player-hit" fx.
+    { key: "attack", frames: [2, 3], frameRate: 7, repeat: 0 },
+    { key: "cast", frames: [4, 5], frameRate: 7, repeat: 0 },
+    { key: "hurt", frames: [6], frameRate: 1, repeat: 0 },
+    { key: "kneel", frames: [7, 8], frameRate: 3, repeat: 0 },
+    // "defeat" IS the 4f dissolve — the scene plays it on victory (Task 23 sequences kneel → defeat).
+    { key: "defeat", frames: [9, 10, 11, 12], frameRate: 6, repeat: 0 },
+  ],
+};
+
+export const BOSS_SPRITES: SpriteDef[] = [GLITCH_TOAD_SPRITES, CAPTAIN_SPOOF_SPRITES, WARDEN_SPRITES, BLANK_PAGE_SPRITES, DEVIL_KING_SPRITES];
 
 // bossId -> its SpriteDef, for CombatBackdropScene to look up (mirrors
 // tilesetFor's theme -> tile-sprite lookup in tiles-fields.ts). Bosses without
@@ -1868,4 +2285,5 @@ export const BOSS_SPRITE_BY_ID: Partial<Record<BossId, SpriteDef>> = {
   "captain-spoof": CAPTAIN_SPOOF_SPRITES,
   "warden": WARDEN_SPRITES,
   "blank-page": BLANK_PAGE_SPRITES,
+  "devil-king": DEVIL_KING_SPRITES,
 };
