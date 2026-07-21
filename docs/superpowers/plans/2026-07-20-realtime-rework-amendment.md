@@ -102,14 +102,20 @@ New, from the brief:
   Shift dash, E interact, Escape pause.
 - 6 hearts everywhere (levels + arenas); full heal on level start, checkpoint
   respawn, and arena entry/retry.
+- Every world map places at least two mid-level checkpoints (≈1/3 and ≈2/3 of
+  the route, ahead of hazard-dense sections); boss arenas are their own
+  checkpoint. (Coverage-critique SF-3.)
 - Damage readability: no invisible or unpredictable damage; every boss attack has
   a telegraph (animation/sound/lighting/positioning/particles); parryable attacks
   share ONE consistent visual signal game-wide (bright white-gold flash ring —
   established in Task 33, reused by every boss).
 - Every new boss sprite is rendered to PNG and visually inspected before its
-  commit (devtool from Task 34; inspect with the Read tool / by eye).
-- Boss anim states minimum: Idle, Move, Attack prep, Attack, Recovery, Damage,
-  Phase transition, Defeat.
+  commit (devtool from Task 34; inspect with the Read tool / by eye). The
+  Task 32 training dummy is exempt (debug-only sprite, predates the devtool —
+  critique N-4).
+- Boss anim states minimum, where applicable: Idle, Move, Attack prep, Attack,
+  Recovery, Damage, Phase transition, Defeat. (Background-anchored bosses may
+  omit Move; single-phase bosses omit Phase transition — critique N-3.)
 - Timing: task-level playtests record world completion times against §1.4.
 
 ## 4. Real-time architecture
@@ -292,6 +298,9 @@ Engine (synth/notes) unchanged. Additive `ids.ts` changes:
   damage → `boss-hit`, player damage → `damage`, weak-point exposure → `expose`,
   mask breaking → `mask-break`, truth seal → `seal`, heart strike → `heart-hit`,
   weapon transformation → `weapon-swap`, key drop → `key-drop`, chest → `chest`.
+  (The mapped ids `stomp`, `parry`, `damage`, `collect`, `chest` already exist
+  in `SfxId` from original Task 5 — verified in-repo; the mapping relies on
+  them. Critique SF-1.)
 
 ## 6. Save, settings, accessibility
 
@@ -384,7 +393,10 @@ git add features/adventure && git commit -m "feat(adventure): player realtime co
 **Files:** Create `realtime/{BossController,ProjectileManager,ArenaHazardSystem}.ts` (+ pure helpers/tests where extractable). Modify: `realtime/BossArenaScene.ts` (controller integration, victory flow), `bossDefinitions/trainingDummy.ts` (exercise everything), `audio/sfx.ts` (§5 new cues), `scenes/PlatformLevelScene.ts` (boss door `D` → launch Arena for that level's boss; remove combat-controller launch + boss-intro dialogue trigger), `ui/Overlay.tsx` (stop mounting CombatPanel/TimedPrompt/TypingBox/BuffTray in gameplay), `scenes/controllerGates.ts` if door-gating logic lives there.
 
 - BossController: consumes `stepBoss` commands → anims/movement/sfx/effects;
-  runs `BossMechanics` (§4) with `MechanicsApi`; game-wide parryable flash
+  runs `BossMechanics` (§4) with `MechanicsApi`; includes ONE documented no-op
+  hook point (`onEncounterBeat(tag: string)`) as the future dialogue seam
+  (brief: "clean technical seams… without rebuilding the encounters" —
+  critique N-8); game-wide parryable flash
   signal; telegraph presentation hooks (tint/particles/`telegraph` sfx);
   `vulnerable` → weak-point glow + `expose` sfx.
 - ProjectileManager: pooled sprites driven by ProjectileSystem specs; parryable
@@ -416,7 +428,8 @@ stone paths, mountain parallax) → temple stairs → large temple door (`D`).
 Three **Truth Seals** ON the critical path (auto-collect on overlap, glowing,
 `seal` sfx, `rtSeals` pips beside the ActionBar): rooftop gap, old-district
 alcove, temple stairway. Sparse enemies: ≤ 2 re-skinned patrol variants max, or
-none. Playtest: full run screenshots at each section, time recorded (target
+none. Playtest: full run TO AND THROUGH the boss door (the fight itself lands
+in Task 35 — critique N-6), screenshots at each section, time recorded (target
 ≈4 min incl. boss retry buffer), CONTENT standability test green. Gates: tsc +
 vitest.
 
@@ -487,7 +500,11 @@ the giant, anchor rocks, marked ceiling), `audio/tracks.ts` (+`hollow-giant`
 
 Structure: giant is background-anchored; hands enter the playfield. maxHp 9 ==
 3 cycles × 3 heart-hits; body/hands `damageScale 0` — ONLY the heart hitbox
-takes damage, and only while exposed. Attacks: hand slam (tele 700 marked
+takes damage, and only while exposed. QUANTIZATION (critique SF-4): each
+attack/stomp connect on the exposed heart emits exactly
+`{kind:"hit", amount:1, source:"mechanic"}` (mechanic source: scale-exempt,
+armor-piercing) so every cycle is exactly 3 contacts regardless of RT_PLAYER
+attack/stomp damage values. Attacks: hand slam (tele 700 marked
 column, hand lingers 2500ms as a PLATFORM, dmg 1), double slam (tele 1000 +
 visible safe zone, hands linger 3000ms, dmg 2), mouth shockwave (tele 900,
 horizontal wave, safe crouch-gap/behind-rock/dash-through, dmg 1), inhale
@@ -575,7 +592,9 @@ bells, somber). Modify: rain particle overlay in PlatformLevelScene theme hook;
 Level part A (≈2.5–3 min of the world's 6): old streets → brick rooftops →
 clock-tower jumps → iron fences/bridges → fog courtyard that SEALS on entry
 (gate closes → mini-boss arena in-place via Arena launch). **Scythebound**: no
-hp bar — objective `STOMPS: 0 / 15` (bottom objective slot). Grounded + not
+hp bar — objective `STOMPS: 0 / 15` (bottom objective slot; the brief's literal
+`[ SPACE STOMP: 12 / 15 ]` action-slot form is equally acceptable — either
+placement satisfies the brief, critique N-5). Grounded + not
 spinning = stompable (head top-third, StompSystem); stomp → bounce + stun 900ms
 + counter++ + impact fx. Attacks: scythe sweep (tele 500, jump over, dmg 1),
 overhead strike (leap + slam, recovery 1300 = the taught stomp window, dmg 1),
@@ -787,6 +806,12 @@ sites (apply widerParry ×1.3, slowerHazards ×0.8 projectile / ×1.25 hazard
 timers, reduceFlash swaps flashes for steady outlines, noShake gates every
 shake), `assistRT` wiring (per §6, silent).
 
+Division of authority (critique N-1): `VirtualControls` owns movement (◀ ▶) +
+JUMP + DASH; the ActionBar's mobile transform owns ATTACK / PARRY / E-context
+buttons — both feed the single `InputState` sink, and no action may be bound in
+both surfaces. Icon pass (critique SF-2, brief "use icons where possible"):
+this task adds small pixel icons to every ActionBar slot (desktop + mobile),
+keeping key labels as secondary text.
 Virtual controls: ◀ ▶ + JUMP / ATTACK / DASH / PARRY / E clusters (pointer-id
 multi-touch safe, `touch-action: none`); Pause (Escape/pause button): RESUME /
 RESTART FROM CHECKPOINT / SETTINGS (volume, mute, 4 accessibility toggles,
@@ -813,7 +838,10 @@ git add features/adventure && git commit -m "feat(adventure): mobile controls, p
   chase, key pickup, chest, mobile layout, pause + restart behavior.
 - Sweep for temporary hooks (teleport/damage/invincibility/dev flags) — none
   may remain; `?debug=1` menu and `?arena=` entry are shipped gated features
-  and stay.
+  and stay — record that ruling explicitly in the ledger against completion
+  criterion #29 (critique N-2). Per critique N-7, the Task 48/49 review must
+  verify the four accessibility toggles + silent assist against EVERY boss's
+  bespoke flash/shake/projectile call-sites, not just the shared systems.
 - Confirm zero active code paths into turn-based combat/dialogue; propose (do
   NOT execute) the deletion of dormant systems as a user decision recorded in
   the ledger.
