@@ -424,6 +424,22 @@ const CHEST: Track = {
   ],
 };
 
+// Placeholder theme for the real-time rework bosses (amendment §5). Each boss
+// task (35–45) REPLACES its key with an authored theme; this keeps the exhaustive
+// Record<TrackId, Track> valid and synth.playTrack safe until then. A quiet
+// bass+kick pulse so an accidental early play is audible-but-clearly-temp.
+function placeholder(root: Step): Track {
+  const mk = <T>(f: (i: number) => T): T[] => Array.from({ length: 64 }, (_v, i) => f(i));
+  return {
+    bpm: 120,
+    loop: true,
+    sq1: mk((): Step => null),
+    sq2: mk((): Step => null),
+    tri: mk((i): Step => (i % 8 === 0 ? root : null)),
+    noise: mk((i): 0 | 1 | 2 | null => (i % 8 === 0 ? 2 : null)),
+  };
+}
+
 export const TRACKS: Record<import("../ids").TrackId, Track> = {
   title: TITLE,
   overworld: OVERWORLD,
@@ -438,4 +454,12 @@ export const TRACKS: Record<import("../ids").TrackId, Track> = {
   "devil-3": DEVIL_3,
   victory: VICTORY,
   chest: CHEST,
+  // real-time rework boss themes — placeholders until their boss tasks author them.
+  "broken-king": placeholder("C2"),
+  "hollow-giant": placeholder("A1"),
+  "one-eyed-dealer": placeholder("E2"),
+  scythebound: placeholder("D2"),
+  "veiled-archer": placeholder("G2"),
+  "devil-duel": placeholder("F2"),
+  "devil-arsenal": placeholder("F2"),
 };

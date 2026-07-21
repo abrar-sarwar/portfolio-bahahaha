@@ -7,10 +7,13 @@ import type { TrackId } from "../ids";
 const ALL_IDS: TrackId[] = [
   "title", "overworld", "level-1", "level-2", "level-3", "level-4",
   "boss", "castle", "devil-1", "devil-2", "devil-3", "victory", "chest",
+  // real-time rework boss themes (placeholders until their boss tasks author them)
+  "broken-king", "hollow-giant", "one-eyed-dealer", "scythebound",
+  "veiled-archer", "devil-duel", "devil-arsenal",
 ];
 
 describe("TRACKS integrity", () => {
-  it("covers exactly the 13 TrackIds (no missing, no extras)", () => {
+  it("covers exactly the TrackIds in ids.ts (no missing, no extras)", () => {
     expect(Object.keys(TRACKS).sort()).toEqual([...ALL_IDS].sort());
   });
 
