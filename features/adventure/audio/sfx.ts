@@ -77,6 +77,50 @@ export function playSfx(sc: SfxContext, id: SfxId): void {
     case "stomp":
       noise(sc, 0.06, 0.3);
       break;
+    case "slash":
+      // Player sword swing (Task 32): a short airy swipe + a bright down-whoosh.
+      noise(sc, 0.05, 0.2, 0, true);
+      tone(sc, "square", 900, 380, 0.06, 0.16);
+      break;
+    // ── Task 33 realtime cues (amendment §5; boss tasks may refine) ─────────
+    case "boss-hit":
+      // A heavier, darker thud than the player "damage" bend.
+      tone(sc, "square", 180, 90, 0.1, 0.3);
+      noise(sc, 0.05, 0.22);
+      break;
+    case "telegraph":
+      // Quiet rising warn — plays under every boss wind-up.
+      tone(sc, "triangle", 300, 520, 0.09, 0.14);
+      break;
+    case "expose":
+      // Weak-point revealed: a bright open fifth blooming upward.
+      tone(sc, "triangle", noteToFreq("A4"), noteToFreq("E5"), 0.16, 0.2);
+      break;
+    case "seal":
+      // Truth/seal activation: solemn low-to-high triangle sweep + shimmer.
+      tone(sc, "triangle", noteToFreq("C4"), noteToFreq("C5"), 0.22, 0.22);
+      tone(sc, "square", noteToFreq("G5"), noteToFreq("G5"), 0.06, 0.12, 0.18);
+      break;
+    case "mask-break":
+      // Sharp metallic crack + falling debris hiss.
+      tone(sc, "square", 1400, 500, 0.07, 0.24);
+      noise(sc, 0.09, 0.2, 0.05);
+      break;
+    case "heart-hit":
+      // Deep pulse-thump with a soft after-beat.
+      tone(sc, "sine", 90, 60, 0.14, 0.34);
+      tone(sc, "sine", 120, 80, 0.08, 0.2, 0.16);
+      break;
+    case "weapon-swap":
+      // Quick materialization sweep — up-chirp with a metallic edge.
+      tone(sc, "sawtooth", 220, 880, 0.09, 0.16);
+      tone(sc, "square", 1200, 1200, 0.03, 0.1, 0.08);
+      break;
+    case "key-drop":
+      // Bright falling chime, then a small bounce blip.
+      tone(sc, "triangle", noteToFreq("E6"), noteToFreq("B5"), 0.12, 0.22);
+      tone(sc, "triangle", noteToFreq("E5"), noteToFreq("E5"), 0.05, 0.14, 0.16);
+      break;
     case "parry":
       tone(sc, "triangle", 1200, 1200, 0.05, 0.26);
       tone(sc, "square", 1800, 1800, 0.03, 0.18);

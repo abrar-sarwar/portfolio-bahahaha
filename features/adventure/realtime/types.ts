@@ -44,13 +44,30 @@ export interface RtBossDef {
   arenaKey: string; // key into realtime/arenas.ts
   track: TrackId;
   spawn: { tx: number; ty: number };
+  /** Boss starts mechanic-armored (Veiled Archer: damage only via scripted
+   *  catches; One-Eyed Dealer: masked on spawn). Default false. */
+  invulnerableBaseline?: boolean;
 }
 
 export type MachineEvent =
   | { kind: "hit"; amount: number; source: "attack" | "stomp" | "mechanic" }
   | { kind: "parried" } // player parried the current parryable attack
   | { kind: "wall-hit" } // charge-type attacks striking a wall
-  | { kind: "mechanic"; id: string }; // boss-specific (truth, clasp, seal, force-defeat, …)
+  | { kind: "mechanic"; id: string } // boss-specific (truth, clasp, seal, force-defeat, …)
+  // Task 33 mechanics-driven extensions (boss-demands synthesis). All additive:
+  | { kind: "force-phase"; phaseIndex: number; lock?: boolean }
+  // ^ mechanic-driven phase jump (stomp tiers, catches, weapon-form timers).
+  //   `lock` suppresses hp-driven deepening afterwards (needed when hp is frozen
+  //   or a rollback must stick against deepestPhase re-entering).
+  | { kind: "force-stagger"; ms: number }
+  // ^ unconditional scripted stagger/expose window of an explicit length —
+  //   catch windows, unmask freezes, stomp stuns, seal-shatter openings. Unlike
+  //   `parried`/`wall-hit` it fires from ANY non-defeated state.
+  | { kind: "set-invulnerable"; value: boolean }
+  // ^ toggle mechanic armor at runtime (mask on/off, arsenal seals).
+  | { kind: "set-tempo"; scale: number | null };
+  // ^ override the phase's tempoScale until cleared with null (rage removal,
+  //   re-mask speed-ups, post-lapse acceleration).
 
 export interface BossMachineState {
   hp: number;
@@ -69,6 +86,12 @@ export interface BossMachineState {
   cooldowns: Record<string, number>;
   vulnerableMs: number; // > 0 → weakness/punish window open
   invulnerable: boolean; // mechanic-armored (normal damage events ignored)
+  /** Set by a `force-phase` event with `lock: true`: hp-driven phase deepening
+   *  is suppressed for the rest of the fight (mechanics own the phases). */
+  phaseLocked?: boolean;
+  /** Set by `set-tempo`: overrides the current phase's tempoScale until cleared
+   *  (null/absent → the phase's own scale applies). */
+  tempoOverride?: number | null;
 }
 
 export type MachineCommand =
@@ -87,4 +110,7 @@ export interface StepInput {
   bossY: number;
   events: MachineEvent[];
   rng: () => number; // seeded (see makeRng in config.ts)
+  /** Silent-assist recovery lengthening (assistRT §6): scales recovery-window
+   *  durations (and their vulnerable windows). Default 1. */
+  recoveryScale?: number;
 }

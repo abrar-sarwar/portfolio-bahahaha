@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { createStore, memoizeBy } from "./GameStore";
+import { createStore, memoizeBy, gameStore } from "./GameStore";
+import { RT_PLAYER } from "../realtime/config";
 
 describe("GameStore", () => {
   it("set patches shallowly and notifies subscribers", () => {
@@ -36,5 +37,25 @@ describe("GameStore", () => {
     const second = sel({ n: 2 });
     expect(second).not.toBe(first);            // new ref in, recomputed
     expect(second).toEqual({ doubled: 4 });
+  });
+});
+
+describe("gameStore realtime defaults (Task 32, additive)", () => {
+  it("seeds safe defaults for the realtime UI fields", () => {
+    const s = gameStore.get();
+    expect(s.hearts).toEqual({ current: RT_PLAYER.maxHearts, max: RT_PLAYER.maxHearts });
+    expect(s.rtBoss).toBeNull();
+    expect(s.rtObjective).toBeNull();
+    expect(s.rtSeals).toBeNull();
+    expect(s.rtActions).toEqual({
+      attack: { cooldownFrac: 0 },
+      dash: { cooldownFrac: 0 },
+      parry: { cooldownFrac: 0 },
+      context: null,
+    });
+  });
+
+  it("defaults to a full 6 hearts", () => {
+    expect(gameStore.get().hearts.max).toBe(6);
   });
 });

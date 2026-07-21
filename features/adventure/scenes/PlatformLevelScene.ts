@@ -1,6 +1,7 @@
 import Phaser from "phaser";
-import { TILE, ZOOM, PHYSICS, PLAYER_BASE } from "../config";
-import type { LevelId, BuffId, AbilityId } from "../ids";
+import { TILE, ZOOM, PHYSICS } from "../config";
+import { RT_PLAYER } from "../realtime/config";
+import type { LevelId, BuffId, AbilityId, SceneKey } from "../ids";
 import { LEVELS } from "../levels";
 import { parseLevel } from "../levels/parse";
 import type { LevelDefinition, ParsedLevel, Pt } from "../levels/types";
@@ -33,10 +34,8 @@ import { PICKUP_SPRITES, pickupKeyFor } from "../art/sprites/pickups";
 import { audio } from "../audio/synth";
 import { bus } from "../bridge/EventBus";
 import { gameStore } from "../bridge/GameStore";
-import { startCombat, registerCombatGame } from "../combat/controller";
-import { BOSSES } from "../bosses";
-import { collectMemoryFragment, loadSave, markIntroSeen, persistSave } from "../state/save";
-import { openDialogue } from "../dialogue/dialogueController";
+import { collectMemoryFragment, loadSave, persistSave } from "../state/save";
+import { getRtBoss, LEVEL_RT_BOSS } from "../realtime/bossDefinitions";
 import { input } from "../input/InputState";
 import { mergeRowRuns, runToRect, topExposed } from "./levelGeometry";
 import { shouldClipAscent, movementLocked } from "./controllerGates";
@@ -329,9 +328,9 @@ const ATTACK_MS = 220;
 const DEATH_MS = 750;
 
 export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
-  private def!: LevelDefinition;
-  private lvl!: ParsedLevel;
-  private player!: Phaser.Physics.Arcade.Sprite;
+  protected def!: LevelDefinition;
+  protected lvl!: ParsedLevel;
+  protected player!: Phaser.Physics.Arcade.Sprite;
 
   public mapWidthPx = 0; // public: EnemyHostScene exposes it for spawn clamping
   private mapHeightPx = 0;
@@ -342,21 +341,26 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private jumpFiredAt = -Infinity;
   private knockbackUntil = -Infinity;
   private dashing = false;
-  private dashStartedAt = -Infinity;
-  private attacking = false;
-  private attackUntil = -Infinity;
+  protected dashStartedAt = -Infinity;
+  protected attacking = false;
+  protected attackUntil = -Infinity;
   /** Timestamp of the player's last stomp (Fix 4: same-frame double-contact
    *  guard — see applyRestompWindow / onEnemyContact). */
   private lastStompAt = -Infinity;
-  private iframesUntil = -Infinity;
+  protected iframesUntil = -Infinity;
   private hurtAnimUntil = -Infinity;
-  private dead = false;
+  protected dead = false;
   private speedScale = 1;
   private abilities: Record<AbilityId, boolean> = { dash: false, analyze: false, improvedParry: false };
+  /** Arenas (BossArenaScene) grant the full moveset regardless of save state
+   *  (amendment §6). When set, dash is always available and survives a
+   *  pause/resume re-read of the store. Levels leave this false. */
+  protected fullMoveset = false;
 
-  // health / progression
-  private health: number = PLAYER_BASE.maxHealth;
-  private maxHealth: number = PLAYER_BASE.maxHealth;
+  // health / progression — 6 hearts everywhere (Task 32; RT_PLAYER.maxHearts).
+  // Protected: BossArenaScene applies the silent-assist bonus heart (Task 33).
+  protected health: number = RT_PLAYER.maxHearts;
+  protected maxHealth: number = RT_PLAYER.maxHearts;
   private buffs: BuffId[] = [];
   private fragments = 0;
   private lastCheckpoint: Pt = { tx: 0, ty: 0 };
@@ -416,8 +420,11 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private toast?: Phaser.GameObjects.Text;
   private detachInput?: () => void;
 
-  constructor() {
-    super("Level");
+  constructor(key: SceneKey = "Level") {
+    // Parameterised so BossArenaScene (Task 32) can reuse this scene wholesale
+    // under the "Arena" key; defaults to "Level" so existing callers are
+    // unchanged.
+    super(key);
   }
 
   create(data: LevelSceneData) {
@@ -439,8 +446,16 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.tideTop = Infinity;
     this.tideRect = undefined;
     this.lightningFlash = undefined;
+    // Phaser reuses the scene INSTANCE across restarts, so per-run player
+    // flags must reset here too (T18 hygiene). The base death path clears
+    // `dead` in respawn(), but a death that ends in scene.restart() — the
+    // BossArenaScene retry — re-enters create() with `dead` still true,
+    // freezing the player AND the arena's machine step behind its gate.
+    this.dead = false;
+    this.attacking = false;
+    this.attackUntil = -Infinity;
 
-    const def = LEVELS[data.levelId];
+    const def = this.resolveLevelDef(data);
     if (!def) throw new Error(`unknown level ${data.levelId}`);
     this.def = def;
     this.lvl = parseLevel(def);
@@ -482,9 +497,9 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.buildCastleDecor(); // chains / banners / statues + lightning (Task 21)
     this.setupCamera();
 
-    // HUD / progression reset for this level.
-    this.health = PLAYER_BASE.maxHealth;
-    this.maxHealth = PLAYER_BASE.maxHealth;
+    // HUD / progression reset for this level. Full heal on start (6 hearts).
+    this.health = RT_PLAYER.maxHearts;
+    this.maxHealth = RT_PLAYER.maxHearts;
     this.buffs = [];
     this.fragments = this.fragmentCollected ? 1 : 0; // reflect a prior-session collection in the HUD count
     this.latchedCheckpoints.clear();
@@ -504,9 +519,10 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       .setVisible(false);
 
     gameStore.set({
-      scene: "Level",
+      scene: this.scene.key as SceneKey,
       paused: false,
       levelBuffs: [],
+      hearts: { current: this.health, max: this.maxHealth },
       hud: {
         health: this.health,
         maxHealth: this.maxHealth,
@@ -515,7 +531,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
         levelId: def.id,
       },
     });
-    bus.emit("scene:changed", { scene: "Level" });
+    bus.emit("scene:changed", { scene: this.scene.key as SceneKey });
 
     // Music: attempt now (no-op if audio still locked), and guarantee it
     // starts on the first user gesture. synth.playTrack() calls unlock()
@@ -536,7 +552,9 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     // — so the abilities snapshot above would otherwise go stale until a full
     // scene restart. Re-read the store every time this scene resumes.
     const onResume = () => {
-      this.abilities = { ...gameStore.get().abilities };
+      this.abilities = this.fullMoveset
+        ? { dash: true, analyze: true, improvedParry: true }
+        : { ...gameStore.get().abilities };
     };
     this.events.on(Phaser.Scenes.Events.RESUME, onResume);
 
@@ -558,14 +576,9 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       input.consume();
     });
 
-    // Level intro: plays intro-<levelId> once per save (seenIntros persisted
-    // in the save — additive field, see state/save.ts's AdventureSave doc
-    // comment). A level with no authored intro script yet (openDialogue
-    // returns false) is a silent no-op and nothing is marked seen, so it can
-    // play once a script lands.
-    if (!save.seenIntros.includes(def.id)) {
-      if (openDialogue(`intro-${def.id}`)) persistSave(markIntroSeen(loadSave(), def.id));
-    }
+    // Level-intro dialogue trigger removed by the realtime rework (Task 33):
+    // no dialogue anywhere in gameplay. The dialogue system itself stays
+    // dormant in-tree as the future seam (amendment §2, old Task 17).
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.detachInput?.();
@@ -573,7 +586,21 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       offDialogueOpen();
       offDialogueClosed();
     });
+
+    // Subclass seam (BossArenaScene): everything above has built the world +
+    // player + HUD; the arena spawns its boss and combat layer here.
+    this.onCreated(data);
   }
+
+  /** Which LevelDefinition this run renders. Base: the LEVELS registry keyed by
+   *  `data.levelId`. BossArenaScene overrides to return an arena def. */
+  protected resolveLevelDef(data: LevelSceneData): LevelDefinition {
+    return LEVELS[data.levelId];
+  }
+
+  /** Post-create hook (runs at the end of create(), after teardown wiring is in
+   *  place). Base: no-op. BossArenaScene spawns the boss + combat layer here. */
+  protected onCreated(_data: LevelSceneData): void {}
 
   // --- build ----------------------------------------------------------------
 
@@ -1522,7 +1549,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       body.setVelocityX(dir * PHYSICS.moveSpeed * this.speedScale); // cache-boost sets speedScale 1.25
       if (dir !== 0) this.player.setFlipX(dir < 0);
       const dashReady = this.time.now - this.dashStartedAt > PHYSICS.dashCooldownMs;
-      if (snap.dashPressed && dashReady && this.abilities.dash && dir !== 0) {
+      if (snap.dashPressed && dashReady && (this.abilities.dash || this.fullMoveset) && dir !== 0) {
         this.dashing = true;
         this.dashStartedAt = this.time.now;
         body.setVelocityX(dir * PHYSICS.dashSpeed);
@@ -1584,7 +1611,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     if (this.player.anims.currentAnim?.key !== key) this.player.play(key, true);
   }
 
-  private doAttack() {
+  protected doAttack() {
     this.attacking = true;
     this.attackUntil = this.time.now + ATTACK_MS;
     this.attackSwingId++; // one swing = one hit per enemy (multi-hp guard)
@@ -1668,45 +1695,25 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       this.pushHud();
       bus.emit("level:fragment", { levelId: this.def.id });
       persistSave(collectMemoryFragment(loadSave(), this.def.id));
-      openDialogue(`frag-${this.def.id}`);
       return;
     }
     if (this.nearDoor) this.enterBoss();
   }
 
-  private enterBoss() {
-    // The castle throne door is SEALED until the three fragments forge the
-    // castle key (Task 21). save.castleKey is granted by the Blank Page.
-    if (this.def.id === "castle") {
-      const save = loadSave();
-      if (!save.castleKey) {
-        // No key: a short seal line, not combat.
-        openDialogue("castle-seal");
-        return;
-      }
-      // Has the key. The devil-king BossDefinition arrives in Task 22 — until
-      // BOSSES["devil-king"] is registered, show a COMING SOON toast (the
-      // overworld pattern) instead of launching an empty fight that would throw.
-      // SEAM FOR TASK 22: once the devil-king def exists in BOSSES, this guard
-      // falls through to startCombat below and the fight begins normally.
-      if (!BOSSES[this.def.bossId]) {
-        audio.sfx("select");
-        this.showToast("COMING SOON");
-        return;
-      }
+  protected enterBoss() {
+    // Real-time rework (Task 33): the boss door hands off to the BossArenaScene
+    // directly — no dialogue, no turn-based controller (that path is dormant
+    // and unreachable; files preserved). Each level's RT boss def arrives with
+    // its world task (35–45); until it registers, the door shows COMING SOON.
+    // The old castle-key seal is gone with the dormant fragment system — the
+    // castle gates on overworld unlock (1-4 completion) alone.
+    const rtBossId = LEVEL_RT_BOSS[this.def.id];
+    if (!rtBossId || !getRtBoss(rtBossId)) {
+      audio.sfx("select");
+      this.showToast("COMING SOON");
+      return;
     }
-
-    gameStore.set({ levelBuffs: [...this.buffs] });
-    bus.emit("level:enter-boss", { levelId: this.def.id, bossId: this.def.bossId });
-    // Hand off to the combat controller: it pauses this Level scene, launches
-    // the CombatBackdrop, and mounts the React combat UI. startCombat throws
-    // for an un-registered boss (Task 14 populates BOSSES), so guard the door.
-    registerCombatGame(this.game);
-    try {
-      startCombat(this.def.bossId, { levelId: this.def.id, returnTo: "level" });
-    } catch (err) {
-      console.warn("[adventure] boss has no combat definition yet", err);
-    }
+    this.scene.start("Arena", { bossId: rtBossId, fromLevel: this.def.id });
   }
 
   // --- damage / respawn -----------------------------------------------------
@@ -1720,7 +1727,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     }
   }
 
-  private takeDamage(n: number) {
+  protected takeDamage(n: number) {
     // Zero-damage contact (e.g. a stunned phishling) must not knock back,
     // blink, or play hurt feedback — it is not a hit.
     if (n <= 0) return;
@@ -1754,7 +1761,14 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     (this.player.body as Body).setVelocity(0, 0);
     this.player.setAlpha(1);
     this.player.play(animKey("player", "death"), true);
-    this.time.delayedCall(DEATH_MS, () => this.respawn(0));
+    this.time.delayedCall(DEATH_MS, () => this.afterDeath());
+  }
+
+  /** What happens once the death animation finishes. Base: respawn at the last
+   *  checkpoint with full health. BossArenaScene overrides to fade + restart the
+   *  arena from full hearts ("retry from immediately before the boss"). */
+  protected afterDeath(): void {
+    this.respawn(0);
   }
 
   private respawn(pitDamage: number) {
@@ -1799,8 +1813,9 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.time.delayedCall(ms, () => this.player.setAlpha(1));
   }
 
-  private pushHud() {
+  protected pushHud() {
     gameStore.set({
+      hearts: { current: this.health, max: this.maxHealth },
       hud: {
         health: this.health,
         maxHealth: this.maxHealth,

@@ -2,39 +2,42 @@ import { describe, it, expect } from "vitest";
 import { heartsFromHealth, buffTag, countBuffs } from "./hudMath";
 import type { BuffId } from "../ids";
 
+// 6-heart unification (Task 32): health is now measured in WHOLE hearts (one
+// point per heart, no half-heart rounding). heartsFromHealth renders one glyph
+// per max-heart, `full` filled up to the current value, the rest `empty`.
+// `half` is retained in the return shape (always 0) so the Hud's glyph switch
+// keeps compiling.
 describe("heartsFromHealth", () => {
-  it("full health = all full hearts", () => {
-    expect(heartsFromHealth(6, 6)).toEqual({ full: 3, half: 0, empty: 0 });
+  it("full health = all full hearts, no halves", () => {
+    expect(heartsFromHealth(6, 6)).toEqual({ full: 6, half: 0, empty: 0 });
   });
 
-  it("odd health shows a trailing half heart", () => {
-    expect(heartsFromHealth(5, 6)).toEqual({ full: 2, half: 1, empty: 0 });
-    expect(heartsFromHealth(3, 6)).toEqual({ full: 1, half: 1, empty: 1 });
-    expect(heartsFromHealth(1, 6)).toEqual({ full: 0, half: 1, empty: 2 });
-  });
-
-  it("even non-full health has no half", () => {
-    expect(heartsFromHealth(4, 6)).toEqual({ full: 2, half: 0, empty: 1 });
-    expect(heartsFromHealth(2, 6)).toEqual({ full: 1, half: 0, empty: 2 });
+  it("partial health = full + empty, never a half", () => {
+    expect(heartsFromHealth(5, 6)).toEqual({ full: 5, half: 0, empty: 1 });
+    expect(heartsFromHealth(3, 6)).toEqual({ full: 3, half: 0, empty: 3 });
+    expect(heartsFromHealth(1, 6)).toEqual({ full: 1, half: 0, empty: 5 });
   });
 
   it("zero health = all empty hearts", () => {
-    expect(heartsFromHealth(0, 6)).toEqual({ full: 0, half: 0, empty: 3 });
+    expect(heartsFromHealth(0, 6)).toEqual({ full: 0, half: 0, empty: 6 });
   });
 
   it("clamps health above/below the valid range", () => {
-    expect(heartsFromHealth(99, 6)).toEqual({ full: 3, half: 0, empty: 0 });
-    expect(heartsFromHealth(-4, 6)).toEqual({ full: 0, half: 0, empty: 3 });
+    expect(heartsFromHealth(99, 6)).toEqual({ full: 6, half: 0, empty: 0 });
+    expect(heartsFromHealth(-4, 6)).toEqual({ full: 0, half: 0, empty: 6 });
   });
 
-  it("handles an odd maxHealth (rounds glyph count up)", () => {
-    // maxHealth 5 -> ceil(5/2) = 3 hearts.
-    expect(heartsFromHealth(5, 5)).toEqual({ full: 2, half: 1, empty: 0 });
-    expect(heartsFromHealth(0, 5)).toEqual({ full: 0, half: 0, empty: 3 });
+  it("one glyph per max-heart (no ceil/2 halving)", () => {
+    expect(heartsFromHealth(3, 3)).toEqual({ full: 3, half: 0, empty: 0 });
+    expect(heartsFromHealth(0, 3)).toEqual({ full: 0, half: 0, empty: 3 });
   });
 
   it("handles zero maxHealth without negative glyphs", () => {
     expect(heartsFromHealth(0, 0)).toEqual({ full: 0, half: 0, empty: 0 });
+  });
+
+  it("floors fractional inputs into whole hearts", () => {
+    expect(heartsFromHealth(4.9, 6)).toEqual({ full: 4, half: 0, empty: 2 });
   });
 });
 

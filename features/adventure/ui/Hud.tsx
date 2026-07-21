@@ -44,12 +44,14 @@ function Heart({ fill }: { fill: "full" | "half" | "empty" }) {
 
 export default function Hud() {
   const hud = useGameStore((s) => s.hud);
-  const { full, half, empty } = heartsFromHealth(hud.health, hud.maxHealth);
+  // 6-heart unification (Task 32): hearts render from the canonical realtime
+  // `hearts` store field, in whole hearts (no halves), in levels AND arenas.
+  const heartState = useGameStore((s) => s.hearts);
+  const { full, empty } = heartsFromHealth(heartState.current, heartState.max);
   const buffCounts = countBuffs(hud.buffs); // buffs stack -> one chip per id, xN
 
   const hearts: ("full" | "half" | "empty")[] = [
     ...Array<"full">(full).fill("full"),
-    ...Array<"half">(half).fill("half"),
     ...Array<"empty">(empty).fill("empty"),
   ];
 

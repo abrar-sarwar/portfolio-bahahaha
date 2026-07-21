@@ -329,3 +329,199 @@ describe("validateDef", () => {
     expect(() => validateDef({ ...SYNTH, maxHp: 0 })).toThrow(/maxHp/);
   });
 });
+
+// ── Task 33 mechanics-driven extensions ──────────────────────────────────────
+
+describe("invulnerableBaseline", () => {
+  const ARMORED: RtBossDef = { ...SYNTH, invulnerableBaseline: true };
+
+  it("initialises invulnerable from the def field", () => {
+    expect(initBossState(ARMORED).invulnerable).toBe(true);
+    expect(initBossState(SYNTH).invulnerable).toBe(false);
+  });
+
+  it("ignores normal hits but lets mechanic hits through while armored", () => {
+    let s: BossMachineState = { ...initBossState(ARMORED), fsm: "idle" };
+    const hitEvents: MachineEvent[] = [{ kind: "hit", amount: 3, source: "attack" }];
+    s = step(ARMORED, s, { events: hitEvents }).state;
+    expect(s.hp).toBe(10);
+    s = step(ARMORED, s, { events: [{ kind: "hit", amount: 1, source: "mechanic" }] }).state;
+    expect(s.hp).toBe(9);
+  });
+});
+
+describe("set-invulnerable", () => {
+  it("toggles armor at runtime", () => {
+    let s = stateIn({ fsm: "idle" });
+    s = step(SYNTH, s, { events: [{ kind: "set-invulnerable", value: true }] }).state;
+    expect(s.invulnerable).toBe(true);
+    s = step(SYNTH, s, { events: [{ kind: "hit", amount: 2, source: "attack" }] }).state;
+    expect(s.hp).toBe(10); // armored: no damage
+    s = step(SYNTH, s, { events: [{ kind: "set-invulnerable", value: false }] }).state;
+    s = step(SYNTH, s, { events: [{ kind: "hit", amount: 2, source: "attack" }] }).state;
+    expect(s.hp).toBe(8);
+  });
+
+  it("applies before a same-step hit when the clear precedes it in the event list", () => {
+    let s = stateIn({ fsm: "idle", invulnerable: true });
+    const events: MachineEvent[] = [
+      { kind: "set-invulnerable", value: false },
+      { kind: "hit", amount: 1, source: "attack" },
+    ];
+    s = step(SYNTH, s, { events }).state;
+    expect(s.hp).toBe(9);
+  });
+});
+
+describe("set-tempo", () => {
+  it("overrides the phase tempo for telegraph pacing until cleared", () => {
+    // jab telegraphMs 200 at phase tempo 1. Override 0.5 → attack after 100ms.
+    let s = stateIn({ fsm: "idle" });
+    s = step(SYNTH, s, { events: [{ kind: "set-tempo", scale: 0.5 }] }).state; // idle→telegraph
+    expect(s.fsm).toBe("telegraph");
+    expect(s.tempoOverride).toBe(0.5);
+    s = step(SYNTH, s).state; // 100ms at 0.5 tempo → attack already
+    expect(s.fsm).toBe("attack");
+  });
+
+  it("clears back to the phase's own tempo with scale null", () => {
+    let s = stateIn({ fsm: "idle", tempoOverride: 0.5 });
+    s = step(SYNTH, s, { events: [{ kind: "set-tempo", scale: null }] }).state;
+    expect(s.tempoOverride).toBeNull();
+    // telegraph now needs the full 200ms again
+    expect(s.fsm).toBe("telegraph");
+    s = step(SYNTH, s).state;
+    expect(s.fsm).toBe("telegraph"); // 100ms in — not yet
+    s = step(SYNTH, s).state;
+    expect(s.fsm).toBe("attack");
+  });
+});
+
+describe("force-phase", () => {
+  it("jumps to the target phase through a transition and swaps the pool", () => {
+    let s = stateIn({ fsm: "idle" });
+    const r = step(SYNTH, s, { events: [{ kind: "force-phase", phaseIndex: 1 }] });
+    expect(r.state.fsm).toBe("transition");
+    expect(r.state.phaseIndex).toBe(1);
+    expect(r.commands).toContainEqual({ kind: "phase", phaseIndex: 1 });
+    // transition (600ms) → idle in the new phase
+    s = r.state;
+    for (let i = 0; i < 6; i++) s = step(SYNTH, s).state;
+    expect(s.fsm === "idle" || s.fsm === "telegraph").toBe(true);
+    expect(s.phaseIndex).toBe(1);
+  });
+
+  it("clamps an out-of-range index to the last phase", () => {
+    const r = step(SYNTH, stateIn({ fsm: "idle" }), {
+      events: [{ kind: "force-phase", phaseIndex: 99 }],
+    });
+    expect(r.state.phaseIndex).toBe(1);
+  });
+
+  it("lock suppresses later hp-driven deepening (rollback sticks)", () => {
+    // hp 3/10 < p1 threshold 0.5 — normally deepestPhase would force phase 1.
+    let s = stateIn({ fsm: "idle", hp: 3, phaseIndex: 1 });
+    s = step(SYNTH, s, { events: [{ kind: "force-phase", phaseIndex: 0, lock: true }] }).state;
+    expect(s.phaseIndex).toBe(0);
+    expect(s.phaseLocked).toBe(true);
+    for (let i = 0; i < 10; i++) s = step(SYNTH, s).state;
+    expect(s.phaseIndex).toBe(0); // never re-deepened
+  });
+
+  it("without lock, hp-driven deepening re-enters once the transition ends", () => {
+    let s = stateIn({ fsm: "idle", hp: 3, phaseIndex: 1 });
+    s = step(SYNTH, s, { events: [{ kind: "force-phase", phaseIndex: 0 }] }).state;
+    expect(s.phaseIndex).toBe(0);
+    for (let i = 0; i < 8; i++) s = step(SYNTH, s).state; // through the 600ms transition
+    expect(s.phaseIndex).toBe(1); // deepestPhase pulled it back
+  });
+});
+
+describe("force-stagger", () => {
+  it("staggers from idle with an explicit window and drains back to idle", () => {
+    let s = stateIn({ fsm: "idle" });
+    const r = step(SYNTH, s, { events: [{ kind: "force-stagger", ms: 500 }] });
+    expect(r.state.fsm).toBe("stagger");
+    expect(r.state.currentAttackId).toBeNull();
+    expect(r.state.vulnerableMs).toBe(500);
+    expect(r.commands).toContainEqual({ kind: "vulnerable", ms: 500 });
+    s = r.state;
+    for (let i = 0; i < 5; i++) {
+      s = step(SYNTH, s).state; // 100ms each
+    }
+    expect(s.fsm === "idle" || s.fsm === "telegraph").toBe(true);
+  });
+
+  it("holds a scripted window LONGER than transitionMs (custom-length hold)", () => {
+    let s = stateIn({ fsm: "idle" });
+    s = step(SYNTH, s, { events: [{ kind: "force-stagger", ms: 2500 }] }).state;
+    for (let i = 0; i < 7; i++) s = step(SYNTH, s).state; // 700ms in
+    expect(s.fsm).toBe("stagger"); // still held past the old 600ms fallback
+    for (let i = 0; i < 20; i++) s = step(SYNTH, s).state;
+    expect(s.fsm === "idle" || s.fsm === "telegraph").toBe(true);
+  });
+
+  it("interrupts an in-flight telegraph", () => {
+    let s = stateIn({ fsm: "idle" });
+    s = step(SYNTH, s).state; // idle → telegraph (rng 0 picks jab in range)
+    expect(s.fsm).toBe("telegraph");
+    s = step(SYNTH, s, { events: [{ kind: "force-stagger", ms: 400 }] }).state;
+    expect(s.fsm).toBe("stagger");
+    expect(s.currentAttackId).toBeNull();
+  });
+
+  it("re-forcing extends the window (stomp re-stun)", () => {
+    let s = stateIn({ fsm: "idle" });
+    s = step(SYNTH, s, { events: [{ kind: "force-stagger", ms: 300 }] }).state;
+    s = step(SYNTH, s).state; // 100ms drained
+    s = step(SYNTH, s, { events: [{ kind: "force-stagger", ms: 300 }] }).state;
+    expect(s.vulnerableMs).toBe(300); // refreshed
+  });
+
+  it("defeat outranks a same-step force-stagger", () => {
+    const events: MachineEvent[] = [
+      { kind: "force-stagger", ms: 500 },
+      { kind: "mechanic", id: "force-defeat" },
+    ];
+    const r = step(SYNTH, stateIn({ fsm: "idle" }), { events });
+    expect(r.state.fsm).toBe("defeated");
+  });
+
+  it("hits landed during the scripted window still damage (punish window)", () => {
+    let s = stateIn({ fsm: "idle" });
+    s = step(SYNTH, s, { events: [{ kind: "force-stagger", ms: 500 }] }).state;
+    s = step(SYNTH, s, { events: [{ kind: "hit", amount: 2, source: "attack" }] }).state;
+    expect(s.hp).toBe(8);
+    expect(s.fsm).toBe("stagger");
+  });
+});
+
+describe("assist recoveryScale (StepInput)", () => {
+  it("lengthens the recovery window and its vulnerable span", () => {
+    // Drive jab through telegraph(200) + attack(100) into recovery with ×1.5.
+    let s = stateIn({ fsm: "idle" });
+    const opts = { recoveryScale: 1.5 };
+    s = step(SYNTH, s, opts).state; // idle → telegraph (jab)
+    s = step(SYNTH, s, opts).state;
+    s = step(SYNTH, s, opts).state; // telegraph done → attack
+    expect(s.fsm).toBe("attack");
+    s = step(SYNTH, s, opts).state; // attack 100ms → recovery
+    expect(s.fsm).toBe("recovery");
+    expect(s.vulnerableMs).toBe(450); // 300 × 1.5
+    // recovery lasts 450ms now: at 400ms in, still recovering
+    for (let i = 0; i < 4; i++) s = step(SYNTH, s, opts).state;
+    expect(s.fsm).toBe("recovery");
+    s = step(SYNTH, s, opts).state;
+    expect(s.fsm).toBe("idle");
+  });
+
+  it("defaults to 1 when omitted (unchanged cadence)", () => {
+    let s = stateIn({ fsm: "idle" });
+    s = step(SYNTH, s).state;
+    s = step(SYNTH, s).state;
+    s = step(SYNTH, s).state;
+    s = step(SYNTH, s).state;
+    expect(s.fsm).toBe("recovery");
+    expect(s.vulnerableMs).toBe(300);
+  });
+});

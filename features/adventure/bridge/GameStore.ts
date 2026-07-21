@@ -25,6 +25,30 @@ import type { SceneKey, LevelId, BossId, BuffId, AbilityId, KeyFragment } from "
 import type { CombatState } from "../combat/types";
 import type { QteSpec } from "../combat/timedEvents";
 import { PLAYER_BASE } from "../config";
+import { RT_PLAYER } from "../realtime/config";
+
+/** Realtime combat action-bar slots (Task 32). `cooldownFrac` is a 0..1 sweep
+ *  fill (1 = just spent, 0 = ready) the ActionBar renders bottom-up over the
+ *  slot. `context` swaps the `[ E INTERACT ]` slot for a boss-mechanic action
+ *  (e.g. `[ E REVEAL TRUTH ]`, with an optional 0..1 hold `progress`); null
+ *  keeps the default interact slot. Driven by the active BossArenaScene. */
+export interface RtActionsState {
+  attack: { cooldownFrac: number };
+  dash: { cooldownFrac: number };
+  parry: { cooldownFrac: number };
+  context: null | { key: string; label: string; progress?: number };
+}
+
+/** Top boss-health-bar snapshot (Task 32); null when no realtime boss is
+ *  active. `phase` is the current 0-based phase index; `phases` is the total
+ *  count so BossHealthBar can render one pip per phase. */
+export interface RtBossState {
+  name: string;
+  hp: number;
+  maxHp: number;
+  phase: number;
+  phases: number;
+}
 
 /** Active telegraph the UI should render a defense mini-game against; null
  *  when nothing is armed. Timestamps are absolute `performance.now()` values
@@ -110,6 +134,20 @@ export interface GameUIState {
   confirm: { message: string } | null;
   /** Active typewriter dialogue overlay (Task 17); see DialogueState. */
   dialogue: DialogueState | null;
+  /** Player hearts (Task 32, 6-heart unification). The canonical realtime-facing
+   *  health source the Hud renders from, in levels AND arenas. Written by
+   *  PlatformLevelScene / BossArenaScene; defaults to a full 6 hearts. */
+  hearts: { current: number; max: number };
+  /** Active realtime boss for the top health bar; null outside an Arena. */
+  rtBoss: RtBossState | null;
+  /** Realtime action-bar slot state (cooldown sweeps + context action). */
+  rtActions: RtActionsState;
+  /** Short objective line for the ActionBar's objective slot (e.g.
+   *  `STOMPS: 3 / 15`); null when there is no counted objective. */
+  rtObjective: string | null;
+  /** Boss-mechanic seal pips beside the ActionBar (e.g. Truth Seals); null when
+   *  the active encounter has no seals. */
+  rtSeals: { lit: number; of: number } | null;
 }
 
 export const gameStore = createStore<GameUIState>({
@@ -134,6 +172,16 @@ export const gameStore = createStore<GameUIState>({
   unlocked: ["1-1"],
   confirm: null,
   dialogue: null,
+  hearts: { current: RT_PLAYER.maxHearts, max: RT_PLAYER.maxHearts },
+  rtBoss: null,
+  rtActions: {
+    attack: { cooldownFrac: 0 },
+    dash: { cooldownFrac: 0 },
+    parry: { cooldownFrac: 0 },
+    context: null,
+  },
+  rtObjective: null,
+  rtSeals: null,
 });
 
 /** Memoize a selector by store-state reference so getSnapshot returns a

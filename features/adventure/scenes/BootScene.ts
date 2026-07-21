@@ -34,6 +34,20 @@ export class BootScene extends Phaser.Scene {
     applyAudioSettings(save);
 
     bus.emit("scene:changed", { scene: "Boot" });
+
+    // Debug/verification entry (Task 32): ?arena=training jumps straight into the
+    // BossArenaScene with the shipped, gated, harmless training dummy. This is
+    // the internal test arena the brief mandates; the Task-48 debug menu reuses
+    // the same launch. Anything else boots normally to the Title.
+    const arena =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("arena")
+        : null;
+    if (arena === "training") {
+      this.scene.start("Arena", { bossId: "training-dummy", returnScene: "Title" });
+      return;
+    }
+
     this.scene.start("Title");
   }
 }

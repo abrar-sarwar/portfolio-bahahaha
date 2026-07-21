@@ -32,7 +32,7 @@ export function initBossState(def: RtBossDef): BossMachineState {
     currentAttackId: null,
     cooldowns: {},
     vulnerableMs: 0,
-    invulnerable: false,
+    invulnerable: def.invulnerableBaseline ?? false,
   };
 }
 
@@ -58,6 +58,8 @@ export function stepBoss(def: RtBossDef, s: BossMachineState, input: StepInput):
   let forceDefeat = false;
   let staggerRequested = false;
   let tookDamage = false;
+  let forcedPhase: { phaseIndex: number; lock?: boolean } | null = null;
+  let forcedStaggerMs: number | null = null;
 
   for (const e of input.events) {
     switch (e.kind) {
@@ -72,6 +74,19 @@ export function stepBoss(def: RtBossDef, s: BossMachineState, input: StepInput):
         break;
       case "wall-hit":
         if (inParryPhase) staggerRequested = true;
+        break;
+      // Task 33 mechanics-driven events (last-wins within a step):
+      case "force-phase":
+        forcedPhase = { phaseIndex: e.phaseIndex, lock: e.lock };
+        break;
+      case "force-stagger":
+        forcedStaggerMs = e.ms;
+        break;
+      case "set-invulnerable":
+        state.invulnerable = e.value;
+        break;
+      case "set-tempo":
+        state.tempoOverride = e.scale;
         break;
     }
   }
@@ -89,9 +104,22 @@ export function stepBoss(def: RtBossDef, s: BossMachineState, input: StepInput):
     };
   }
 
-  // 4) Phase crossing from damage — outranks a same-step stagger.
+  // 4) Phase crossing — outranks a same-step stagger. A mechanics-forced phase
+  //    (stomp tiers, catches, weapon timers) outranks the hp-driven crossing;
+  //    hp-driven deepening is suppressed entirely once a lock is set.
+  if (forcedPhase) {
+    const idx = Math.max(0, Math.min(def.phases.length - 1, forcedPhase.phaseIndex));
+    state.phaseIndex = idx;
+    if (forcedPhase.lock) state.phaseLocked = true;
+    state.fsm = "transition";
+    state.msInState = 0;
+    state.currentAttackId = null;
+    state.vulnerableMs = 0;
+    commands.push({ kind: "phase", phaseIndex: idx }, { kind: "anim", anim: RT_ANIM.transition });
+    return { state, commands };
+  }
   const deepest = deepestPhase(def, state.hp);
-  if (deepest > state.phaseIndex && state.fsm !== "transition") {
+  if (!state.phaseLocked && deepest > state.phaseIndex && state.fsm !== "transition") {
     state.phaseIndex = deepest;
     state.fsm = "transition";
     state.msInState = 0;
@@ -102,6 +130,21 @@ export function stepBoss(def: RtBossDef, s: BossMachineState, input: StepInput):
   }
 
   // 5) Stagger interrupts the in-progress attack and opens the vulnerable window.
+  //    A mechanics-forced stagger (catch window, unmask freeze, stomp stun,
+  //    seal shatter) fires from ANY state and carries its own duration; its
+  //    exit is keyed on vulnerableMs draining (see progress "stagger").
+  if (forcedStaggerMs !== null) {
+    state.fsm = "stagger";
+    state.msInState = 0;
+    state.currentAttackId = null; // scripted stagger — no attack to recover from
+    state.vulnerableMs = forcedStaggerMs;
+    commands.push(
+      { kind: "stagger" },
+      { kind: "vulnerable", ms: forcedStaggerMs },
+      { kind: "anim", anim: RT_ANIM.stagger },
+    );
+    return { state, commands };
+  }
   if (staggerRequested) {
     const dur = curAttack?.recoveryMs ?? RT_TUNING.transitionMs;
     state.fsm = "stagger";
@@ -134,8 +177,8 @@ function phaseOf(def: RtBossDef, i: number): RtPhaseSpec {
   return def.phases[i] ?? def.phases[0];
 }
 
-function tempo(phase: RtPhaseSpec): number {
-  return phase.tempoScale ?? 1;
+function tempo(phase: RtPhaseSpec, state: BossMachineState): number {
+  return state.tempoOverride ?? phase.tempoScale ?? 1;
 }
 
 function tickCooldowns(cds: Record<string, number>, dt: number): Record<string, number> {
@@ -212,19 +255,21 @@ function progress(def: RtBossDef, state: BossMachineState, input: StepInput, com
 
     case "telegraph": {
       const atk = attackOf(def, state.currentAttackId ?? "");
-      if (atk && state.msInState >= atk.telegraphMs * tempo(phase)) enterAttack(state, atk, commands);
+      if (atk && state.msInState >= atk.telegraphMs * tempo(phase, state)) enterAttack(state, atk, commands);
       break;
     }
 
     case "attack": {
       const atk = attackOf(def, state.currentAttackId ?? "");
-      if (atk && state.msInState >= atk.activeMs) enterRecovery(state, atk, phase, commands); // activeMs never scaled
+      if (atk && state.msInState >= atk.activeMs) {
+        enterRecovery(state, atk, phase, input, commands); // activeMs never scaled
+      }
       break;
     }
 
     case "recovery": {
       const atk = attackOf(def, state.currentAttackId ?? "");
-      const dur = (atk?.recoveryMs ?? 0) * tempo(phase);
+      const dur = (atk?.recoveryMs ?? 0) * tempo(phase, state) * (input.recoveryScale ?? 1);
       if (state.msInState >= dur) {
         state.vulnerableMs = 0;
         state.currentAttackId = null;
@@ -234,9 +279,13 @@ function progress(def: RtBossDef, state: BossMachineState, input: StepInput, com
     }
 
     case "stagger": {
+      // A scripted stagger (force-stagger: no attack attached) holds until its
+      // vulnerable window drains; an attack-born stagger holds recoveryMs.
       const atk = attackOf(def, state.currentAttackId ?? "");
-      const dur = atk?.recoveryMs ?? RT_TUNING.transitionMs; // unscaled — a punish window
-      if (state.msInState >= dur) {
+      const done = atk
+        ? state.msInState >= atk.recoveryMs // unscaled — a punish window
+        : state.vulnerableMs <= 0;
+      if (done) {
         state.vulnerableMs = 0;
         state.currentAttackId = null;
         enterIdle(state, commands);
@@ -274,11 +323,12 @@ function enterRecovery(
   state: BossMachineState,
   atk: RtAttackSpec,
   phase: RtPhaseSpec,
+  input: StepInput,
   commands: MachineCommand[],
 ): void {
   state.fsm = "recovery";
   state.msInState = 0;
-  const dur = atk.recoveryMs * tempo(phase);
+  const dur = atk.recoveryMs * tempo(phase, state) * (input.recoveryScale ?? 1);
   state.vulnerableMs = dur; // recovery IS the punish/weakness window
   commands.push(
     { kind: "attack-end", attackId: atk.id },

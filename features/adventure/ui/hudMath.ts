@@ -1,24 +1,27 @@
 import type { BuffId } from "../ids";
 
-// Pure HUD math extracted so the hearts logic (half-heart rounding, odd
-// health/maxHealth) is unit-tested without React. Health is measured in
-// half-heart points: maxHealth 10 => 5 hearts, each heart = 2 points.
+// Pure HUD math extracted so the hearts logic is unit-tested without React.
+// 6-heart unification (Task 32): health is measured in WHOLE hearts — one point
+// per heart, one glyph per max-heart, no half-heart rounding. (The pre-rework
+// half-heart model — maxHealth 10 => 5 hearts, 2 points each — is retired; the
+// dormant turn-based engine keeps its own HP scale in CombatState.)
 
 export interface Hearts {
   full: number;
+  /** Retained for shape stability; always 0 now (no half hearts). */
   half: number;
   empty: number;
 }
 
-/** Break a health value into full / half / empty heart glyph counts.
- *  Clamps health to [0, maxHealth]; total glyphs = ceil(maxHealth / 2). */
+/** Break a whole-heart health value into full / empty glyph counts. Clamps
+ *  health to [0, maxHealth]; total glyphs = maxHealth (one per heart). `half`
+ *  is always 0 — halves were removed with the 6-heart unification. */
 export function heartsFromHealth(health: number, maxHealth: number): Hearts {
-  const totalHearts = Math.max(0, Math.ceil(maxHealth / 2));
-  const clamped = Math.max(0, Math.min(health, maxHealth));
-  const full = Math.floor(clamped / 2);
-  const half = clamped % 2 === 1 ? 1 : 0;
-  const empty = Math.max(0, totalHearts - full - half);
-  return { full, half, empty };
+  const totalHearts = Math.max(0, Math.floor(maxHealth));
+  const clamped = Math.max(0, Math.min(Math.floor(health), totalHearts));
+  const full = clamped;
+  const empty = Math.max(0, totalHearts - full);
+  return { full, half: 0, empty };
 }
 
 /** Short two-letter chip label for a buff id (HUD buff chips). */

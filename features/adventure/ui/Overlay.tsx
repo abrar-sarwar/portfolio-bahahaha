@@ -7,13 +7,14 @@ import { audio } from "../audio/synth";
 import { loadSave, persistSave } from "../state/save";
 import { setMuted as setSaveMuted } from "../state/settings";
 import Hud from "./Hud";
-import CombatPanel from "./CombatPanel";
 import ConfirmDialog from "./ConfirmDialog";
 import Dialogue from "../dialogue/Dialogue";
+import ActionBar from "../realtime/ui/ActionBar";
+import BossHealthBar from "../realtime/ui/BossHealthBar";
 
 export default function Overlay() {
   const scene = useGameStore((s) => s.scene);
-  const inCombat = useGameStore((s) => s.combat !== null);
+  const rtBossActive = useGameStore((s) => s.rtBoss !== null);
   const confirm = useGameStore((s) => s.confirm);
 
   // The OverworldScene's archive node emits "nav:external" to leave the game
@@ -39,13 +40,18 @@ export default function Overlay() {
       className="pointer-events-none absolute inset-0 z-10 select-none font-mono"
       onPointerDown={() => audio.unlock()}
     >
-      {/* Level-scene dialogue (intro / fragment notes). The in-combat case
-          (boss intro/defeat) is mounted by CombatPanel itself instead — see
-          its Interaction() gate — so this only covers the non-combat Level
-          scene, never both at once. */}
-      {scene === "Level" && !inCombat && <Hud />}
-      {scene === "Level" && !inCombat && <Dialogue />}
-      {inCombat && <CombatPanel />}
+      {/* Gameplay HUD. The turn-based CombatPanel (with its TimedPrompt /
+          TypingBox / BuffTray) is no longer mounted anywhere — Task 33 made
+          the turn-based flow unreachable; its files stay in-tree, dormant.
+          Dialogue stays mounted as the dormant future seam: with no active
+          openDialogue caller it never renders. */}
+      {(scene === "Level" || scene === "Arena") && <Hud />}
+      {scene === "Level" && <Dialogue />}
+      {/* Realtime combat HUD: the bottom action bar is always up in Level +
+          Arena (informational there, live cooldowns in the arena); the top
+          boss bar shows whenever a realtime boss is active. */}
+      {(scene === "Level" || scene === "Arena") && <ActionBar />}
+      {rtBossActive && <BossHealthBar />}
       {confirm && (
         <ConfirmDialog
           message={confirm.message}

@@ -1,14 +1,15 @@
 export interface InputSnapshot {
   left: boolean; right: boolean;
   jumpHeld: boolean; jumpPressed: boolean;
-  dashPressed: boolean; attackPressed: boolean; interactPressed: boolean;
-  pausePressed: boolean;
+  dashPressed: boolean; attackPressed: boolean; parryPressed: boolean;
+  interactPressed: boolean; interactHeld: boolean; pausePressed: boolean;
 }
 
 class Input {
   private s: InputSnapshot = {
     left: false, right: false, jumpHeld: false, jumpPressed: false,
-    dashPressed: false, attackPressed: false, interactPressed: false, pausePressed: false,
+    dashPressed: false, attackPressed: false, parryPressed: false,
+    interactPressed: false, interactHeld: false, pausePressed: false,
   };
 
   attachKeyboard() {
@@ -30,19 +31,24 @@ class Input {
         break;
       case "ShiftLeft": case "ShiftRight": if (isDown) this.s.dashPressed = true; break;
       case "KeyJ": case "KeyX": if (isDown) this.s.attackPressed = true; break;
-      case "KeyE": if (isDown) this.s.interactPressed = true; break;
+      case "KeyK": case "KeyC": if (isDown) this.s.parryPressed = true; break;
+      case "KeyE":
+        this.s.interactHeld = isDown; // held state drives mechanic E-holds (Task 33)
+        if (isDown) this.s.interactPressed = true;
+        break;
       case "KeyP": case "Escape": if (isDown) this.s.pausePressed = true; break;
     }
   }
 
   /** Virtual buttons (Task 27) call these. */
-  setHeld(k: "left" | "right" | "jumpHeld", v: boolean) { this.s[k] = v; }
-  press(k: "jumpPressed" | "dashPressed" | "attackPressed" | "interactPressed" | "pausePressed") { this.s[k] = true; }
+  setHeld(k: "left" | "right" | "jumpHeld" | "interactHeld", v: boolean) { this.s[k] = v; }
+  press(k: "jumpPressed" | "dashPressed" | "attackPressed" | "parryPressed" | "interactPressed" | "pausePressed") { this.s[k] = true; }
 
   read(): InputSnapshot { return { ...this.s }; }
   consume() {
     this.s.jumpPressed = false; this.s.dashPressed = false;
-    this.s.attackPressed = false; this.s.interactPressed = false; this.s.pausePressed = false;
+    this.s.attackPressed = false; this.s.parryPressed = false;
+    this.s.interactPressed = false; this.s.pausePressed = false;
   }
 }
 
