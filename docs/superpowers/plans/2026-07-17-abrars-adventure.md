@@ -1,5 +1,13 @@
 # Abrar's Adventure: The Lost Key — Implementation Plan
 
+> **⚠️ AMENDED 2026-07-20:** the user replaced the turn-based combat direction
+> (and all five worlds' content) with real-time platform combat. Tasks 23–30
+> below are void or carried forward as re-scoped in
+> `docs/superpowers/plans/2026-07-20-realtime-rework-amendment.md`, which
+> governs all work from Task 31 onward. This file remains the record of Tasks
+> 1–22 and the authority on retained infrastructure (bridge, art/audio
+> pipeline, level format, platforming scene, save system).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship the hidden ~25-minute pixel-art adventure game at `/adventure`, a locked-book `/gallery` stub, and a secret-door entry button at the end of the main feed, per `docs/superpowers/specs/2026-07-17-abrars-adventure-design.md`.

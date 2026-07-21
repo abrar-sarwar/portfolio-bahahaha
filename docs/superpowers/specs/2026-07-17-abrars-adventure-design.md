@@ -1,7 +1,16 @@
 # Abrar's Adventure: The Lost Key — Design
 
+> **⚠️ AMENDED 2026-07-20:** the turn-based combat direction and the
+> cybersecurity world/boss content described here were replaced by the
+> real-time rework — see
+> `docs/superpowers/specs/2026-07-20-realtime-rework-brief.md` (new creative
+> direction, verbatim) and
+> `docs/superpowers/plans/2026-07-20-realtime-rework-amendment.md` (governing
+> plan). Architecture sections (bridge, canvas, save, audio synth, level
+> format, gallery/door integration) remain accurate for retained systems.
+
 **Date:** 2026-07-17
-**Status:** Approved design; awaiting implementation plan
+**Status:** Superseded in part — see amendment note above
 **Source:** User-provided build prompt (full game spec) + brainstorming Q&A
 
 ## Goal
