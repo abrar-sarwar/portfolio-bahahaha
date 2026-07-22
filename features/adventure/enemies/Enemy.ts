@@ -3,6 +3,7 @@ import type { EnemyKind } from "../levels/types";
 import { frameKey, animKey } from "../art/textures";
 import { audio } from "../audio/synth";
 import { rollDrop, type DropItem } from "./drops";
+import { beginEnemyStun, stepEnemyStun, type EnemyStunState } from "./enemyStunLogic";
 
 type Body = Phaser.Physics.Arcade.Body;
 
@@ -71,6 +72,9 @@ export abstract class Enemy extends Phaser.Physics.Arcade.Sprite {
    *  frames before the player clears its top (single-hp enemies died instantly,
    *  so this only bites multi-hp Task 19 enemies). */
   private stompCdUntil = -Infinity;
+  private lastAbilityHit = -1;
+  private stun: EnemyStunState = { stunnedUntil: 0, restingTouchDamage: 1 };
+  private stunStars: Phaser.GameObjects.Arc[] = [];
 
   constructor(scene: Phaser.Scene, x: number, y: number, kind: EnemyKind, texKey: string) {
     super(scene, x, y, frameKey(texKey, 0));
@@ -139,10 +143,10 @@ export abstract class Enemy extends Phaser.Physics.Arcade.Sprite {
   /** A player melee hit lands (once per swing). Effective damage comes from
    *  attackDamage() so subclasses can armor a facing (Brute/Knight front) or
    *  double it (stunned Brute). hp reaches 0 → die("attack"). */
-  hitByAttack(swingId: number): void {
+  hitByAttack(swingId: number, rawDamage = 1): void {
     if (this.dying || !this.targetable || swingId === this.lastHitSwing) return;
     this.lastHitSwing = swingId;
-    const dmg = this.attackDamage();
+    const dmg = rawDamage * this.attackDamage();
     if (dmg <= 0) {
       this.onBlockedHit();
       return;
@@ -150,6 +154,55 @@ export abstract class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.hp -= dmg;
     if (this.hp <= 0) this.die("attack");
     else this.flashHit();
+  }
+
+  /** Heavy abilities share one id per activation so a multi-frame overlap can
+   * never drain the same target repeatedly. Sword Wave also applies a generic
+   * crowd-control stun, independent of whether armor blocks its damage. */
+  hitByAbility(rawDamage: number, stunMs: number, hitId: number): void {
+    if (this.dying || !this.targetable || hitId === this.lastAbilityHit) return;
+    this.lastAbilityHit = hitId;
+    if (stunMs > 0) this.beginAbilityStun(stunMs);
+    const dmg = rawDamage * this.attackDamage();
+    if (dmg <= 0) {
+      this.onBlockedHit();
+      return;
+    }
+    this.hp -= dmg;
+    if (this.hp <= 0) this.die("attack");
+    else this.flashHit();
+  }
+
+  private beginAbilityStun(durationMs: number): void {
+    if (this.stun.stunnedUntil <= this.scene.time.now) {
+      this.stun.restingTouchDamage = this.touchDamage;
+    }
+    this.stun = beginEnemyStun(this.stun, this.scene.time.now, durationMs);
+    this.touchDamage = 0;
+    if (this.stunStars.length === 0) {
+      for (const offset of [-7, 0, 7]) {
+        this.stunStars.push(
+          this.scene.add.circle(this.x + offset, this.y - 13, 1.5, 0xffd75e).setDepth(14),
+        );
+      }
+    }
+  }
+
+  /** Called by the host before subclass AI. Returns true while stun owns this
+   * frame and the normal enemy tick must be skipped. */
+  tickStatus(now: number): boolean {
+    const status = stepEnemyStun(this.stun, now);
+    this.touchDamage = status.touchDamage;
+    if (!status.stunned) {
+      for (const star of this.stunStars) star.destroy();
+      this.stunStars = [];
+      return false;
+    }
+    (this.body as Body).setVelocityX(0);
+    this.stunStars.forEach((star, index) => {
+      star.setPosition(this.x + Math.sin(now / 90 + index * 2.1) * 8, this.y - 13 - (index % 2) * 2);
+    });
+    return true;
   }
 
   /** A player stomp lands. Always bounces the player and deals 1; hp 0 → die.
@@ -205,6 +258,8 @@ export abstract class Enemy extends Phaser.Physics.Arcade.Sprite {
     body.checkCollision.none = true; // no more colliders/overlaps
 
     this.onDeath();
+    for (const star of this.stunStars) star.destroy();
+    this.stunStars = [];
 
     // Squash: dedicated frame if the sheet has one, else a scale-flatten.
     if (this.scene.anims.exists(animKey(this.animBase, "squash")))
