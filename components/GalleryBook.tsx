@@ -63,7 +63,7 @@ export default function GalleryBook() {
             <h2 className="mt-4 font-[Georgia,serif] text-2xl italic text-[#33261a] sm:text-3xl">The Lost Chapter</h2>
             <div className="mx-auto my-6 h-px w-24 bg-[#8f7a55]/35" />
             <p className="font-mono text-[11px] leading-6 text-[#4a3524] sm:text-xs">
-              // the lost chapter will be restored here soon
+              {"// the lost chapter will be restored here soon"}
             </p>
             <Link href="/" className="mt-8 inline-block border-b border-[#8f7a55]/45 pb-1 font-mono text-[9px] uppercase tracking-[0.28em] text-[#6f4326] transition hover:border-[#6f4326] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8b6cf0]">
               Return home
