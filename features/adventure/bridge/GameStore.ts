@@ -26,6 +26,7 @@ import type { CombatState } from "../combat/types";
 import type { QteSpec } from "../combat/timedEvents";
 import { PLAYER_BASE } from "../config";
 import { RT_PLAYER } from "../realtime/config";
+import type { AbilityHudSnapshot } from "../realtime/playerAbilityLogic";
 
 /** Realtime combat action-bar slots (Task 32). `cooldownFrac` is a 0..1 sweep
  *  fill (1 = just spent, 0 = ready) the ActionBar renders bottom-up over the
@@ -145,6 +146,8 @@ export interface GameUIState {
   rtBoss: RtBossState | null;
   /** Realtime action-bar slot state (cooldown sweeps + context action). */
   rtActions: RtActionsState;
+  /** Shared R/F/Z/Q state for the action strip and demon-seal meter. */
+  rtAbilities: AbilityHudSnapshot;
   /** Short objective line for the ActionBar's objective slot (e.g.
    *  `STOMPS: 3 / 15`); null when there is no counted objective. */
   rtObjective: string | null;
@@ -185,6 +188,12 @@ export const gameStore = createStore<GameUIState>({
     dash: { cooldownFrac: 0 },
     parry: { cooldownFrac: 0 },
     context: null,
+  },
+  rtAbilities: {
+    grapple: { charges: 2, maxCharges: 2 },
+    slashRush: { cooldownFrac: 0 },
+    swordWave: { cooldownFrac: 0 },
+    ultimate: { status: "ready", remainingFrac: 1 },
   },
   rtObjective: null,
   rtSeals: null,

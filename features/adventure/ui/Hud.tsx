@@ -42,11 +42,34 @@ function Heart({ fill }: { fill: "full" | "half" | "empty" }) {
   );
 }
 
+function DemonSeal({ status, remainingFrac }: { status: "ready" | "active" | "spent"; remainingFrac: number }) {
+  const filled = status === "ready" ? 8 : status === "active" ? Math.ceil(remainingFrac * 8) : 0;
+  const label = status === "ready" ? "Demon form ready" : status === "active" ? `Demon form ${Math.ceil(remainingFrac * 30)} seconds` : "Demon form spent";
+  return (
+    <div className="mt-0.5 flex items-center gap-1" role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={8} aria-valuenow={filled}>
+      <span className={`text-[10px] leading-none ${status === "ready" ? "animate-pulse text-red-300" : "text-red-950"}`} aria-hidden>♜</span>
+      <div className={`flex gap-px border px-0.5 py-0.5 ${status === "ready" ? "border-red-400/80 shadow-[0_0_9px_rgba(239,68,68,0.55)]" : "border-red-950"}`}>
+        {Array.from({ length: 8 }).map((_, index) => (
+          <span
+            key={index}
+            className={`h-1.5 w-2 skew-x-[-18deg] ${index < filled ? "bg-gradient-to-r from-red-900 to-red-400" : "bg-red-950/50"}`}
+            aria-hidden
+          />
+        ))}
+      </div>
+      <span className={`text-[6px] font-black uppercase tracking-[0.18em] ${status === "spent" ? "text-red-950" : "text-red-300/80"}`}>
+        Q {status}
+      </span>
+    </div>
+  );
+}
+
 export default function Hud() {
   const hud = useGameStore((s) => s.hud);
   // 6-heart unification (Task 32): hearts render from the canonical realtime
   // `hearts` store field, in whole hearts (no halves), in levels AND arenas.
   const heartState = useGameStore((s) => s.hearts);
+  const ultimate = useGameStore((s) => s.rtAbilities.ultimate);
   const { full, empty } = heartsFromHealth(heartState.current, heartState.max);
   const buffCounts = countBuffs(hud.buffs); // buffs stack -> one chip per id, xN
 
@@ -65,6 +88,7 @@ export default function Hud() {
           <Heart key={i} fill={f} />
         ))}
       </div>
+      <DemonSeal status={ultimate.status} remainingFrac={ultimate.remainingFrac} />
 
       {/* buff chips (stacked buffs collapse to one chip with an xN count) +
           POWER stacks (stomp kills -> boss swing bonus) + fragment icon */}

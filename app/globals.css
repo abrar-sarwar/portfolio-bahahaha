@@ -52,10 +52,11 @@
   .action-bar-desktop {
     display: none;
   }
-  /* Reserve the bottom row for movement/jump/dash. The action trio sits on
-     its own row so 320–390px phones keep every 56px target unobstructed. */
+  /* Reserve the bottom row for movement/jump/run. Combat and the four ability
+     buttons wrap above it without covering the player. */
   .action-bar-root {
-    bottom: 5.25rem;
+    bottom: 5rem;
+    width: min(23rem, calc(100vw - 1rem));
   }
 }
 

@@ -25,11 +25,11 @@ function Slot({
   label: string;
   frac?: number;
   progress?: number;
-  tone?: "violet" | "amber";
+  tone?: "violet" | "amber" | "crimson";
 }) {
-  const border = tone === "amber" ? "border-amber-300/60" : "border-violet-300/40";
-  const text = tone === "amber" ? "text-amber-100" : "text-violet-100";
-  const sub = tone === "amber" ? "text-amber-200/80" : "text-violet-200/70";
+  const border = tone === "amber" ? "border-amber-300/60" : tone === "crimson" ? "border-red-400/60" : "border-violet-300/40";
+  const text = tone === "amber" ? "text-amber-100" : tone === "crimson" ? "text-red-200" : "text-violet-100";
+  const sub = tone === "amber" ? "text-amber-200/80" : tone === "crimson" ? "text-red-300/80" : "text-violet-200/70";
   return (
     <div className={`relative min-w-[46px] overflow-hidden rounded-sm border ${border} bg-black/60 px-2 py-1 text-center`}>
       {/* cooldown sweep (fills from the bottom up as an ability recharges) */}
@@ -83,7 +83,7 @@ function TouchAction({ icon, label, frac = 0, held = false, onPress }: {
       onPointerUp={release}
       onPointerCancel={release}
       onLostPointerCapture={release}
-      className="relative grid h-14 min-w-14 touch-none select-none place-items-center overflow-hidden rounded-full border border-violet-200/30 bg-black/55 px-2 font-mono text-violet-100 backdrop-blur-sm active:bg-violet-400/20"
+      className="relative grid h-11 min-w-11 touch-none select-none place-items-center overflow-hidden rounded-full border border-violet-200/30 bg-black/55 px-1.5 font-mono text-violet-100 backdrop-blur-sm active:bg-violet-400/20"
     >
       {frac > 0 && <span className="absolute inset-x-0 bottom-0 bg-white/15" style={{ height: `${Math.min(1, frac) * 100}%` }} />}
       <span className="relative text-center"><span className="block text-base font-black leading-none">{icon}</span><span className="mt-1 block text-[7px] font-bold uppercase tracking-wider">{label}</span></span>
@@ -94,6 +94,7 @@ function TouchAction({ icon, label, frac = 0, held = false, onPress }: {
 export default function ActionBar() {
   const scene = useGameStore((s) => s.scene);
   const actions = useGameStore((s) => s.rtActions);
+  const abilities = useGameStore((s) => s.rtAbilities);
   const objective = useGameStore((s) => s.rtObjective);
   const seals = useGameStore((s) => s.rtSeals);
   const context = actions.context;
@@ -129,8 +130,18 @@ export default function ActionBar() {
       {!ending && <div className="action-bar-desktop flex items-end gap-1">
         <Slot icon="✦" keyLabel="J" label="ATTACK" frac={actions.attack.cooldownFrac} />
         <Slot icon="↑" keyLabel="SPACE" label="JUMP" />
-        <Slot icon="»" keyLabel="SHIFT" label="DASH" frac={actions.dash.cooldownFrac} />
+        <Slot icon="»" keyLabel="SHIFT" label="RUN" />
         <Slot icon="◇" keyLabel="K" label="PARRY" frac={actions.parry.cooldownFrac} />
+        <Slot icon="⌁" keyLabel="R" label={`SWING ${abilities.grapple.charges}/${abilities.grapple.maxCharges}`} />
+        <Slot icon="➤" keyLabel="F" label="RUSH" frac={abilities.slashRush.cooldownFrac} />
+        <Slot icon="◖" keyLabel="Z" label="WAVE" frac={abilities.swordWave.cooldownFrac} />
+        <Slot
+          icon="♜"
+          keyLabel="Q"
+          label={abilities.ultimate.status.toUpperCase()}
+          frac={abilities.ultimate.status === "active" ? 1 - abilities.ultimate.remainingFrac : 0}
+          tone="crimson"
+        />
         {context ? (
           <Slot icon="◆" keyLabel={context.key} label={context.label} progress={context.progress} tone="amber" />
         ) : (
@@ -138,9 +149,13 @@ export default function ActionBar() {
         )}
       </div>}
 
-      <div className="action-bar-mobile pointer-events-auto items-end gap-2">
+      <div className="action-bar-mobile pointer-events-auto max-w-[22rem] flex-wrap items-end justify-center gap-1.5">
         {!ending && <TouchAction icon="✦" label="Attack" frac={actions.attack.cooldownFrac} onPress={() => input.press("attackPressed")} />}
         {!ending && <TouchAction icon="◇" label="Parry" frac={actions.parry.cooldownFrac} onPress={() => input.press("parryPressed")} />}
+        {!ending && <TouchAction icon="⌁" label={`R ${abilities.grapple.charges}`} onPress={() => input.press("grapplePressed")} />}
+        {!ending && <TouchAction icon="➤" label="F" frac={abilities.slashRush.cooldownFrac} onPress={() => input.press("slashRushPressed")} />}
+        {!ending && <TouchAction icon="◖" label="Z" frac={abilities.swordWave.cooldownFrac} onPress={() => input.press("swordWavePressed")} />}
+        {!ending && <TouchAction icon="♜" label="Q" frac={abilities.ultimate.status === "active" ? 1 - abilities.ultimate.remainingFrac : 0} onPress={() => input.press("ultimatePressed")} />}
         <TouchAction
           icon="◆"
           label={context?.label ?? "Interact"}

@@ -62,7 +62,13 @@ export default function VirtualControls({ walkOnly = false, showPause = true }: 
       </div>
 
       {!walkOnly && <div className="pointer-events-auto absolute bottom-4 right-4 flex items-end gap-2">
-        <TouchButton label="Dash" onDown={() => input.press("dashPressed")}>DASH</TouchButton>
+        <TouchButton
+          label="Run"
+          onDown={() => input.setHeld("runHeld", true)}
+          onUp={() => input.setHeld("runHeld", false)}
+        >
+          RUN
+        </TouchButton>
         <TouchButton
           label="Jump"
           onDown={() => {

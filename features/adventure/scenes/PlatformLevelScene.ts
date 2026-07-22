@@ -553,6 +553,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private speedScale = 1;
   protected abilities!: PlayerAbilityController;
   private swordSprite!: Phaser.GameObjects.Sprite;
+  private lastAbilityHud = "";
 
   // health / progression — 6 hearts everywhere (Task 32; RT_PLAYER.maxHearts).
   // Protected: BossArenaScene applies the silent-assist bonus heart (Task 33).
@@ -1976,6 +1977,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
         );
       },
     });
+    this.syncAbilityHud(true);
   }
 
   private setupCamera() {
@@ -2013,6 +2015,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
 
     this.handleAbilityInput(snap);
     this.abilities.update(this.time.now, onGround);
+    this.syncAbilityHud(false);
 
     if (onGround) {
       this.lastGroundedAt = this.time.now;
@@ -2200,6 +2203,23 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       const idle = animKey(PLAYER_SWORD_SPRITES.key, "idle");
       if (this.swordSprite.anims.currentAnim?.key !== idle) this.swordSprite.play(idle, true);
     }
+  }
+
+  private syncAbilityHud(force: boolean) {
+    const raw = this.abilities.snapshot(this.time.now);
+    const next = {
+      ...raw,
+      slashRush: { cooldownFrac: Math.round(raw.slashRush.cooldownFrac * 100) / 100 },
+      swordWave: { cooldownFrac: Math.round(raw.swordWave.cooldownFrac * 100) / 100 },
+      ultimate: {
+        ...raw.ultimate,
+        remainingFrac: Math.round(raw.ultimate.remainingFrac * 100) / 100,
+      },
+    };
+    const key = JSON.stringify(next);
+    if (!force && key === this.lastAbilityHud) return;
+    this.lastAbilityHud = key;
+    gameStore.set({ rtAbilities: next });
   }
 
   protected doAttack() {

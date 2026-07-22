@@ -53,6 +53,12 @@ describe("gameStore realtime defaults (Task 32, additive)", () => {
       parry: { cooldownFrac: 0 },
       context: null,
     });
+    expect(s.rtAbilities).toEqual({
+      grapple: { charges: 2, maxCharges: 2 },
+      slashRush: { cooldownFrac: 0 },
+      swordWave: { cooldownFrac: 0 },
+      ultimate: { status: "ready", remainingFrac: 1 },
+    });
   });
 
   it("defaults to a full 6 hearts", () => {
