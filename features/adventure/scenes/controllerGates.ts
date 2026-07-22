@@ -39,6 +39,11 @@ export function movementLocked(now: number, knockbackUntil: number): boolean {
   return now < knockbackUntil;
 }
 
+/** Select walk/run speed and apply temporary form multipliers. */
+export function horizontalMoveSpeed(runHeld: boolean, multiplier = 1): number {
+  return (runHeld ? 240 : 150) * multiplier;
+}
+
 /** The realtime redesign has no unlock gate for dash: only the live input,
  * cooldown, and a non-zero direction decide whether a dash starts. */
 export function shouldStartDash(

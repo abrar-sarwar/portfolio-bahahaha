@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shouldClipAscent, movementLocked, shouldStartDash } from "./controllerGates";
+import { horizontalMoveSpeed, shouldClipAscent, movementLocked } from "./controllerGates";
 
 // Grace window (ms) after a jump fires before the variable-height clip may
 // engage, and the knockback lock duration. Kept in sync with the scene.
@@ -52,15 +52,10 @@ describe("movementLocked", () => {
   });
 });
 
-describe("shouldStartDash", () => {
-  it("allows the realtime dash from a fresh save whenever input and cooldown permit", () => {
-    expect(shouldStartDash(true, true, 1)).toBe(true);
-    expect(shouldStartDash(true, true, -1)).toBe(true);
-  });
-
-  it("still requires a direction, a fresh press, and a ready cooldown", () => {
-    expect(shouldStartDash(true, true, 0)).toBe(false);
-    expect(shouldStartDash(false, true, 1)).toBe(false);
-    expect(shouldStartDash(true, false, 1)).toBe(false);
+describe("horizontalMoveSpeed", () => {
+  it("selects walk or held-run speed and applies temporary multipliers", () => {
+    expect(horizontalMoveSpeed(false, 1)).toBe(150);
+    expect(horizontalMoveSpeed(true, 1)).toBe(240);
+    expect(horizontalMoveSpeed(true, 1.6)).toBe(384);
   });
 });

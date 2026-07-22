@@ -47,10 +47,10 @@ describe("makeRng", () => {
 describe("RT constants", () => {
   it("player has 6 hearts and the §4 combat values", () => {
     expect(RT_PLAYER.maxHearts).toBe(6);
-    expect(RT_PLAYER.attackDamage).toBe(2);
+    expect(RT_PLAYER.attackDamage).toBe(5);
     expect(RT_PLAYER.stompDamage).toBe(3);
-    expect(RT_PLAYER.parryWindowMs).toBe(200);
-    expect(RT_PLAYER.parryFailVulnerableMs).toBe(450);
+    expect(RT_PLAYER.parryWindowMs).toBe(280);
+    expect(RT_PLAYER.parryFailVulnerableMs).toBe(380);
     expect(RT_PLAYER.hurtIframesMs).toBe(900);
   });
 

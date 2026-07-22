@@ -6,6 +6,7 @@ export const ZOOM = 2;
 export const PHYSICS = {
   gravity: 1400,
   moveSpeed: 150,
+  runSpeed: 240,
   jumpVelocity: -360,
   doubleJumpVelocity: -330, // one air jump per airtime (dodge tool vs boss sweeps)
   coyoteMs: 100,
