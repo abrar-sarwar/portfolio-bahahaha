@@ -7,7 +7,7 @@ import { parseLevel } from "../levels/parse";
 import type { LevelDefinition, ParsedLevel, Pt } from "../levels/types";
 import { registerSprites, frameKey, animKey } from "../art/textures";
 import type { SpriteDef } from "../art/textures";
-import { PLAYER_SPRITES } from "../art/sprites/player";
+import { PLAYER_SPRITES, PLAYER_SWORD_SPRITES } from "../art/sprites/player";
 import {
   FIELDS_TILES, FIELDS_PARALLAX, FIELD_TILE_KEYS, FIELD_PARALLAX_KEYS,
 } from "../art/sprites/tiles-fields";
@@ -58,9 +58,11 @@ import { collectMemoryFragment, loadSave, persistSave, type AdventureSave } from
 import { isDebugEnabled } from "../state/debugQuery";
 import { getRtBoss, LEVEL_RT_BOSS } from "../realtime/bossDefinitions";
 import type { RtBossId } from "../realtime/types";
-import { input } from "../input/InputState";
+import { input, type InputSnapshot } from "../input/InputState";
 import { mergeRowRuns, runToRect, topExposed } from "./levelGeometry";
-import { shouldClipAscent, movementLocked, shouldStartDash } from "./controllerGates";
+import { shouldClipAscent, movementLocked } from "./controllerGates";
+import { PlayerAbilityController } from "../realtime/PlayerAbilityController";
+import { movementSpeedFor } from "../realtime/playerAbilityLogic";
 import { Enemy, type EnemyHostScene } from "../enemies/Enemy";
 import { Bugling } from "../enemies/Bugling";
 import { MalwareBat } from "../enemies/MalwareBat";
@@ -513,6 +515,10 @@ export interface LevelSceneData {
   checkpoint?: Pt;
   /** POWER stacks carried across an in-level mini-boss handoff. */
   power?: number;
+  /** Once-per-level Q state carried through arena/chase scene handoffs. */
+  ultimateSpent?: boolean;
+  /** Castle entry chase has already run for this level attempt. */
+  chaseCleared?: boolean;
 }
 
 const IFRAMES_MS = 900;
@@ -536,8 +542,6 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   /** Air jumps spent since last grounded (double jump: max 1). */
   private airJumpsUsed = 0;
   private knockbackUntil = -Infinity;
-  private dashing = false;
-  protected dashStartedAt = -Infinity;
   protected attacking = false;
   protected attackUntil = -Infinity;
   /** Timestamp of the player's last stomp (Fix 4: same-frame double-contact
@@ -547,6 +551,8 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private hurtAnimUntil = -Infinity;
   protected dead = false;
   private speedScale = 1;
+  protected abilities!: PlayerAbilityController;
+  private swordSprite!: Phaser.GameObjects.Sprite;
 
   // health / progression — 6 hearts everywhere (Task 32; RT_PLAYER.maxHearts).
   // Protected: BossArenaScene applies the silent-assist bonus heart (Task 33).
@@ -697,6 +703,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     // must not assume it ran first (Task 16 will start Level from elsewhere).
     registerSprites(this, [
       PLAYER_SPRITES,
+      PLAYER_SWORD_SPRITES,
       ...this.theme.register,
       ...ENEMY_SPRITES,
       ...ENEMIES2_SPRITES,
@@ -706,11 +713,13 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
 
     this.buildParallax();
     this.spawnPlayer(data.spawnAt ?? "start", data.checkpoint); // before buildTiles: colliders need the player
+    this.spawnPlayerSword();
     this.buildTiles();
     this.buildFakes(); // fake platforms (Task 18): one-way look-alikes that collapse
     this.buildBoats(); // boats (Task 18): ferrying moving platforms
     this.spawnEnemies(); // after buildTiles: enemies collide with the tile groups
     this.setupAttackHitbox(); // after spawnEnemies: overlap needs enemyGroup
+    this.setupAbilities(data.ultimateSpent ?? false);
     this.setupProjectiles(); // pooled enemy-projectile group (malware-bat packets)
     this.buildFactoryHazards(); // gates + lasers (after attackHitbox: emitter overlap)
     this.buildDesertMechanics(); // `I` lifts + `*` ceiling-debris marks (Task 36)
@@ -769,6 +778,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.detachInput?.();
+      this.abilities?.destroy();
       offPauseAction();
       offSettings();
       // Seal pips are level-scoped; the Arena manages its own rtSeals field.
@@ -1801,7 +1811,10 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     body.enable = false;
     this.attackHitbox = hitbox;
     this.physics.add.overlap(hitbox, this.enemyGroup, (_hb, enemyObj) => {
-      (enemyObj as Enemy).hitByAttack(this.attackSwingId);
+      (enemyObj as Enemy).hitByAttack(
+        this.attackSwingId,
+        this.abilities.damageFor(3, this.time.now),
+      );
     });
   }
 
@@ -1938,6 +1951,33 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.player.setCollideWorldBounds(false);
   }
 
+  private spawnPlayerSword() {
+    this.swordSprite = this.add
+      .sprite(this.player.x, this.player.y, frameKey(PLAYER_SWORD_SPRITES.key, 0))
+      .setDepth(11);
+    this.swordSprite.play(animKey(PLAYER_SWORD_SPRITES.key, "idle"));
+  }
+
+  private setupAbilities(ultimateSpent: boolean) {
+    this.abilities = new PlayerAbilityController(this, this.player, ultimateSpent);
+    this.abilities.bindTarget(this.enemyGroup, {
+      onRush: (target, hitId) => {
+        (target as Enemy).hitByAbility(
+          this.abilities.damageFor(RT_PLAYER.slashRushEnemyDamage, this.time.now),
+          0,
+          hitId,
+        );
+      },
+      onWave: (target, hitId) => {
+        (target as Enemy).hitByAbility(
+          this.abilities.damageFor(RT_PLAYER.swordWaveEnemyDamage, this.time.now),
+          RT_PLAYER.swordWaveStunMs,
+          hitId,
+        );
+      },
+    });
+  }
+
   private setupCamera() {
     const cam = this.cameras.main;
     cam.setBounds(0, 0, this.mapWidthPx, this.mapHeightPx);
@@ -1971,6 +2011,9 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     const body = this.player.body as Body;
     const onGround = body.blocked.down;
 
+    this.handleAbilityInput(snap);
+    this.abilities.update(this.time.now, onGround);
+
     if (onGround) {
       this.lastGroundedAt = this.time.now;
       this.airJumpsUsed = 0;
@@ -1979,7 +2022,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
 
     const canCoyote = this.time.now - this.lastGroundedAt <= PHYSICS.coyoteMs;
     const buffered = this.time.now - this.jumpQueuedAt <= PHYSICS.jumpBufferMs;
-    if (buffered && canCoyote && !this.dashing) {
+    if (buffered && canCoyote && !this.abilities.isRushing(this.time.now)) {
       body.setVelocityY(PHYSICS.jumpVelocity);
       this.jumpFiredAt = this.time.now;
       this.jumpQueuedAt = -Infinity;
@@ -1989,7 +2032,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       snap.jumpPressed &&
       !onGround &&
       !canCoyote &&
-      !this.dashing &&
+      !this.abilities.isRushing(this.time.now) &&
       this.airJumpsUsed < 1
     ) {
       // Double jump: one air jump per airtime — the hop-over-his-attack tool.
@@ -2021,19 +2064,11 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     // hazard bounce survive instead of being overwritten the next frame.
     const inKnockback = movementLocked(this.time.now, this.knockbackUntil);
     const dir = (snap.right ? 1 : 0) - (snap.left ? 1 : 0);
-    if (this.dashing) {
-      if (this.time.now - this.dashStartedAt > PHYSICS.dashMs) this.dashing = false;
-    } else if (!inKnockback) {
-      body.setVelocityX(dir * PHYSICS.moveSpeed * this.speedScale); // cache-boost sets speedScale 1.25
+    if (!inKnockback && !this.abilities.isRushing(this.time.now)) {
+      body.setVelocityX(
+        dir * movementSpeedFor(snap.runHeld, this.abilities.isDemonActive(this.time.now)) * this.speedScale,
+      );
       if (dir !== 0) this.player.setFlipX(dir < 0);
-      const dashReady = this.time.now - this.dashStartedAt > PHYSICS.dashCooldownMs;
-      if (shouldStartDash(snap.dashPressed, dashReady, dir)) {
-        this.dashing = true;
-        this.dashStartedAt = this.time.now;
-        body.setVelocityX(dir * PHYSICS.dashSpeed);
-        body.setVelocityY(0);
-        audio.sfx("dash");
-      }
     }
 
     if (this.attacking && this.time.now > this.attackUntil) this.attacking = false;
@@ -2046,6 +2081,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     }
 
     this.playAnimFor(body, onGround); // idle/run/jump/fall by velocity, unless attacking/hurt
+    this.updateSwordVisual();
     if (snap.attackPressed && !this.attacking) this.doAttack(); // 220ms hitbox 14x18 in front, sfx
     if (snap.interactPressed) this.tryInteract(); // door / fragment
 
@@ -2062,7 +2098,10 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
 
     // Drive enemy AI (patrol, phishling state machine, particles). Frozen while
     // paused because we return above before reaching here.
-    for (const obj of this.enemyGroup.getChildren()) (obj as Enemy).tick(dtMs);
+    for (const obj of this.enemyGroup.getChildren()) {
+      const enemy = obj as Enemy;
+      if (!enemy.tickStatus(this.time.now)) enemy.tick(dtMs);
+    }
 
     // Task 18 world mechanics: fake-platform collapse/flicker, boat ferrying,
     // and pooled enemy-projectile expiry. Frozen with the rest while paused.
@@ -2137,12 +2176,39 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     if (this.player.anims.currentAnim?.key !== key) this.player.play(key, true);
   }
 
+  private handleAbilityInput(snap: InputSnapshot) {
+    const facing: 1 | -1 = this.player.flipX ? -1 : 1;
+    if (snap.grapplePressed) this.abilities.activate("grapple", this.time.now, facing);
+    if (snap.slashRushPressed && this.abilities.activate("slashRush", this.time.now, facing)) {
+      this.attacking = true;
+      this.attackUntil = this.time.now + RT_PLAYER.slashRushMs;
+      this.player.play(animKey("player", "attack"), true);
+      this.swordSprite.play(animKey(PLAYER_SWORD_SPRITES.key, "rush"), true);
+    }
+    if (snap.swordWavePressed && this.abilities.activate("swordWave", this.time.now, facing)) {
+      this.swordSprite.play(animKey(PLAYER_SWORD_SPRITES.key, "wave"), true);
+    }
+    if (snap.ultimatePressed) this.abilities.activate("ultimate", this.time.now, facing);
+  }
+
+  private updateSwordVisual() {
+    this.swordSprite
+      .setPosition(this.player.x, this.player.y)
+      .setFlipX(this.player.flipX)
+      .setTint(this.abilities.isDemonActive(this.time.now) ? 0xef4444 : 0xffffff);
+    if (!this.attacking && !this.abilities.isRushing(this.time.now)) {
+      const idle = animKey(PLAYER_SWORD_SPRITES.key, "idle");
+      if (this.swordSprite.anims.currentAnim?.key !== idle) this.swordSprite.play(idle, true);
+    }
+  }
+
   protected doAttack() {
     this.attacking = true;
     this.attackUntil = this.time.now + ATTACK_MS;
     this.attackSwingId++; // one swing = one hit per enemy (multi-hp guard)
     this.player.play(animKey("player", "attack"), true);
-    audio.sfx("stomp");
+    this.swordSprite.play(animKey(PLAYER_SWORD_SPRITES.key, "swing"), true);
+    audio.sfx("slash");
 
     // In-level charge parry: a well-timed swing negates + stuns a charging Brute
     // (each brute grades the press against its own predicted contact time).
@@ -2230,11 +2296,12 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       this.showToast("COMING SOON");
       return;
     }
-    this.scene.start("Arena", {
-      bossId: rtBossId,
-      fromLevel: this.def.id,
-      power: this.powerStacks, // stomp-earned swing bonus rides into the fight
-    });
+      this.scene.start("Arena", {
+        bossId: rtBossId,
+        fromLevel: this.def.id,
+        power: this.powerStacks, // stomp-earned swing bonus rides into the fight
+        ultimateSpent: this.abilities.ultimateSpent,
+      });
   }
 
   /** World 1-4's sealed courtyard is an automatic mid-level handoff. Its
@@ -2269,6 +2336,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
           bossId,
           midLevel: { levelId: this.def.id, resumeAt },
           power: this.powerStacks,
+          ultimateSpent: this.abilities.ultimateSpent,
         });
       });
     });
@@ -2290,6 +2358,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     // Zero-damage contact (e.g. a stunned phishling) must not knock back,
     // blink, or play hurt feedback — it is not a hit.
     if (n <= 0) return;
+    if (this.abilities?.isInvulnerable(this.time.now)) return;
     if (this.time.now < this.iframesUntil || this.dead) return;
     this.health = Math.max(0, this.health - n);
     this.pushHud();

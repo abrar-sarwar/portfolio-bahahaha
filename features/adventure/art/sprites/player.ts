@@ -595,6 +595,39 @@ const DEATH_3 = frame(`
   ................
 `);
 
+function swordCanvas(
+  blade: readonly [number, number][],
+  accents: readonly [number, number, string][] = [],
+): string[] {
+  const rows = Array.from({ length: 32 }, () => Array<string>(32).fill("."));
+  for (const [x, y] of blade) {
+    if (rows[y]?.[x] !== undefined) rows[y][x] = "W";
+    if (rows[y]?.[x + 1] !== undefined) rows[y][x + 1] = "C";
+  }
+  for (const [x, y, color] of accents) {
+    if (rows[y]?.[x] !== undefined) rows[y][x] = color;
+  }
+  return rows.map((row) => row.join(""));
+}
+
+function linePoints(x0: number, y0: number, x1: number, y1: number): [number, number][] {
+  const length = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+  return Array.from({ length: length + 1 }, (_, index) => {
+    const t = length === 0 ? 0 : index / length;
+    return [Math.round(x0 + (x1 - x0) * t), Math.round(y0 + (y1 - y0) * t)];
+  });
+}
+
+const SWORD_IDLE = swordCanvas(linePoints(12, 23, 25, 8), [[11, 24, "B"], [10, 25, "V"], [24, 8, "V"]]);
+const SWORD_SWING_0 = swordCanvas(linePoints(11, 21, 25, 5), [[10, 22, "B"], [26, 5, "V"]]);
+const SWORD_SWING_1 = swordCanvas(linePoints(10, 15, 29, 13), [[9, 16, "B"], [29, 12, "V"]]);
+const SWORD_SWING_2 = swordCanvas(linePoints(11, 10, 27, 27), [[10, 9, "B"], [28, 28, "V"]]);
+const SWORD_RUSH = swordCanvas(linePoints(8, 16, 31, 16), [[7, 16, "B"], [29, 15, "V"], [30, 17, "V"]]);
+const SWORD_WAVE = swordCanvas(
+  [[22, 5], [25, 7], [27, 10], [28, 13], [28, 16], [27, 19], [25, 22], [22, 24], [19, 25]],
+  [[23, 5, "B"], [28, 15, "V"], [20, 25, "V"]],
+);
+
 export const PLAYER_SPRITES: SpriteDef = {
   key: "player",
   w: 16,
@@ -613,5 +646,21 @@ export const PLAYER_SPRITES: SpriteDef = {
     { key: "interact", frames: [14, 15], frameRate: 6, repeat: 0 },
     { key: "victory", frames: [16, 17], frameRate: 4, repeat: -1 },
     { key: "death", frames: [18, 19, 20, 21], frameRate: 6, repeat: 0 },
+  ],
+};
+
+/** A separate 32×32 layer makes Abrar's blade read as a real weapon without
+ * changing the compact collision/player sheet. PlatformLevelScene keeps this
+ * sprite attached to the character and switches rows with combat actions. */
+export const PLAYER_SWORD_SPRITES: SpriteDef = {
+  key: "player-sword",
+  w: 32,
+  h: 32,
+  frames: [SWORD_IDLE, SWORD_SWING_0, SWORD_SWING_1, SWORD_SWING_2, SWORD_RUSH, SWORD_WAVE],
+  anims: [
+    { key: "idle", frames: [0], frameRate: 1, repeat: -1 },
+    { key: "swing", frames: [1, 2, 3], frameRate: 15, repeat: 0 },
+    { key: "rush", frames: [4], frameRate: 1, repeat: -1 },
+    { key: "wave", frames: [5], frameRate: 1, repeat: 0 },
   ],
 };

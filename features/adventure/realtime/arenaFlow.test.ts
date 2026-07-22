@@ -6,7 +6,7 @@ describe("resolveArenaVictory", () => {
   it("returns a cleared mid-boss to the same level without completing it", () => {
     const save = defaultSave();
     const result = resolveArenaVictory(
-      { midLevel: { levelId: "1-4", resumeAt: { tx: 139, ty: 14 } }, power: 3 },
+      { midLevel: { levelId: "1-4", resumeAt: { tx: 139, ty: 14 } }, power: 3, ultimateSpent: true },
       "scythebound",
       save,
     );
@@ -17,7 +17,7 @@ describe("resolveArenaVictory", () => {
     expect(result.completedLevel).toBeUndefined();
     expect(result.destination).toEqual({
       scene: "Level",
-      data: { levelId: "1-4", spawnAt: "checkpoint", checkpoint: { tx: 139, ty: 14 }, power: 3 },
+      data: { levelId: "1-4", spawnAt: "checkpoint", checkpoint: { tx: 139, ty: 14 }, power: 3, ultimateSpent: true },
     });
   });
 

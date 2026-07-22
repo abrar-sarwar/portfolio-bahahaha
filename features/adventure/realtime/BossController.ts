@@ -27,6 +27,7 @@ import { gameStore } from "../bridge/GameStore";
 import { input } from "../input/InputState";
 import { audio } from "../audio/synth";
 import type { SfxId } from "../ids";
+import { telegraphPresentation } from "./telegraphPresentation";
 
 /** The surface a boss's mechanics module programs against (amendment §4 +
  *  the six boss-demands memos). Concrete needs only — extended additively. */
@@ -116,6 +117,7 @@ export class BossController {
   private interactHeldSince: number | null = null;
   private interactTapped = false;
   private lastSnapshotKey = "";
+  private telegraphHalo: Phaser.GameObjects.Arc | null = null;
 
   constructor(private deps: BossControllerDeps) {
     this.state = initBossState(deps.def);
@@ -177,6 +179,7 @@ export class BossController {
 
     this.queued.push(...sceneEvents);
     this.mechanics?.update?.(dtMs);
+    this.telegraphHalo?.setPosition(this.deps.boss.x, this.deps.boss.y);
 
     if (!frozen) {
       const events = [...this.queued, ...(this.mechanics?.events() ?? [])];
@@ -220,21 +223,48 @@ export class BossController {
         break;
       case "attack-start": {
         const spec = this.deps.def.attacks.find((a) => a.id === c.attackId);
-        // The game-wide telegraph tell: gold = parryable, red = not.
-        boss.setTint(spec?.parryable ? 0xffe08a : 0xff6a6a);
+        const presentation = telegraphPresentation(!!spec?.parryable, spec?.telegraphMs ?? 0);
+        this.clearTelegraphHalo();
+        boss.setTint(presentation.tint);
+        this.telegraphHalo = this.deps.scene.add
+          .circle(boss.x, boss.y, Math.max(boss.displayWidth, boss.displayHeight) * 0.58)
+          .setStrokeStyle(2, presentation.halo, spec?.parryable ? 0.9 : 0.55)
+          .setFillStyle(presentation.halo, 0.05)
+          .setDepth(boss.depth - 1);
+        this.deps.scene.tweens.add({
+          targets: this.telegraphHalo,
+          scale: 1.18,
+          alpha: 0.45,
+          duration: 180,
+          yoyo: true,
+          repeat: -1,
+        });
+        if (presentation.finalPulseDelayMs !== null) {
+          this.deps.scene.time.delayedCall(presentation.finalPulseDelayMs, () => {
+            if (
+              this.state.fsm !== "telegraph" ||
+              this.state.currentAttackId !== c.attackId ||
+              !this.telegraphHalo?.active
+            ) return;
+            this.telegraphHalo.setScale(1.45).setAlpha(1);
+          });
+        }
         audio.sfx("telegraph");
         break;
       }
       case "attack-active": {
+        this.clearTelegraphHalo();
         const spec = this.deps.def.attacks.find((a) => a.id === c.attackId);
         if (spec) this.deps.onAttackActive(spec);
         break;
       }
       case "attack-end":
+        this.clearTelegraphHalo();
         this.deps.onAttackEnd();
         boss.clearTint();
         break;
       case "stagger":
+        this.clearTelegraphHalo();
         this.deps.onAttackEnd(); // an interrupted swing must not keep hitting
         boss.clearTint();
         break;
@@ -247,11 +277,13 @@ export class BossController {
         });
         break;
       case "phase":
+        this.clearTelegraphHalo();
         this.deps.onAttackEnd();
         boss.clearTint();
         this.onEncounterBeat(`phase-${c.phaseIndex}`);
         break;
       case "defeated":
+        this.clearTelegraphHalo();
         this.deps.onAttackEnd();
         boss.clearTint();
         this.onEncounterBeat("defeated");
@@ -315,7 +347,15 @@ export class BossController {
     gameStore.set({ rtBoss: snap });
   }
 
+  private clearTelegraphHalo(): void {
+    if (!this.telegraphHalo) return;
+    this.deps.scene.tweens.killTweensOf(this.telegraphHalo);
+    this.telegraphHalo.destroy();
+    this.telegraphHalo = null;
+  }
+
   destroy(): void {
+    this.clearTelegraphHalo();
     this.mechanics?.destroy();
   }
 }

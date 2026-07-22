@@ -20,19 +20,19 @@ import Phaser from "phaser";
 import { PlatformLevelScene, type LevelSceneData } from "../scenes/PlatformLevelScene";
 import type { LevelDefinition } from "../levels/types";
 import type { BossId, SceneKey } from "../ids";
-import { PHYSICS, TILE } from "../config";
+import { TILE } from "../config";
 import { POWER_STACK_MAX, RT_PLAYER } from "./config";
 import { validateDef } from "./BossStateMachine";
-import type { RtAttackSpec, RtBossDef, RtBossId } from "./types";
+import type { MachineEvent, RtAttackSpec, RtBossDef, RtBossId } from "./types";
 import { getRtBoss, getRtMechanics } from "./bossDefinitions";
 import { getArena } from "./arenas";
 import { classifyStomp, createStompHook } from "./StompSystem";
+import { bossBodyContactOutcome } from "./bossContactLogic";
 import { PlayerCombatController } from "./PlayerCombatController";
 import { BossController } from "./BossController";
 import { ProjectileManager } from "./ProjectileManager";
 import { ArenaHazardSystem } from "./ArenaHazardSystem";
 import { impactSparks, hitFlash, cameraKick } from "./effects";
-import { fracFromReadyAt } from "./ui/actionBarMath";
 import { registerSprites, animKey, frameKey } from "../art/textures";
 import { BOSSES2_SPRITES } from "../art/sprites/bosses2";
 import { gameStore } from "../bridge/GameStore";
@@ -86,6 +86,7 @@ export class BossArenaScene extends PlatformLevelScene {
   private victory = false;
   private defaultZone = { w: 70, h: 48, ox: 0, oy: 0 };
   private zoneShape = { w: 70, h: 48, ox: 0, oy: 0 };
+  private abilityEvents: MachineEvent[] = [];
 
   constructor() {
     super("Arena");
@@ -122,6 +123,7 @@ export class BossArenaScene extends PlatformLevelScene {
     this.stompReadyAt = 0;
     this.stompHook.clear();
     this.victory = false;
+    this.abilityEvents = [];
 
     // Interior veil: arenas are enclosed halls, but their world tilesets ship
     // outdoor parallax. A dark translucent sheet between parallax and tiles
@@ -190,6 +192,10 @@ export class BossArenaScene extends PlatformLevelScene {
       impactSparks(this, this.bossSprite.x, this.bossSprite.y - 4);
       hitFlash(this, this.bossSprite);
       cameraKick(this);
+    });
+    this.abilities.bindTarget(this.bossSprite, {
+      onRush: () => this.registerAbilityHit(RT_PLAYER.slashRushBossDamage, false),
+      onWave: () => this.registerAbilityHit(RT_PLAYER.swordWaveBossDamage, true),
     });
 
     // Boss attack hitbox (enabled during an attack's active window). Default
@@ -341,6 +347,9 @@ export class BossArenaScene extends PlatformLevelScene {
   protected doAttack(): void {
     const now = this.time.now;
     const facing: 1 | -1 = this.player.flipX ? -1 : 1;
+    this.combat.setDamageMultiplier(
+      this.abilities.isDemonActive(now) ? RT_PLAYER.ultimateDamageMultiplier : 1,
+    );
     if (!this.combat.attack(now, facing)) return;
     this.attacking = true;
     this.attackUntil = now + RT_PLAYER.attackActiveMs;
@@ -376,7 +385,14 @@ export class BossArenaScene extends PlatformLevelScene {
     // Step the boss brain — hit-stop / parry-freeze skips the machine but the
     // queued events land on the first live step after.
     const frozen = now < this.machineFreezeUntil;
-    this.controller.update(dtMs, frozen, this.combat.drainEvents(), interactPressed);
+    const abilityEvents = this.abilityEvents;
+    this.abilityEvents = [];
+    this.controller.update(
+      dtMs,
+      frozen,
+      [...this.combat.drainEvents(), ...abilityEvents],
+      interactPressed,
+    );
     this.projectiles.update(dtMs);
     this.hazards.update(dtMs);
 
@@ -446,14 +462,13 @@ export class BossArenaScene extends PlatformLevelScene {
       { vy: body.velocity.y, feetY: body.bottom },
       { topY: bb.top, height: bb.height, stompable: true },
     );
-    if (contact === "stomp") {
+    const accepted = contact === "stomp" ? this.stompHook.resolve() : true;
+    const outcome = bossBodyContactOutcome(contact, accepted);
+    if (outcome === "safe") return;
+    if (outcome === "stomp") {
       const now = this.time.now;
       if (now < this.stompReadyAt) return;
       this.stompReadyAt = now + STOMP_COOLDOWN_MS;
-      if (!this.stompHook.resolve()) {
-        this.takeDamage(this.bossDef.contactDamage);
-        return;
-      }
       body.setVelocityY(RT_PLAYER.stompBounceVel);
       this.combat.registerStomp();
       this.machineFreezeUntil = now + RT_PLAYER.hitStopMs;
@@ -463,6 +478,18 @@ export class BossArenaScene extends PlatformLevelScene {
     } else {
       this.takeDamage(this.bossDef.contactDamage);
     }
+  }
+
+  private registerAbilityHit(baseDamage: number, stun: boolean): void {
+    const amount = this.abilities.damageFor(baseDamage, this.time.now);
+    this.abilityEvents.push({ kind: "hit", amount, source: "attack" });
+    if (stun) {
+      this.abilityEvents.push({ kind: "force-stagger", ms: RT_PLAYER.swordWaveStunMs });
+    }
+    this.machineFreezeUntil = this.time.now + RT_PLAYER.hitStopMs;
+    impactSparks(this, this.bossSprite.x, this.bossSprite.y - 4);
+    hitFlash(this, this.bossSprite);
+    cameraKick(this);
   }
 
   // ── victory ────────────────────────────────────────────────────────────────
@@ -623,7 +650,7 @@ export class BossArenaScene extends PlatformLevelScene {
   private syncActions(force: boolean): void {
     const now = this.time.now;
     const fracs = this.combat.cooldownFracs(now);
-    const dash = fracFromReadyAt(now, this.dashStartedAt + PHYSICS.dashCooldownMs, PHYSICS.dashCooldownMs);
+    const dash = 0; // Shift is a held run control; retained until the HUD state rename.
     const context = gameStore.get().rtActions.context; // mechanics-owned slot
     const next = {
       attack: { cooldownFrac: round2(fracs.attack) },

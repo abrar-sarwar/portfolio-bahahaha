@@ -19,8 +19,8 @@ type Body = Phaser.Physics.Arcade.Body;
 type Target = Phaser.GameObjects.GameObject | Phaser.Physics.Arcade.Group;
 
 export interface PlayerAbilityTargetHandlers {
-  onRush(target: Phaser.GameObjects.GameObject): void;
-  onWave(target: Phaser.GameObjects.GameObject): void;
+  onRush(target: Phaser.GameObjects.GameObject, hitId: number): void;
+  onWave(target: Phaser.GameObjects.GameObject, hitId: number): void;
 }
 
 interface LiveWave {
@@ -100,7 +100,7 @@ export class PlayerAbilityController {
       const object = targetObject as Phaser.GameObjects.GameObject;
       if (!canAbilityHit(rushHits.get(object), this.rushHitId)) return;
       rushHits.set(object, this.rushHitId);
-      handlers.onRush(object);
+      handlers.onRush(object, this.rushHitId);
     });
 
     this.scene.physics.add.overlap(this.waveGroup, target, (waveObject, targetObject) => {
@@ -109,7 +109,7 @@ export class PlayerAbilityController {
       const object = targetObject as Phaser.GameObjects.GameObject;
       if (!canAbilityHit(waveHits.get(object), wave.hitId)) return;
       waveHits.set(object, wave.hitId);
-      handlers.onWave(object);
+      handlers.onWave(object, wave.hitId);
       wave.object.destroy();
     });
   }
@@ -205,6 +205,10 @@ export class PlayerAbilityController {
 
   isDemonActive(now: number): boolean {
     return isDemonActive(this.state, now);
+  }
+
+  isRushing(now: number): boolean {
+    return now < this.state.slashRushEndsAt;
   }
 
   damageFor(baseDamage: number, now: number): number {

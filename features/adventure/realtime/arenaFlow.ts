@@ -18,12 +18,14 @@ export interface ArenaRouteData {
   midLevel?: MidLevelReturn;
   /** POWER stacks survive death-retries and mid-level arena round trips. */
   power?: number;
+  /** Once-per-level demon form stays spent across scene handoffs. */
+  ultimateSpent?: boolean;
 }
 
 export type ArenaVictoryDestination =
   | {
       scene: "Level";
-      data: { levelId: LevelId; spawnAt: "checkpoint"; checkpoint: Pt; power: number };
+      data: { levelId: LevelId; spawnAt: "checkpoint"; checkpoint: Pt; power: number; ultimateSpent: boolean };
     }
   | { scene: "Overworld"; data: { justCompleted: LevelId } }
   | { scene: SceneKey };
@@ -62,6 +64,7 @@ export function resolveArenaVictory(
           spawnAt: "checkpoint",
           checkpoint: route.midLevel.resumeAt,
           power: route.power ?? 0,
+          ultimateSpent: route.ultimateSpent ?? false,
         },
       },
     };

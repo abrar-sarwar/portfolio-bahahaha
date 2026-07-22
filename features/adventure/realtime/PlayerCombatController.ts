@@ -24,6 +24,7 @@ export class PlayerCombatController {
   private parryStanceUntil = 0;
   private committedUntil = 0; // parry recovery / fail-vulnerable window end
   private attackBonus = 0; // POWER stacks (level stomps) — flat swing damage
+  private damageMultiplier = 1;
 
   constructor(
     private scene: Phaser.Scene,
@@ -40,6 +41,10 @@ export class PlayerCombatController {
     this.attackBonus = Math.max(0, n);
   }
 
+  setDamageMultiplier(n: number): void {
+    this.damageMultiplier = Math.max(1, n);
+  }
+
   setParryWindowScale(scale: number): void {
     this.parryWindowScale = Math.max(1, scale);
   }
@@ -47,7 +52,11 @@ export class PlayerCombatController {
   /** Wire the swing to the boss sprite: a landed swing damages the boss. */
   bindTarget(boss: Phaser.GameObjects.GameObject, onLand: () => void): void {
     this.hitbox.overlapWith(boss, () => {
-      this.events.push({ kind: "hit", amount: RT_PLAYER.attackDamage + this.attackBonus, source: "attack" });
+      this.events.push({
+        kind: "hit",
+        amount: (RT_PLAYER.attackDamage + this.attackBonus) * this.damageMultiplier,
+        source: "attack",
+      });
       onLand();
     });
   }
