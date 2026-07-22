@@ -2206,6 +2206,11 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     }
   }
 
+  /** Keep arena overrides on the same oversized-sword animation layer. */
+  protected playSwordAnimation(animation: "idle" | "swing" | "rush" | "wave") {
+    this.swordSprite.play(animKey(PLAYER_SWORD_SPRITES.key, animation), true);
+  }
+
   private syncAbilityHud(force: boolean) {
     const raw = this.abilities.snapshot(this.time.now);
     const next = {

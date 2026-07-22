@@ -354,6 +354,7 @@ export class BossArenaScene extends PlatformLevelScene {
     this.attacking = true;
     this.attackUntil = now + RT_PLAYER.attackActiveMs;
     this.player.play(animKey("player", "attack"), true);
+    this.playSwordAnimation("swing");
   }
 
   private stepArena(dtMs: number, parryPressed: boolean, interactPressed = false): void {
