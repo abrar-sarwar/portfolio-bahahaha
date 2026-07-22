@@ -27,6 +27,10 @@ import {
   CASTLE_TILES, CASTLE_PARALLAX, CASTLE_TILE_KEYS, CASTLE_PARALLAX_KEYS,
   CASTLE_LAVA_ANIM, CASTLE_BANNER_ANIM,
 } from "../art/sprites/tiles-castle";
+import {
+  CITY_TILES, CITY_PARALLAX, CITY_TILE_KEYS, CITY_PARALLAX_KEYS,
+  CITY_NEON_ANIM, TEMPLE_LANTERN_ANIM, CITY_HAZARD_ANIM,
+} from "../art/sprites/tiles-city";
 import { ENEMY_SPRITES } from "../art/sprites/enemies1";
 import { ENEMIES2_SPRITES } from "../art/sprites/enemies2";
 import { ENEMIES3_SPRITES } from "../art/sprites/enemies3";
@@ -72,6 +76,11 @@ interface ThemeTiles {
   ground: string;
   groundFill: string;
   oneWay: string;
+  /** Column-driven biome selection (dual-biome city theme, Task 34): when set,
+   *  overrides the flat ground/groundFill/oneWay keys per cell so a single map
+   *  can dissolve from one biome into another left→right. */
+  groundAt?(tx: number, ty: number, exposed: boolean): string;
+  oneWayAt?(tx: number): string;
   /** When set, one-way cells render as animated sprites playing this anim
    *  (archive floating pages) rather than a static image. */
   oneWayAnim?: string;
@@ -163,6 +172,44 @@ function themeTilesFor(theme: LevelDefinition["theme"]): ThemeTiles {
       boatKey: ARCHIVE_TILE_KEYS.ground, // no boats in archive levels
       rotatorKey: ARCHIVE_TILE_KEYS.page,
       rotatorAnim: ARCHIVE_PAGE_ANIM,
+    };
+  }
+  if (theme === "city" || theme === "temple") {
+    // World 1-1 (Task 34): ONE dual-biome kit. "city" runs the column-driven
+    // dissolve (city 0–116 → transition 116–176 → temple 176+, per the map's
+    // section walkthrough); "temple" (the Broken King arena) is biome B only.
+    const biome = (tx: number): "city" | "trans" | "temple" =>
+      theme === "temple" ? "temple" : tx < 116 ? "city" : tx < 176 ? "trans" : "temple";
+    return {
+      register: [...CITY_PARALLAX, ...CITY_TILES],
+      parallax: [
+        { key: CITY_PARALLAX_KEYS.bg0, depth: -30, factor: 0.2 },
+        { key: CITY_PARALLAX_KEYS.bg1, depth: -20, factor: 0.4 },
+        { key: CITY_PARALLAX_KEYS.bg2, depth: -10, factor: 0.6 },
+      ],
+      ground: CITY_TILE_KEYS.templeGround,
+      groundFill: CITY_TILE_KEYS.templeGroundFill,
+      groundAt: (tx, ty, exposed) => {
+        const b = biome(tx);
+        if (b === "city") {
+          // Street-level tops read as asphalt; rooftops as concrete; raised
+          // stacks (buildings) fill with curtain wall, below-street with soil.
+          if (exposed) return ty >= 12 ? CITY_TILE_KEYS.cityRoad : CITY_TILE_KEYS.cityGround;
+          return ty <= 11 ? CITY_TILE_KEYS.cityGlass : CITY_TILE_KEYS.cityGroundFill;
+        }
+        if (b === "trans") {
+          if (exposed) return CITY_TILE_KEYS.transGround;
+          return ty <= 11 ? CITY_TILE_KEYS.transWall : CITY_TILE_KEYS.cityGroundFill;
+        }
+        if (exposed) return CITY_TILE_KEYS.templeGround;
+        return ty <= 11 ? CITY_TILE_KEYS.templeStair : CITY_TILE_KEYS.templeGroundFill;
+      },
+      oneWay: CITY_TILE_KEYS.templeOneWay,
+      oneWayAt: (tx) => (biome(tx) === "city" ? CITY_TILE_KEYS.cityGirder : CITY_TILE_KEYS.templeOneWay),
+      hazard: CITY_TILE_KEYS.hazard,
+      hazardAnim: CITY_HAZARD_ANIM,
+      fakeKey: CITY_TILE_KEYS.cityGirder, // no fakes/boats in city levels
+      boatKey: CITY_TILE_KEYS.cityGirder,
     };
   }
   if (theme === "castle") {
@@ -414,6 +461,13 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
    *  visual/positional hide. */
   private attackHitbox!: Phaser.GameObjects.Zone;
   private fragmentSprite?: Phaser.GameObjects.GameObject;
+  /** Collected Truth Seal cells this run (Task 34; session-scoped). */
+  private collectedSeals = new Set<string>();
+  /** `?debug=1` read-only telemetry for playtest harnesses (shipped, gated —
+   *  part of the Task 48 debug surface; ruled on by Task 49 criterion #29). */
+  protected debugTelemetry = false;
+  /** Arenas suppress the generic boss-door marker (their D is inert). */
+  protected drawDoorMarker = true;
   private checkpointMarkers: { pt: Pt; obj: Phaser.GameObjects.Rectangle }[] = [];
   private bg: { sprite: Phaser.GameObjects.TileSprite; factor: number }[] = [];
   private pausedText?: Phaser.GameObjects.Text;
@@ -454,6 +508,9 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.dead = false;
     this.attacking = false;
     this.attackUntil = -Infinity;
+    this.collectedSeals = new Set();
+    this.debugTelemetry =
+      typeof window !== "undefined" && new URLSearchParams(window.location.search).has("debug");
 
     const def = this.resolveLevelDef(data);
     if (!def) throw new Error(`unknown level ${data.levelId}`);
@@ -585,6 +642,8 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       this.events.off(Phaser.Scenes.Events.RESUME, onResume);
       offDialogueOpen();
       offDialogueClosed();
+      // Seal pips are level-scoped; the Arena manages its own rtSeals field.
+      if (this.lvl.seals.length > 0) gameStore.set({ rtSeals: null });
     });
 
     // Subclass seam (BossArenaScene): everything above has built the world +
@@ -637,7 +696,12 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
             belt.play(animKey(this.theme.conveyorKey, this.theme.conveyorAnim));
           belt.setFlipX(convDir < 0); // authored pointing right; flip for left
         } else if (solids[ty][tx]) {
-          const key = topExposed(solids, tx, ty) ? this.theme.ground : this.theme.groundFill;
+          const exposed = topExposed(solids, tx, ty);
+          const key = this.theme.groundAt
+            ? this.theme.groundAt(tx, ty, exposed)
+            : exposed
+              ? this.theme.ground
+              : this.theme.groundFill;
           this.add.image(cx, cy, key).setDepth(0);
         } else if (oneWays[ty][tx]) {
           if (this.theme.oneWayAnim) {
@@ -646,7 +710,10 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
             // address frame 0 explicitly rather than add.image(bareKey).
             const page = this.add.sprite(cx, cy, frameKey(this.theme.oneWay, 0)).setDepth(0);
             page.play(animKey(this.theme.oneWay, this.theme.oneWayAnim));
-          } else this.add.image(cx, cy, this.theme.oneWay).setDepth(0);
+          } else {
+            const key = this.theme.oneWayAt ? this.theme.oneWayAt(tx) : this.theme.oneWay;
+            this.add.image(cx, cy, key).setDepth(0);
+          }
         } else if (hazards[ty][tx]) {
           if (this.theme.hazardAnim) {
             // Animated hazard (harbor code-water): a Sprite playing its wave anim.
@@ -696,9 +763,12 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
         .setAngle(45);
     }
 
-    // Boss door marker.
-    const d = this.lvl.bossDoor;
-    this.add.rectangle(d.tx * TILE + TILE / 2, d.ty * TILE + TILE / 2, 12, 20, 0x5b3fb8).setDepth(2);
+    // Boss door marker (suppressed in arenas, where the required D is inert
+    // and sits mid-air at the boss spawn).
+    if (this.drawDoorMarker) {
+      const d = this.lvl.bossDoor;
+      this.add.rectangle(d.tx * TILE + TILE / 2, d.ty * TILE + TILE / 2, 12, 20, 0x5b3fb8).setDepth(2);
+    }
 
     // Checkpoint flags (raise on latch).
     for (const cp of this.lvl.checkpoints) {
@@ -706,6 +776,40 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
         .rectangle(cp.tx * TILE + TILE / 2, cp.ty * TILE + TILE - 6, 4, 12, 0x8b6cf0)
         .setDepth(2);
       this.checkpointMarkers.push({ pt: cp, obj });
+    }
+
+    // Truth Seals (Task 34): pulsing jade gems, auto-collect on overlap. Each
+    // lights an rtSeals pip beside the ActionBar; the Broken King arena tops
+    // the count to 3 regardless (amendment Task 35 belt-and-suspenders).
+    for (const s of this.lvl.seals) {
+      const key = `${s.tx},${s.ty}`;
+      const cx = s.tx * TILE + TILE / 2;
+      const cy = s.ty * TILE + TILE / 2;
+      const gem = this.add.rectangle(cx, cy, 9, 9, 0x4f9e86).setAngle(45).setDepth(2);
+      const halo = this.add.rectangle(cx, cy, 14, 14, 0x4f9e86, 0.22).setAngle(45).setDepth(2);
+      this.tweens.add({
+        targets: [gem, halo],
+        scale: 1.2,
+        yoyo: true,
+        repeat: -1,
+        duration: 520,
+        ease: "Sine.easeInOut",
+      });
+      const zone = this.add.zone(cx, cy, 14, 16);
+      this.physics.add.existing(zone);
+      (zone.body as Body).setAllowGravity(false);
+      this.physics.add.overlap(this.player, zone, () => {
+        if (this.collectedSeals.has(key)) return;
+        this.collectedSeals.add(key);
+        audio.sfx("seal");
+        gem.destroy();
+        halo.destroy();
+        zone.destroy();
+        gameStore.set({ rtSeals: { lit: this.collectedSeals.size, of: this.lvl.seals.length } });
+      });
+    }
+    if (this.lvl.seals.length > 0) {
+      gameStore.set({ rtSeals: { lit: 0, of: this.lvl.seals.length } });
     }
 
     this.setupColliders();
@@ -1099,6 +1203,26 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
    *  storm lightning-flash overlay. Purely cosmetic — no collision. */
   private buildCastleDecor() {
     for (const d of this.def.decor ?? []) {
+      // City/temple decor (Task 34) shares this generic decor path.
+      if (d.kind === "temple-door") {
+        // The great temple door: two 16×48 halves straddling (tx, tx+1).
+        this.add
+          .sprite(d.tx * TILE + 8, d.ty * TILE + 24, frameKey(CITY_TILE_KEYS.templeDoorL, 0))
+          .setDepth(1);
+        this.add
+          .sprite((d.tx + 1) * TILE + 8, d.ty * TILE + 24, frameKey(CITY_TILE_KEYS.templeDoorR, 0))
+          .setDepth(1);
+        continue;
+      }
+      if (d.kind === "neon" || d.kind === "lantern") {
+        const key = d.kind === "neon" ? CITY_TILE_KEYS.cityNeon : CITY_TILE_KEYS.templeLantern;
+        const anim = d.kind === "neon" ? CITY_NEON_ANIM : TEMPLE_LANTERN_ANIM;
+        const sprite = this.add
+          .sprite(d.tx * TILE + 8, d.ty * TILE + 8, frameKey(key, 0))
+          .setDepth(1);
+        sprite.play(animKey(key, anim));
+        continue;
+      }
       const key =
         d.kind === "chain"
           ? CASTLE_TILE_KEYS.chain
@@ -1566,6 +1690,17 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.playAnimFor(body, onGround); // idle/run/jump/fall by velocity, unless attacking/hurt
     if (snap.attackPressed && !this.attacking) this.doAttack(); // 220ms hitbox 14x18 in front, sfx
     if (snap.interactPressed) this.tryInteract(); // door / fragment / analyze exploit
+
+    // `?debug=1` read-only playtest telemetry (gated, shipped — see the field
+    // doc). Subclasses may augment the object after super.update().
+    if (this.debugTelemetry) {
+      (window as unknown as Record<string, unknown>).__adv = {
+        px: this.player.x,
+        py: this.player.y,
+        hp: this.health,
+        level: this.def.id,
+      };
+    }
 
     // Drive enemy AI (patrol, phishling state machine, particles). Frozen while
     // paused because we return above before reaching here.

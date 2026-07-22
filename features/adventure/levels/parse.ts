@@ -12,6 +12,7 @@ export function parseLevel(def: LevelDefinition): ParsedLevel {
   const solids = grid(false), oneWays = grid(false), hazards = grid(false);
   let playerStart: Pt | null = null, bossDoor: Pt | null = null, fragment: Pt | null = null;
   const checkpoints: Pt[] = [];
+  const seals: Pt[] = []; // Truth Seal pickups (Task 34)
   const spawns: { kind: EnemyKind; at: Pt }[] = [];
   const fakes: Pt[] = [];
   const boats: Pt[] = [];
@@ -33,6 +34,7 @@ export function parseLevel(def: LevelDefinition): ParsedLevel {
       else if (ch === "D") bossDoor = at;
       else if (ch === "M") fragment = at;
       else if (ch === "C") checkpoints.push(at);
+      else if (ch === "T") seals.push(at); // Truth Seal pickup (Task 34)
       else if (ch === "F") fakes.push(at); // fake platform (Task 18)
       else if (ch === "o") boats.push(at); // boat / moving platform (Task 18)
       // Conveyors (Task 19): the cell is ALSO a solid the entity rides on, so
@@ -59,6 +61,6 @@ export function parseLevel(def: LevelDefinition): ParsedLevel {
     widthTiles: w, heightTiles: rows.length,
     solids, oneWays, hazards,
     playerStart, checkpoints, fragment, bossDoor, spawns,
-    fakes, boats, conveyors, gates, lasers, rotators, fountains, bridges,
+    fakes, boats, conveyors, gates, lasers, rotators, fountains, bridges, seals,
   };
 }

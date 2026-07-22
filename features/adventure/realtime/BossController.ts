@@ -52,6 +52,9 @@ export interface MechanicsApi {
   setSeals(v: { lit: number; of: number } | null): void;
   /** How long E has been continuously held, in ms (0 when up). */
   interactHeldMs(): number;
+  /** Reshape the current/next attack's melee window (arena-wide sweeps,
+   *  directional slams). Resets to the boss's default on attack-end. */
+  shapeAttack(shape: { w: number; h: number; ox?: number; oy?: number }): void;
   sfx(id: SfxId): void;
 }
 
@@ -81,6 +84,8 @@ export interface BossControllerDeps {
   onAttackActive(spec: RtAttackSpec): void;
   /** The active window closed (attack-end / stagger / defeat). */
   onAttackEnd(): void;
+  /** Reshape the melee window (MechanicsApi.shapeAttack passthrough). */
+  shapeAttack(shape: { w: number; h: number; ox?: number; oy?: number }): void;
   /** The machine reached `defeated` (absorbing) — scene runs the victory flow. */
   onDefeated(): void;
   rngSeed?: number;
@@ -118,6 +123,7 @@ export class BossController {
       setSeals: (v) => gameStore.set({ rtSeals: v }),
       interactHeldMs: () =>
         this.interactHeldSince === null ? 0 : this.deps.scene.time.now - this.interactHeldSince,
+      shapeAttack: (shape) => deps.shapeAttack(shape),
       sfx: (id) => audio.sfx(id),
     };
     this.mechanics = deps.mechanicsFactory?.(deps.scene, this.api);
@@ -233,8 +239,21 @@ export class BossController {
   }
 
   /** Map the machine's anim vocabulary onto whatever rows this boss's sprite
-   *  actually has, with graceful fallbacks (dummy: idle/hurt/defeat only). */
+   *  actually has, with graceful fallbacks (dummy: idle/hurt/defeat only).
+   *  A def-level animFor mapping (Broken King's per-attack prep/slam rows)
+   *  takes precedence when it resolves. */
   private playBossAnim(name: string): void {
+    const mapped = this.deps.def.animFor?.(name, {
+      attackId: this.state.currentAttackId,
+      phaseIndex: this.state.phaseIndex,
+    });
+    if (mapped) {
+      const key = animKey(this.deps.def.id, mapped);
+      if (this.deps.scene.anims.exists(key)) {
+        this.deps.boss.play(key, true);
+        return;
+      }
+    }
     const fallbacks: Record<string, string[]> = {
       [RT_ANIM.spawn]: ["spawn", "idle"],
       [RT_ANIM.idle]: ["idle"],

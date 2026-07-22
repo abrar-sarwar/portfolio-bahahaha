@@ -22,6 +22,7 @@ import {
   type Wall,
 } from "./ProjectileSystem";
 import { parryFlashRing } from "./effects";
+import { animKey, frameKey } from "../art/textures";
 import { audio } from "../audio/synth";
 
 type Body = Phaser.Physics.Arcade.Body;
@@ -31,6 +32,8 @@ export interface RtProjectileOpts {
   /** Visual size (square edge / orb diameter). Default 6. */
   sizePx?: number;
   color?: number;
+  /** Bespoke texture (boss projectile art) instead of the generic orb. */
+  texture?: { key: string; anim?: string; flipX?: boolean };
   /** Parryable-in-flight (bright glow). A caught parry reflects it. */
   glow?: boolean;
   /** Hearts of damage on player contact. Default 1. */
@@ -44,7 +47,7 @@ export interface RtProjectileOpts {
 interface LiveProjectile {
   spec: ProjectileSpec;
   st: ProjectileState;
-  go: Phaser.GameObjects.Arc | Phaser.GameObjects.Rectangle;
+  go: Phaser.GameObjects.Arc | Phaser.GameObjects.Rectangle | Phaser.GameObjects.Sprite;
   glowHalo?: Phaser.GameObjects.Arc;
   opts: RtProjectileOpts;
   reflected: boolean;
@@ -84,10 +87,19 @@ export class ProjectileManager {
       vy: opts.spec.vy * scale,
       speed: opts.spec.speed !== undefined ? opts.spec.speed * scale : undefined,
     };
-    const go = this.scene.add.circle(spec.x, spec.y, size / 2, color).setDepth(20);
+    let go: LiveProjectile["go"];
+    if (opts.texture) {
+      const s = this.scene.add.sprite(spec.x, spec.y, frameKey(opts.texture.key, 0)).setDepth(20);
+      if (opts.texture.anim) s.play(animKey(opts.texture.key, opts.texture.anim));
+      if (opts.texture.flipX) s.setFlipX(true);
+      go = s;
+    } else {
+      const c = this.scene.add.circle(spec.x, spec.y, size / 2, color).setDepth(20);
+      if (opts.glow) c.setFillStyle(GLOW_COLOR);
+      go = c;
+    }
     let glowHalo: Phaser.GameObjects.Arc | undefined;
     if (opts.glow) {
-      go.setFillStyle(GLOW_COLOR);
       glowHalo = this.scene.add.circle(spec.x, spec.y, size, GLOW_COLOR, 0.35).setDepth(19);
     }
     this.live.push({ spec, st: spawnProjectile(spec), go, glowHalo, opts, reflected: false });
@@ -136,7 +148,9 @@ export class ProjectileManager {
             const ang = Math.atan2(boss.y - p.st.y, boss.x - p.st.x);
             p.st = { ...p.st, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, ageMs: 0 };
             p.spec = { ...p.spec, kind: "homing", speed, turnRateRadPerSec: 6, ttlMs: 4000 };
-            p.go.setFillStyle(0x9affb0); // reflected = mint (no longer a threat)
+            // Reflected = mint (no longer a threat): tint sprites, refill arcs.
+            if (p.go instanceof Phaser.GameObjects.Sprite) p.go.setTint(0x9affb0);
+            else if ("setFillStyle" in p.go) p.go.setFillStyle(0x9affb0);
             p.opts.onReflected?.();
           } else {
             this.deps.onPlayerHit(p.opts.damage ?? 1);

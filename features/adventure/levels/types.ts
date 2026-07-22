@@ -18,10 +18,11 @@ export interface CorruptionSegment {
 }
 
 /** A purely-decorative sprite placed at a tile cell (Task 21 castle chains,
- *  banners, demonic statues). No collision, no gameplay — the scene renders
- *  these behind the actors when a level authors them. */
+ *  banners, demonic statues; Task 34 city neon, temple lanterns, the great
+ *  temple door). No collision, no gameplay — the scene renders these behind
+ *  the actors when a level authors them. */
 export interface DecorMark {
-  kind: "chain" | "banner" | "statue";
+  kind: "chain" | "banner" | "statue" | "neon" | "lantern" | "temple-door";
   tx: number;
   ty: number;
 }
@@ -29,7 +30,9 @@ export interface DecorMark {
 export interface LevelDefinition {
   id: LevelId;
   name: string;
-  theme: "fields" | "harbor" | "factory" | "archive" | "castle";
+  /** "city" = the dual-biome World 1-1 ascent; "temple" = its temple-only
+   *  biome (the Broken King arena). Both draw from tiles-city (Task 34). */
+  theme: "fields" | "harbor" | "factory" | "archive" | "castle" | "city" | "temple";
   bossId: BossId;
   music: TrackId;
   map: string;
@@ -102,4 +105,8 @@ export interface ParsedLevel {
    *  fades) and respawns 3s later (Task 21 castle). A marker whose one-way
    *  collision body + sprite are built by the scene, not a plain solid tile. */
   bridges: Pt[];
+  /** Truth Seal pickup cells (legend `T`, World 1-1 / Task 34): auto-collect
+   *  on overlap; each lights one `rtSeals` pip beside the ActionBar and plays
+   *  the `seal` sfx. The Broken King arena silently tops the count to 3. */
+  seals: Pt[];
 }

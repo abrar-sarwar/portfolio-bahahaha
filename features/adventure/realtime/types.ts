@@ -47,6 +47,13 @@ export interface RtBossDef {
   /** Boss starts mechanic-armored (Veiled Archer: damage only via scripted
    *  catches; One-Eyed Dealer: masked on spawn). Default false. */
   invulnerableBaseline?: boolean;
+  /** Physics body size (default 18×30). Also anchors floor placement: the
+   *  sprite is positioned so its feet sit on the bottom of the spawn tile. */
+  body?: { w: number; h: number };
+  /** Map the machine's generic anim vocabulary (RT_ANIM names) onto this
+   *  boss's sprite rows — e.g. telegraph+overhead → "overhead-prep". Falls
+   *  back to the BossController's generic chain when absent/returning null. */
+  animFor?(anim: string, ctx: { attackId: string | null; phaseIndex: number }): string | null;
 }
 
 export type MachineEvent =

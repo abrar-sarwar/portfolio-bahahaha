@@ -11,11 +11,12 @@
 // there). resetAll() releases everything — create() top and shutdown both call
 // it so nothing survives a restart (T18 scene-instance hygiene).
 import Phaser from "phaser";
+import { animKey, frameKey } from "../art/textures";
 
 type Body = Phaser.Physics.Arcade.Body;
 
 interface Shockwave {
-  go: Phaser.GameObjects.Rectangle;
+  go: Phaser.GameObjects.Rectangle | Phaser.GameObjects.Sprite;
   vx: number;
   damage: 1 | 2;
   minX: number;
@@ -65,16 +66,33 @@ export class ArenaHazardSystem {
     },
   ) {}
 
-  /** A traveling ground crest. `dir` 1 → right, -1 → left, 0 → both ways. */
-  spawnShockwave(opts: { x: number; dir: 1 | -1 | 0; speed?: number; damage?: 1 | 2; height?: number }): void {
+  /** A traveling ground crest. `dir` 1 → right, -1 → left, 0 → both ways.
+   *  With `sprite`, renders the boss's bespoke wave texture instead of the
+   *  generic crest rect (flipped when traveling left). */
+  spawnShockwave(opts: {
+    x: number;
+    dir: 1 | -1 | 0;
+    speed?: number;
+    damage?: 1 | 2;
+    height?: number;
+    sprite?: { key: string; anim: string };
+  }): void {
     const { minX, maxX, floorY } = this.deps.bounds();
     const speed = opts.speed ?? 240;
     const h = opts.height ?? 12;
     const dirs: (1 | -1)[] = opts.dir === 0 ? [1, -1] : [opts.dir];
     for (const d of dirs) {
-      const go = this.scene.add
-        .rectangle(opts.x, floorY - h / 2, 10, h, 0xffb26a)
-        .setDepth(18);
+      let go: Shockwave["go"];
+      if (opts.sprite) {
+        const s = this.scene.add
+          .sprite(opts.x, floorY - h / 2, frameKey(opts.sprite.key, 0))
+          .setDepth(18);
+        s.play(animKey(opts.sprite.key, opts.sprite.anim));
+        s.setFlipX(d < 0);
+        go = s;
+      } else {
+        go = this.scene.add.rectangle(opts.x, floorY - h / 2, 10, h, 0xffb26a).setDepth(18);
+      }
       this.shockwaves.push({ go, vx: speed * d, damage: opts.damage ?? 1, minX, maxX, done: false });
     }
   }

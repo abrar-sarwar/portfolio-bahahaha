@@ -78,9 +78,12 @@ export class BossArenaScene extends PlatformLevelScene {
   private machineFreezeUntil = 0;
   private stompReadyAt = 0;
   private victory = false;
+  private defaultZone = { w: 70, h: 48, ox: 0, oy: 0 };
+  private zoneShape = { w: 70, h: 48, ox: 0, oy: 0 };
 
   constructor() {
     super("Arena");
+    this.drawDoorMarker = false; // the arena's D is inert scaffolding
   }
 
   init(data: ArenaSceneData): void {
@@ -113,6 +116,14 @@ export class BossArenaScene extends PlatformLevelScene {
     this.stompReadyAt = 0;
     this.victory = false;
 
+    // Interior veil: arenas are enclosed halls, but their world tilesets ship
+    // outdoor parallax. A dark translucent sheet between parallax and tiles
+    // sells "indoors, lit from the ceiling gap" without a bespoke backdrop.
+    this.add
+      .rectangle(0, 0, this.lvl.widthTiles * TILE, this.lvl.heightTiles * TILE, 0x0a0a0d, 0.72)
+      .setOrigin(0, 0)
+      .setDepth(-5);
+
     // Full moveset in arenas regardless of save state (amendment §6).
     this.fullMoveset = true;
 
@@ -132,16 +143,20 @@ export class BossArenaScene extends PlatformLevelScene {
     }
 
     // Boss sprite (idempotent registration) + physics body (immovable, static).
+    // The body comes from the def (default 18×30); the sprite is placed so its
+    // FEET sit on the bottom edge of the spawn tile (dais-aware, not floor-2).
     registerSprites(this, BOSSES2_SPRITES);
-    const floorTopY = (this.lvl.heightTiles - 2) * TILE;
+    const bw = this.bossDef.body?.w ?? 18;
+    const bh = this.bossDef.body?.h ?? 30;
     const bx = this.bossDef.spawn.tx * TILE + TILE / 2;
-    this.bossSprite = this.physics.add.sprite(bx, floorTopY - 16, frameKey(this.bossDef.id, 0));
+    const feetY = (this.bossDef.spawn.ty + 1) * TILE;
+    this.bossSprite = this.physics.add.sprite(bx, feetY - bh / 2, frameKey(this.bossDef.id, 0));
     this.bossSprite.setDepth(12);
     const bb = this.bossSprite.body as Body;
     bb.setAllowGravity(false);
     bb.setImmovable(true);
-    bb.setSize(18, 30);
-    bb.setOffset(3, 1);
+    bb.setSize(bw, bh);
+    bb.setOffset((this.bossSprite.width - bw) / 2, this.bossSprite.height - bh);
 
     // Player combat layer: swing damages the boss (hit-stop + sparks on land).
     this.combat = new PlayerCombatController(this, this.player, assist.parryWindowScale);
@@ -152,8 +167,12 @@ export class BossArenaScene extends PlatformLevelScene {
       cameraKick(this);
     });
 
-    // Boss attack hitbox (enabled during an attack's active window).
-    this.bossAttackZone = this.add.zone(bx, floorTopY - 16, 70, 48);
+    // Boss attack hitbox (enabled during an attack's active window). Default
+    // geometry scales with the body; mechanics reshape it per attack via
+    // MechanicsApi.shapeBossAttack (the Broken King's arena-wide sweep).
+    this.defaultZone = { w: Math.max(70, bw + 52), h: bh + 18, ox: 0, oy: 0 };
+    this.zoneShape = { ...this.defaultZone };
+    this.bossAttackZone = this.add.zone(bx, feetY - bh / 2, this.defaultZone.w, this.defaultZone.h);
     this.physics.add.existing(this.bossAttackZone);
     const zb = this.bossAttackZone.body as Body;
     zb.setAllowGravity(false);
@@ -166,6 +185,18 @@ export class BossArenaScene extends PlatformLevelScene {
     // Projectiles + hazards (pooled; reset on every restart via create()).
     const widthPx = this.lvl.widthTiles * TILE;
     const heightPx = this.lvl.heightTiles * TILE;
+    // Main-floor top: first solid row under the player start (arenas differ in
+    // floor thickness — training 2 rows, temple 3 — and may have raised dais
+    // platforms, so the old heightTiles-2 assumption doesn't generalize).
+    const ps = this.lvl.playerStart;
+    let floorRow = this.lvl.heightTiles - 2;
+    for (let ty = ps.ty + 1; ty < this.lvl.heightTiles; ty++) {
+      if (this.lvl.solids[ty][ps.tx]) {
+        floorRow = ty;
+        break;
+      }
+    }
+    const floorTopY = floorRow * TILE;
     this.projectiles = new ProjectileManager(this, {
       player: this.player,
       boss: this.bossSprite,
@@ -202,6 +233,7 @@ export class BossArenaScene extends PlatformLevelScene {
       mechanicsFactory: getRtMechanics(this.bossDef.id),
       onAttackActive: (spec) => this.armBossAttack(spec),
       onAttackEnd: () => this.disarmBossAttack(),
+      shapeAttack: (shape) => this.shapeBossAttack(shape),
       onDefeated: () => this.onDefeat(),
       recoveryScale: assist.recoveryScale,
     });
@@ -224,6 +256,23 @@ export class BossArenaScene extends PlatformLevelScene {
     const parryPressed = input.read().parryPressed;
     super.update(t, dtMs);
     this.stepArena(dtMs, parryPressed);
+
+    // Augment the base `?debug=1` telemetry with arena/machine state — here,
+    // not in stepArena, so the defeated/victory frames still publish.
+    if (this.debugTelemetry && this.controller) {
+      const adv = (window as unknown as Record<string, unknown>).__adv as
+        | Record<string, unknown>
+        | undefined;
+      if (adv) {
+        adv.fsm = this.controller.state.fsm;
+        adv.atk = this.controller.state.currentAttackId;
+        adv.ms = this.controller.state.msInState;
+        adv.bossHp = this.controller.state.hp;
+        adv.bx = this.bossSprite.x;
+        adv.proj = this.projectiles.count();
+        adv.ctx = gameStore.get().rtActions.context?.label ?? null;
+      }
+    }
   }
 
   /** Route the base attack input through the combat controller (slash-vs-boss),
@@ -253,6 +302,16 @@ export class BossArenaScene extends PlatformLevelScene {
     }
     this.combat.followHitbox();
 
+    // The armed melee window follows the boss (a charging King carries his
+    // hitbox across the arena; static bosses are unaffected).
+    const zb = this.bossAttackZone.body as Body;
+    if (zb.enable) {
+      this.bossAttackZone.setPosition(
+        this.bossSprite.x + this.zoneShape.ox,
+        this.bossSprite.y + this.zoneShape.oy,
+      );
+    }
+
     // Step the boss brain — hit-stop / parry-freeze skips the machine but the
     // queued events land on the first live step after.
     const frozen = now < this.machineFreezeUntil;
@@ -269,12 +328,24 @@ export class BossArenaScene extends PlatformLevelScene {
     this.activeAttackParryable = !!spec.parryable;
     this.activeAttackDamage = spec.damage;
     const zb = this.bossAttackZone.body as Body;
-    this.bossAttackZone.setPosition(this.bossSprite.x, this.bossSprite.y);
+    this.bossAttackZone.setSize(this.zoneShape.w, this.zoneShape.h);
+    zb.setSize(this.zoneShape.w, this.zoneShape.h);
+    this.bossAttackZone.setPosition(
+      this.bossSprite.x + this.zoneShape.ox,
+      this.bossSprite.y + this.zoneShape.oy,
+    );
     zb.enable = true;
   }
 
   private disarmBossAttack(): void {
     (this.bossAttackZone.body as Body).enable = false;
+    this.zoneShape = { ...this.defaultZone };
+  }
+
+  /** Reshape the NEXT armed attack window (mechanics, per attack). Cleared
+   *  back to the default on every attack-end/stagger/defeat. */
+  shapeBossAttack(shape: { w: number; h: number; ox?: number; oy?: number }): void {
+    this.zoneShape = { w: shape.w, h: shape.h, ox: shape.ox ?? 0, oy: shape.oy ?? 0 };
   }
 
   // ── overlaps ───────────────────────────────────────────────────────────────

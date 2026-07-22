@@ -9,9 +9,11 @@ import type { RtBossDef } from "../types";
 import type { LevelId } from "../../ids";
 import type { MechanicsFactory } from "../BossController";
 import { TRAINING_DUMMY, createTrainingMechanics } from "./trainingDummy";
+import { BROKEN_KING, createBrokenKingMechanics } from "./brokenKing";
 
 export const RT_BOSSES: Partial<Record<RtBossId, RtBossDef>> = {
   "training-dummy": TRAINING_DUMMY,
+  "broken-king": BROKEN_KING,
 };
 
 /** Which real-time boss guards each level's boss door (amendment §7). A level
@@ -27,6 +29,7 @@ export const LEVEL_RT_BOSS: Record<LevelId, RtBossId> = {
 
 export const RT_MECHANICS: Partial<Record<RtBossId, MechanicsFactory>> = {
   "training-dummy": createTrainingMechanics,
+  "broken-king": createBrokenKingMechanics,
 };
 
 export function getRtBoss(id: RtBossId): RtBossDef | undefined {

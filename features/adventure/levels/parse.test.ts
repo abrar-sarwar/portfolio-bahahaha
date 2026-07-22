@@ -118,8 +118,11 @@ describe("level content requirements", () => {
     spawnMins: Partial<Record<EnemyKind, number>>;
     hazards: boolean; oneWays: boolean;
   }>> = {
-    "1-1": { rowLen: 160, checkpointsMin: 2, fragments: 1,
-             spawnMins: { bugling: 4, phishling: 2 }, hazards: true, oneWays: true },
+    // Realtime rework (Task 34): the city→temple ascent. No enemies, no
+    // fragment — three Truth Seals on the forced path instead (asserted in
+    // the dedicated seal block below).
+    "1-1": { rowLen: 220, checkpointsMin: 2, fragments: 0,
+             spawnMins: {}, hazards: true, oneWays: true },
     "1-2": { rowLen: 170, checkpointsMin: 2, fragments: 1,
              spawnMins: { bugling: 3, phishling: 2, "malware-bat": 3 }, hazards: true, oneWays: true },
     "1-3": { rowLen: 180, checkpointsMin: 2, fragments: 1,
@@ -217,6 +220,31 @@ describe("level content requirements", () => {
             expect(
               lvl.solids[landedTy][tx] || lvl.oneWays[landedTy][tx],
               `${id} spawn "${spawn.kind}" at (${tx},${ty}) lands on a hazard at row ${landedTy}`,
+            ).toBe(true);
+          }
+        }
+      });
+
+      it("Truth Seals: 1-1 carries exactly three, each standable (others none)", () => {
+        const lvl = parseLevel(def);
+        if (id !== "1-1") {
+          expect(lvl.seals).toEqual([]);
+          return;
+        }
+        expect(lvl.seals.length).toBe(3);
+        for (const s of lvl.seals) {
+          let landedTy: number | null = null;
+          for (let y = s.ty + 1; y < lvl.heightTiles; y++) {
+            if (lvl.solids[y][s.tx] || lvl.oneWays[y][s.tx] || lvl.hazards[y][s.tx]) {
+              landedTy = y;
+              break;
+            }
+          }
+          expect(landedTy, `seal at (${s.tx},${s.ty}) floats over nothing`).not.toBeNull();
+          if (landedTy !== null) {
+            expect(
+              lvl.solids[landedTy][s.tx] || lvl.oneWays[landedTy][s.tx],
+              `seal at (${s.tx},${s.ty}) sits over a hazard`,
             ).toBe(true);
           }
         }

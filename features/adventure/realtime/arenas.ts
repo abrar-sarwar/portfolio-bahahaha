@@ -77,8 +77,51 @@ export const TRAINING_ARENA: LevelDefinition = {
   fragmentDialogueId: null,
 };
 
+// The Broken King's temple hall (Task 35): a 60×17 enclosed stone box. Side
+// walls are the charge-stagger surface; the ceiling light-shaft (cols 27–31)
+// pours onto the central throne dais (cols 26–33) the King stands before; two
+// broken pillar stumps give low cover; one-way beams offer high routes. The
+// required `D` is parked in the air at the King's spawn cell (30,12), inert
+// under enterBoss()'s no-op. Rendered through the tiles-city kit's temple
+// biome (theme "temple").
+const TEMPLE_ROWS = [
+  "###########################.....############################",
+  "#..........................................................#",
+  "#..........................................................#",
+  "#..........................................................#",
+  "#..........................................................#",
+  "#..........................................................#",
+  "#..........................................................#",
+  "#..........................................................#",
+  "#..........................................................#",
+  "#..........................======..........................#",
+  "#..........................................................#",
+  "#..............##...=====..........=====...................#",
+  "#..............##.............D............##..............#",
+  "#...P..........##.........########.........##..............#",
+  "############################################################",
+  "############################################################",
+  "############################################################",
+];
+
+export const TEMPLE_ARENA: LevelDefinition = {
+  id: "temple-arena" as LevelId, // synthetic — never persisted (see TRAINING_ARENA)
+  name: "HALL OF THE BROKEN CROWN",
+  theme: "temple",
+  bossId: "broken-king",
+  music: "broken-king",
+  map: TEMPLE_ROWS.join("\n"),
+  introDialogueId: null,
+  fragmentDialogueId: null,
+  decor: [
+    { kind: "lantern", tx: 8, ty: 6 },
+    { kind: "lantern", tx: 51, ty: 6 },
+  ],
+};
+
 export const ARENAS: Record<string, LevelDefinition> = {
   training: TRAINING_ARENA,
+  "temple-throne": TEMPLE_ARENA,
 };
 
 export function getArena(key: string): LevelDefinition | undefined {

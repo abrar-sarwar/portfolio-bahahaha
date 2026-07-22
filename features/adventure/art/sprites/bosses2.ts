@@ -169,5 +169,13 @@ export const TRAINING_DUMMY_SPRITE: SpriteDef = {
 };
 
 /** Every real-time boss sprite authored so far. Later boss tasks push their
- *  sprites here so the arena can register them by RtBossId. */
-export const BOSSES2_SPRITES: SpriteDef[] = [TRAINING_DUMMY_SPRITE];
+ *  sprites here so the arena can register them by RtBossId. Big kits live in
+ *  sibling bosses2-*.ts modules; this file is the registry barrel. */
+import { BROKEN_KING_ALL } from "./bosses2-brokenKing";
+export {
+  BROKEN_KING_SPRITES,
+  BROKEN_KING_SHOCKWAVE,
+  BROKEN_KING_BLADE_ARC,
+} from "./bosses2-brokenKing";
+
+export const BOSSES2_SPRITES: SpriteDef[] = [TRAINING_DUMMY_SPRITE, ...BROKEN_KING_ALL];

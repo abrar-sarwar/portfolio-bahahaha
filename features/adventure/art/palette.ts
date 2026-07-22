@@ -21,4 +21,9 @@ export const PALETTE: Record<string, string> = {
   P: "#cbb289", p: "#8f7a55",
   // gold / key
   Y: "#ffd75e", y: "#c9a227",
+  // World 1-1 city→temple additions (Task 34, realtime rework; ≤8 budget, 4 used)
+  J: "#4f9e86", // jade — pagoda roof tiles, temple trim, horizon band
+  e: "#cf4b2a", // lacquer red / cinnabar — temple beams, lanterns, door frame
+  w: "#6f4326", // timber — door planks, beam platforms, scaffolds
+  E: "#ff5db0", // city neon magenta — signage tube
 };
