@@ -566,9 +566,9 @@ export class BossArenaScene extends PlatformLevelScene {
     });
   }
 
-  /** Task 42: the Archer does not use the generic VICTORY→Overworld handoff.
-   *  Her defeat runs the silent absorption and then starts the playable chase;
-   *  the chase scene is what completes 1-4 and unlocks the Rift Castle. */
+  /** The Archer's absorption reveals the fleeing swordsman, then completes
+   * World 1-4 normally. The playable pursuit begins only after the player
+   * chooses and enters the newly-unlocked castle node. */
   private runArcherAftermath(): void {
     this.victory = true;
     this.disarmBossAttack();
@@ -624,7 +624,11 @@ export class BossArenaScene extends PlatformLevelScene {
         this.tweens.add({ targets: swordsman, x: entryX + 80, duration: 560, ease: "Quad.easeIn" });
       } },
     ], () => {
-      this.scene.start("Chase", { levelId: "1-4", spawnAt: "start" });
+      const completed = completeLevel(markBossDefeated(loadSave(), "veiled-archer"), "1-4");
+      persistSave(completed);
+      gameStore.set({ completed: completed.completed, unlocked: completed.unlocked });
+      bus.emit("level:complete", { levelId: "1-4" });
+      this.scene.start("Overworld", { justCompleted: "1-4", castleUnlocked: true });
     });
   }
 

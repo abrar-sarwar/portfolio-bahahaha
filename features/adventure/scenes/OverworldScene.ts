@@ -27,6 +27,7 @@ import {
   type NodeState,
   type ProgressShape,
 } from "./overworldLogic";
+import { levelEntryScene } from "./chaseLogic";
 
 // The Overworld map: a winding path over a dark backdrop with one node per
 // level. Locked nodes show a gate, completed nodes a flag, the castle keep sits
@@ -356,7 +357,7 @@ export class OverworldScene extends Phaser.Scene {
     const levelId = n.id as LevelId;
     if (LEVELS[levelId]) {
       audio.sfx("select");
-      this.scene.start("Level", { levelId });
+      this.scene.start(levelEntryScene(levelId), { levelId });
     } else {
       audio.sfx("select");
       this.showToast("COMING SOON");

@@ -1,16 +1,18 @@
 import Phaser from "phaser";
 import { PHYSICS } from "../config";
-import type { LevelId } from "../ids";
 import type { LevelDefinition } from "../levels/types";
 import { animKey, frameKey, registerSprites } from "../art/textures";
 import { RIFT_SWORDSMAN_SPRITE } from "../art/sprites/bosses2";
 import { audio } from "../audio/synth";
-import { gameStore } from "../bridge/GameStore";
-import { completeLevel, loadSave, persistSave } from "../state/save";
+import { loadSave } from "../state/save";
 import { nextChaseRunnerX } from "../realtime/cutscene";
+import { RT_PLAYER } from "../realtime/config";
+import { input } from "../input/InputState";
+import { chaseAttackPlan } from "./chaseLogic";
 import { PlatformLevelScene, type LevelSceneData } from "./PlatformLevelScene";
 
-const W = 300;
+type Body = Phaser.Physics.Arcade.Body;
+const W = 220;
 const H = 16;
 const FLOOR = 13;
 const FINISH_TX = W - 5;
@@ -24,41 +26,47 @@ function chaseMap(): string {
   fill(0, W - 1, FLOOR + 2, "#");
   set(2, FLOOR - 1, "P");
   set(FINISH_TX, FLOOR - 1, "D");
-  // A readable cathedral escape: shallow pits, ruined choir lofts, roof beams,
-  // then a long exterior sprint. All jumps stay within the base jump envelope.
-  for (const start of [34, 78, 126, 174, 218]) {
-    for (let x = start; x < start + 3; x++) {
-      set(x, FLOOR, "^"); set(x, FLOOR + 1, "^"); set(x, FLOOR + 2, "^");
+
+  // Interior chase beats: collapsing drawbridges, low lava cuts, broken
+  // galleries, and short elevation changes that preserve a running rhythm.
+  for (const start of [34, 76, 122, 170]) {
+    for (let x = start; x < start + 6; x++) {
+      set(x, FLOOR - 1, "~");
+      set(x, FLOOR, "^");
+      set(x, FLOOR + 1, "^");
+      set(x, FLOOR + 2, "^");
     }
-    fill(start - 6, start - 3, FLOOR - 2, "=");
-    fill(start + 5, start + 9, FLOOR - 3, "=");
+    fill(start - 7, start - 3, FLOOR - 3, "=");
+    fill(start + 8, start + 13, FLOOR - 2, "=");
   }
-  for (const [x, y] of [[52, 9], [58, 7], [96, 10], [102, 8], [146, 9], [152, 7], [198, 10], [204, 8]] as const) {
-    fill(x, x + 4, y, "=");
-  }
+  for (const [x, y] of [[55, 9], [96, 8], [145, 9], [193, 8]] as const) fill(x, x + 5, y, "=");
   return grid.map((row) => row.join("")).join("\n");
 }
 
 const CHASE_LEVEL: LevelDefinition = {
-  id: "1-4",
-  name: "Cathedral Escape",
-  theme: "rain",
-  bossId: "veiled-archer",
-  music: "level-4",
+  id: "castle",
+  name: "The Castle Hunt",
+  theme: "rift",
+  bossId: "devil-king",
+  music: "castle",
   map: chaseMap(),
   introDialogueId: null,
   fragmentDialogueId: null,
   decor: [
-    { kind: "rain-glass", tx: 42, ty: 7 },
-    { kind: "rain-bell", tx: 112, ty: 4 },
-    { kind: "rain-chandelier", tx: 164, ty: 5 },
-    { kind: "rain-headstone", tx: 238, ty: 12 },
+    { kind: "chain", tx: 42, ty: 2 },
+    { kind: "banner", tx: 84, ty: 4 },
+    { kind: "statue", tx: 132, ty: 10 },
+    { kind: "banner", tx: 182, ty: 3 },
   ],
 };
 
 export class ChaseScene extends PlatformLevelScene {
   private runner!: Phaser.GameObjects.Sprite;
   private finishing = false;
+  private nextAttackAt = 0;
+  private parryUntil = 0;
+  private slowedUntil = 0;
+  private waves: Phaser.GameObjects.Rectangle[] = [];
 
   constructor() {
     super("Chase");
@@ -76,24 +84,98 @@ export class ChaseScene extends PlatformLevelScene {
       .setDepth(11)
       .setFlipX(false);
     this.runner.play(animKey(RIFT_SWORDSMAN_SPRITE.key, "run"), true);
-    if (!loadSave().settings.accessibility.reduceFlash) {
-      this.cameras.main.flash(180, 91, 63, 184);
-    }
+    this.nextAttackAt = this.time.now + 1500;
+    this.finishing = false;
+    this.waves = [];
+    if (!loadSave().settings.accessibility.reduceFlash) this.cameras.main.flash(160, 91, 15, 30);
   }
 
   update(time: number, dtMs: number): void {
+    const snap = input.read();
+    if (snap.parryPressed) {
+      this.parryUntil = this.time.now + RT_PLAYER.parryWindowMs;
+      this.player.play(animKey("player", "parry"), true);
+    }
+    this.externalMoveScale = this.time.now < this.slowedUntil ? 0.65 : 1;
     super.update(time, dtMs);
     if (!this.runner || this.finishing || this.dead) return;
+
     const finishX = FINISH_TX * 16;
     this.runner.x = nextChaseRunnerX({
       runnerX: this.runner.x,
       playerX: this.player.x,
       dtMs,
-      runSpeed: PHYSICS.moveSpeed,
+      runSpeed: PHYSICS.runSpeed,
       finishX,
     });
     this.runner.y = FLOOR * 16 - 17 + Math.sin(time / 75) * 1.5;
+
+    if (this.time.now >= this.nextAttackAt && this.runner.x - this.player.x < 230) {
+      this.telegraphRunnerAttack();
+      const progress = this.player.x / finishX;
+      const plan = chaseAttackPlan(this.time.now, progress);
+      this.nextAttackAt = plan.nextAt;
+      if (plan.followupDelayMs !== null) {
+        this.time.delayedCall(plan.followupDelayMs, () => {
+          if (!this.finishing && !this.dead) this.telegraphRunnerAttack();
+        });
+      }
+    }
+
+    this.waves = this.waves.filter((wave) => {
+      if (!wave.active || wave.x < this.player.x - 360) {
+        wave.destroy();
+        return false;
+      }
+      return true;
+    });
     if (this.player.x >= finishX - 120) this.finishChase();
+  }
+
+  private telegraphRunnerAttack(): void {
+    this.runner.setFlipX(true).setTint(0xffd75e);
+    this.runner.play(animKey(RIFT_SWORDSMAN_SPRITE.key, "draw"), true);
+    const tell = this.add
+      .line(0, 0, this.runner.x - 18, FLOOR * 16 - 6, this.runner.x - 150, FLOOR * 16 - 6, 0xffd75e, 0.8)
+      .setOrigin(0, 0)
+      .setDepth(18);
+    this.tweens.add({ targets: tell, alpha: 0.2, duration: 130, yoyo: true, repeat: 2 });
+    audio.sfx("telegraph");
+    this.time.delayedCall(520, () => {
+      tell.destroy();
+      if (this.finishing || this.dead) return;
+      this.runner.clearTint().play(animKey(RIFT_SWORDSMAN_SPRITE.key, "slash"), true);
+      this.spawnSwordWave();
+      this.time.delayedCall(180, () => {
+        if (!this.finishing) this.runner.setFlipX(false).play(animKey(RIFT_SWORDSMAN_SPRITE.key, "run"), true);
+      });
+    });
+  }
+
+  private spawnSwordWave(): void {
+    const wave = this.add
+      .rectangle(this.runner.x - 22, FLOOR * 16 - 7, 30, 11, 0xc4b5fd, 0.22)
+      .setStrokeStyle(2, 0xf4f0ff, 0.95)
+      .setDepth(14)
+      .setAngle(-12);
+    this.physics.add.existing(wave);
+    const body = wave.body as Body;
+    body.setAllowGravity(false);
+    body.setVelocityX(-260);
+    this.physics.add.overlap(wave, this.player, () => {
+      if (!wave.active) return;
+      if (this.time.now <= this.parryUntil) {
+        audio.sfx("parry");
+        const ring = this.add.circle(this.player.x, this.player.y, 8).setStrokeStyle(2, 0xffd75e).setDepth(20);
+        this.tweens.add({ targets: ring, scale: 2.5, alpha: 0, duration: 180, onComplete: () => ring.destroy() });
+      } else {
+        this.damagePlayer(1);
+        this.slowedUntil = this.time.now + 650;
+      }
+      wave.destroy();
+    });
+    this.waves.push(wave);
+    audio.sfx("slash");
   }
 
   protected enterBoss(): void {
@@ -104,27 +186,21 @@ export class ChaseScene extends PlatformLevelScene {
     if (this.finishing) return;
     this.finishing = true;
     audio.stopTrack();
-    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    const body = this.player.body as Body;
     body.setVelocity(0, 0);
     body.enable = false;
     this.runner.play(animKey(RIFT_SWORDSMAN_SPRITE.key, "transform"), true);
     const rift = this.add.circle(this.runner.x + 36, this.runner.y - 26, 6, 0x5b0f8a, 0.9).setDepth(30);
     this.tweens.add({ targets: rift, scale: 9, alpha: 0.15, duration: 900, ease: "Quad.easeOut" });
     if (!loadSave().settings.accessibility.noShake) this.cameras.main.shake(500, 0.012);
-    this.tweens.add({
-      targets: this.runner,
-      x: rift.x,
-      y: rift.y,
-      angle: -20,
-      alpha: 0,
-      duration: 820,
-      ease: "Quad.easeIn",
-    });
-    this.time.delayedCall(1350, () => {
-      const save = completeLevel(loadSave(), "1-4" as LevelId);
-      persistSave(save);
-      gameStore.set({ completed: save.completed, unlocked: save.unlocked });
-      this.scene.start("Overworld", { justCompleted: "1-4", castleUnlocked: true });
+    this.tweens.add({ targets: this.runner, x: rift.x, y: rift.y, angle: -20, alpha: 0, duration: 820, ease: "Quad.easeIn" });
+    this.time.delayedCall(1200, () => {
+      this.scene.start("Level", {
+        levelId: "castle",
+        spawnAt: "start",
+        chaseCleared: true,
+        ultimateSpent: this.abilities.ultimateSpent,
+      } satisfies LevelSceneData);
     });
   }
 }

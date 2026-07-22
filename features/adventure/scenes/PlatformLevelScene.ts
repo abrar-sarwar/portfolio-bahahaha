@@ -551,6 +551,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private hurtAnimUntil = -Infinity;
   protected dead = false;
   private speedScale = 1;
+  protected externalMoveScale = 1;
   protected abilities!: PlayerAbilityController;
   private swordSprite!: Phaser.GameObjects.Sprite;
   private lastAbilityHud = "";
@@ -2069,7 +2070,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     const dir = (snap.right ? 1 : 0) - (snap.left ? 1 : 0);
     if (!inKnockback && !this.abilities.isRushing(this.time.now)) {
       body.setVelocityX(
-        dir * movementSpeedFor(snap.runHeld, this.abilities.isDemonActive(this.time.now)) * this.speedScale,
+        dir * movementSpeedFor(snap.runHeld, this.abilities.isDemonActive(this.time.now)) * this.speedScale * this.externalMoveScale,
       );
       if (dir !== 0) this.player.setFlipX(dir < 0);
     }
