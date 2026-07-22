@@ -8,6 +8,7 @@ import { loadSave } from "../state/save";
 import { applyAudioSettings } from "../state/settings";
 import { getRtBoss } from "../realtime/bossDefinitions";
 import type { RtBossId } from "../realtime/types";
+import { debugLevelFrom } from "../state/debugQuery";
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -42,9 +43,10 @@ export class BootScene extends Phaser.Scene {
     // (?arena=training aliases the dummy). Shipped, gated, harmless — the
     // Task-48 debug menu reuses the same launch. No fromLevel, so a debug
     // victory never writes completion. Anything else boots to the Title.
+    const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
     const arena =
       typeof window !== "undefined"
-        ? new URLSearchParams(window.location.search).get("arena")
+        ? params?.get("arena") ?? null
         : null;
     if (arena) {
       const bossId = (arena === "training" ? "training-dummy" : arena) as RtBossId;
@@ -52,6 +54,14 @@ export class BootScene extends Phaser.Scene {
         this.scene.start("Arena", { bossId, returnScene: "Title" });
         return;
       }
+    }
+
+    // Unlike the harmless isolated arena harness above, whole-level skips can
+    // mutate progression, so they only exist behind the exact `?debug=1` flag.
+    const level = params ? debugLevelFrom(params) : null;
+    if (level) {
+      this.scene.start("Level", { levelId: level, spawnAt: "start" });
+      return;
     }
 
     this.scene.start("Title");

@@ -56,6 +56,9 @@ export class ArenaHazardSystem {
   private debris: Debris[] = [];
   private zones: Zone[] = [];
   private platforms: TempPlatform[] = [];
+  private speedScale = 1;
+  private timerScale = 1;
+  private reducedFlash = false;
 
   constructor(
     private scene: Phaser.Scene,
@@ -66,6 +69,12 @@ export class ArenaHazardSystem {
       onPlayerHit: (damage: 1 | 2) => void;
     },
   ) {}
+
+  setAccessibilityScales(speedScale: number, timerScale: number, reducedFlash = false): void {
+    this.speedScale = Math.max(0.1, speedScale);
+    this.timerScale = Math.max(1, timerScale);
+    this.reducedFlash = reducedFlash;
+  }
 
   /** A traveling ground crest. `dir` 1 → right, -1 → left, 0 → both ways.
    *  With `sprite`, renders the boss's bespoke wave texture instead of the
@@ -79,7 +88,7 @@ export class ArenaHazardSystem {
     sprite?: { key: string; anim: string };
   }): void {
     const { minX, maxX, floorY } = this.deps.bounds();
-    const speed = opts.speed ?? 240;
+    const speed = (opts.speed ?? 240) * this.speedScale;
     const h = opts.height ?? 12;
     const dirs: (1 | -1)[] = opts.dir === 0 ? [1, -1] : [opts.dir];
     for (const d of dirs) {
@@ -106,12 +115,13 @@ export class ArenaHazardSystem {
       const marker = this.scene.add
         .rectangle(x, floorY - 2, 14, 4, 0xff6a6a, 0.8)
         .setDepth(17);
-      this.scene.tweens.add({ targets: marker, alpha: 0.25, duration: 160, yoyo: true, repeat: -1 });
+      if (this.reducedFlash) marker.setAlpha(0.45).setStrokeStyle(1, 0xffd75e, 0.9);
+      else this.scene.tweens.add({ targets: marker, alpha: 0.25, duration: 160, yoyo: true, repeat: -1 });
       this.debris.push({
         marker,
         x,
-        dropAt: now + (opts.delayMs ?? 700),
-        vy: opts.speed ?? 330,
+        dropAt: now + (opts.delayMs ?? 700) * this.timerScale,
+        vy: (opts.speed ?? 330) * this.speedScale,
         damage: opts.damage ?? 1,
         floorY,
         done: false,
@@ -125,8 +135,8 @@ export class ArenaHazardSystem {
     const go = this.scene.add.rectangle(opts.x, opts.y, opts.w, opts.h, 0xff6a6a, 0.22).setDepth(16);
     this.zones.push({
       go,
-      armAt: now + (opts.delayMs ?? 600),
-      disarmAt: now + (opts.delayMs ?? 600) + (opts.activeMs ?? 900),
+      armAt: now + (opts.delayMs ?? 600) * this.timerScale,
+      disarmAt: now + (opts.delayMs ?? 600) * this.timerScale + (opts.activeMs ?? 900),
       damage: opts.damage ?? 1,
       done: false,
     });

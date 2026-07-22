@@ -31,7 +31,19 @@ export interface DecorMark {
     | "temple-door"
     | "anchor"
     | "crystal"
-    | "sinkhole";
+    | "sinkhole"
+    | "roof"
+    | "azulejo"
+    | "balcony"
+    | "casino-neon"
+    | "casino-slot"
+    | "rain-lamp"
+    | "rain-fence"
+    | "rain-clockface"
+    | "rain-glass"
+    | "rain-chandelier"
+    | "rain-bell"
+    | "rain-headstone";
   tx: number;
   ty: number;
 }
@@ -40,10 +52,29 @@ export interface LevelDefinition {
   id: LevelId;
   name: string;
   /** "city" = the dual-biome World 1-1 ascent; "temple" = its temple-only
-   *  biome (the Broken King arena). "desert" = the World 1-2 surface→cave run
-   *  (tiles-desert, Task 36). */
-  theme: "fields" | "harbor" | "factory" | "archive" | "castle" | "city" | "temple" | "desert";
+   *  biome (the Broken King arena). "desert" = the World 1-2 terraces→sand
+   *  castle run (tiles-desert, superseding owner pass). */
+  /** "coast" = the World 1-3 coast→casino run; "casino" = its casino-only
+   *  biome (the Dealer's private room). Both draw from tiles-coast (Task 38). */
+  /** "rain" = the World 1-4 streets→cathedral run (tiles-rain, Task 40);
+   *  rain + fog render as scene overlays on this theme. */
+  theme:
+    | "fields"
+    | "harbor"
+    | "factory"
+    | "archive"
+    | "castle"
+    | "city"
+    | "temple"
+    | "desert"
+    | "coast"
+    | "casino"
+    | "rain"
+    | "rift";
   bossId: BossId;
+  /** Optional in-level arena encountered before the final boss door. The map
+   * marks its automatic courtyard trigger with `Q`. */
+  midBossId?: BossId;
   music: TrackId;
   map: string;
   introDialogueId: string | null;
@@ -85,6 +116,8 @@ export interface ParsedLevel {
   checkpoints: Pt[];
   fragment: Pt | null;
   bossDoor: Pt;
+  /** Automatic mid-level boss trigger (legend `Q`), or null for most levels. */
+  midBossDoor: Pt | null;
   spawns: { kind: EnemyKind; at: Pt }[];
   /** Fake-platform spawn cells (legend `F`): 16x8 one-way look-alikes that
    *  flicker near the player and vanish once stood on (see PlatformLevelScene). */

@@ -23,7 +23,7 @@ describe("parseGrid", () => {
   });
 
   it("throws on characters missing from the palette", () => {
-    expect(() => parseGrid(["KZ"])).toThrow(/palette/i);
+    expect(() => parseGrid(["K$"])).toThrow(/palette/i);
   });
 });
 

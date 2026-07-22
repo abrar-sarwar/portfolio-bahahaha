@@ -8,6 +8,7 @@ import HomePage from "./HomePage";
 import ProjectsPage from "./ProjectsPage";
 import OrganizationsPage from "./OrganizationsPage";
 import FunPage from "./FunPage";
+import AdventureDoor from "./AdventureDoor";
 import type { SubView } from "@/lib/sections";
 
 if (typeof window !== "undefined") {
@@ -156,6 +157,11 @@ export default function ScrollFeed({ initial = "home" }: Props) {
         <section className="scroll-feed-panel relative h-full w-full overflow-hidden max-sm:h-auto max-sm:min-h-svh max-sm:overflow-visible">
           <div className="scroll-feed-inner relative h-full w-full will-change-transform max-sm:h-auto max-sm:min-h-svh max-sm:will-change-auto">
             <FunPage />
+
+            {/* Secret door to the hidden adventure — sits just above the back-to-top CTA. */}
+            <div className="pointer-events-none absolute bottom-24 left-1/2 z-40 -translate-x-1/2 sm:bottom-28">
+              <AdventureDoor />
+            </div>
 
             {/* End-of-feed CTA — sits inside the Fun panel's wrapper so it
                 fades in with the panel. Click smooth-scrolls back to home.

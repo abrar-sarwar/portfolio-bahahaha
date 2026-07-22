@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   NODE_ORDER,
   OVERWORLD_ACTIVATE_KEY_EVENTS,
+  castlePresentation,
   nodeStateFor,
   walkPath,
   type OverNodeId,
@@ -14,6 +15,16 @@ const FRESH: ProgressShape = { completed: [], unlocked: ["1-1"], gameCompleted: 
 describe("NODE_ORDER", () => {
   it("is the locked linear chain fields → harbor → factory → archive-level → castle → archive-gallery", () => {
     expect(NODE_ORDER).toEqual(["1-1", "1-2", "1-3", "1-4", "castle", "archive"]);
+  });
+});
+
+describe("castlePresentation", () => {
+  it("keeps the distant keep mysterious until World 1-4 is cleared", () => {
+    expect(castlePresentation(false)).toEqual({ label: "CASTLE", rifted: false });
+  });
+
+  it("reveals THE RIFT CASTLE after its node unlocks", () => {
+    expect(castlePresentation(true)).toEqual({ label: "THE RIFT CASTLE", rifted: true });
   });
 });
 

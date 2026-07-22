@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { defaultSave } from "./save";
-import { applyAudioSettings, setVolume, setMuted, setAccessibility } from "./settings";
+import { applyAudioSettings, hazardAccessibilityProfile, rebaseSettings, setVolume, setMuted, setAccessibility } from "./settings";
 import { audio } from "../audio/synth";
 
 describe("setVolume / setMuted / setAccessibility (pure)", () => {
@@ -21,6 +21,7 @@ describe("setVolume / setMuted / setAccessibility (pure)", () => {
     expect(next.settings.accessibility.reduceFlash).toBe(true);
     expect(next.settings.accessibility.noShake).toBe(false);
     expect(next.settings.accessibility.widerParry).toBe(false);
+    expect(next.settings.accessibility.slowerHazards).toBe(false);
   });
 
   it("does not mutate the input save", () => {
@@ -29,6 +30,23 @@ describe("setVolume / setMuted / setAccessibility (pure)", () => {
     setMuted(save, true);
     expect(save.settings.volume).not.toBe(0.1);
     expect(save.settings.muted).toBe(false);
+  });
+
+  it("rebases edited settings onto the latest progression snapshot", () => {
+    const stalePanelSave = setAccessibility(defaultSave(), { noShake: true });
+    const latestSave = { ...defaultSave(), completed: ["1-1" as const], unlocked: ["1-1" as const, "1-2" as const] };
+    const rebased = rebaseSettings(latestSave, stalePanelSave.settings);
+
+    expect(rebased.completed).toEqual(["1-1"]);
+    expect(rebased.unlocked).toEqual(["1-1", "1-2"]);
+    expect(rebased.settings.accessibility.noShake).toBe(true);
+  });
+});
+
+describe("hazardAccessibilityProfile", () => {
+  it("is neutral by default and slows projectiles/timers when enabled", () => {
+    expect(hazardAccessibilityProfile(false)).toEqual({ projectileSpeedScale: 1, hazardTimerScale: 1 });
+    expect(hazardAccessibilityProfile(true)).toEqual({ projectileSpeedScale: 0.8, hazardTimerScale: 1.25 });
   });
 });
 

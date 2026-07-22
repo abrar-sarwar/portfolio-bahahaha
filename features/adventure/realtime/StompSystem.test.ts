@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import * as stompSystem from "./StompSystem";
 import { classifyStomp, resolveStomp } from "./StompSystem";
 import { RT_PLAYER } from "./config";
 
@@ -42,5 +43,22 @@ describe("resolveStomp", () => {
 
   it("returns a plain contact otherwise", () => {
     expect(resolveStomp({ vy: -5, feetY: 105 }, target).kind).toBe("contact");
+  });
+});
+
+describe("createStompHook", () => {
+  it("defaults to accepting a generic boss stomp", () => {
+    expect(stompSystem.createStompHook).toBeTypeOf("function");
+    const hook = stompSystem.createStompHook();
+    expect(hook.resolve()).toBe(true);
+  });
+
+  it("uses and disposes the mechanics handler", () => {
+    expect(stompSystem.createStompHook).toBeTypeOf("function");
+    const hook = stompSystem.createStompHook();
+    const dispose = hook.register(() => false);
+    expect(hook.resolve()).toBe(false);
+    dispose();
+    expect(hook.resolve()).toBe(true);
   });
 });

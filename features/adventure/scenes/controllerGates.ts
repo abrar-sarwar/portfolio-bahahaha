@@ -38,3 +38,13 @@ export function shouldClipAscent(
 export function movementLocked(now: number, knockbackUntil: number): boolean {
   return now < knockbackUntil;
 }
+
+/** The realtime redesign has no unlock gate for dash: only the live input,
+ * cooldown, and a non-zero direction decide whether a dash starts. */
+export function shouldStartDash(
+  dashPressed: boolean,
+  dashReady: boolean,
+  direction: number,
+): boolean {
+  return dashPressed && dashReady && direction !== 0;
+}

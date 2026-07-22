@@ -11,11 +11,19 @@ import type { MechanicsFactory } from "../BossController";
 import { TRAINING_DUMMY, createTrainingMechanics } from "./trainingDummy";
 import { BROKEN_KING, createBrokenKingMechanics } from "./brokenKing";
 import { HOLLOW_GIANT, createHollowGiantMechanics } from "./hollowGiant";
+import { ONE_EYED_DEALER, createDealerMechanics } from "./oneEyedDealer";
+import { SCYTHEBOUND, createScytheboundMechanics } from "./scythebound";
+import { VEILED_ARCHER, createVeiledArcherMechanics } from "./veiledArcher";
+import { DEVIL_KING, createDevilKingMechanics } from "./devilKing";
 
 export const RT_BOSSES: Partial<Record<RtBossId, RtBossDef>> = {
   "training-dummy": TRAINING_DUMMY,
   "broken-king": BROKEN_KING,
   "hollow-giant": HOLLOW_GIANT,
+  "one-eyed-dealer": ONE_EYED_DEALER,
+  scythebound: SCYTHEBOUND,
+  "veiled-archer": VEILED_ARCHER,
+  "devil-king": DEVIL_KING,
 };
 
 /** Which real-time boss guards each level's boss door (amendment §7). A level
@@ -33,6 +41,10 @@ export const RT_MECHANICS: Partial<Record<RtBossId, MechanicsFactory>> = {
   "training-dummy": createTrainingMechanics,
   "broken-king": createBrokenKingMechanics,
   "hollow-giant": createHollowGiantMechanics,
+  "one-eyed-dealer": createDealerMechanics,
+  scythebound: createScytheboundMechanics,
+  "veiled-archer": createVeiledArcherMechanics,
+  "devil-king": createDevilKingMechanics,
 };
 
 export function getRtBoss(id: RtBossId): RtBossDef | undefined {

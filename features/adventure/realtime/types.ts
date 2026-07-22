@@ -59,6 +59,9 @@ export interface RtBossDef {
   /** Disable body-contact interactions entirely (background-anchored bosses —
    *  the Hollow Giant: threats and weak points are all mechanics-spawned). */
   noContact?: boolean;
+  /** Suppress the top BossHealthBar (objective-driven fights — the
+   *  Scythebound's `STOMPS: n / 15` counter replaces it). */
+  hideHealthBar?: boolean;
   /** Map the machine's generic anim vocabulary (RT_ANIM names) onto this
    *  boss's sprite rows — e.g. telegraph+overhead → "overhead-prep". Falls
    *  back to the BossController's generic chain when absent/returning null. */

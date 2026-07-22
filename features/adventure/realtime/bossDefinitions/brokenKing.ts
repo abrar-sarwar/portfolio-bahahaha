@@ -32,7 +32,10 @@ export const BROKEN_KING: RtBossDef = {
   // Attrition path: attacks land at ×0.25 (~48 slashes), stomps do nothing —
   // Truth is dramatically faster and clearly the intended solution.
   damageScale: { attack: 0.25, stomp: 0 },
-  body: { w: 34, h: 64 },
+  // Wide enough that brushing the SPRITE means touching the BODY: at 34px a
+  // player could visibly lean into the cape/sword with no overlap and no
+  // contact damage ("when i get close to him he doesn't hurt me").
+  body: { w: 44, h: 64 },
   phases: [
     { id: "sovereign", attackIds: ["overhead", "sweep", "charge", "blade-waves"] },
     // Royal rage ≤ 50% hp: crown glows, tempo ×0.75. Truth 2 force-phases back
@@ -290,9 +293,10 @@ export function createBrokenKingMechanics(scene: Phaser.Scene, api: MechanicsApi
       }
       if (cmd.kind === "anim") {
         if (downed && (cmd.anim === "stagger" || cmd.anim === "recovery" || cmd.anim === "damage")) {
-          // Downed reads as DOWN: hold the kneel through the whole window
-          // (also re-asserted after damage-flinch frames from chip swings).
-          playBoss("kneel");
+          // Downed reads as DOWN: hold the knocked pose (propped on the sword,
+          // crown fallen — distinct from the `kneel` defeat collapse) through
+          // the whole window, re-asserted after damage-flinch frames.
+          playBoss("downed");
           return;
         }
         if (cmd.anim === "idle") {

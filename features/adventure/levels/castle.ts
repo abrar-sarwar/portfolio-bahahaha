@@ -91,12 +91,18 @@ function buildMap(): string {
   // E. Corruption shaft (cols 96-113) ----------------------------------------
   set(92, STAND, "C"); // checkpoint #2 (before the shaft)
   set(104, 9, "="); // one optional high perch mid-shaft
+  set(100, 4, "*"); // absorbed Giant: marked falling hand/debris
+  set(108, 5, "*");
 
   // F. Strong Knight + Brute gauntlet (flat floor cols 114-156) --------------
+  set(118, STAND, "L"); // absorbed Dealer: disable the glow turret to pass
   set(122, STAND, "B");
   set(128, STAND, "k");
+  set(132, 9, "@"); // absorbed Scythebound: rotating three-arm sweep
   set(134, STAND, "s");
+  set(138, STAND, "L");
   set(140, STAND, "B");
+  set(144, 4, "*"); // absorbed Archer: marked overhead fall
   set(146, STAND, "k");
   set(152, STAND, "k");
   set(156, STAND, "C"); // FINAL checkpoint (before the staircase)
@@ -110,6 +116,7 @@ function buildMap(): string {
 
   // H. Throne (cols 188-199) -------------------------------------------------
   fillRect(188, 199, 2, H - 1, "#"); // throne plateau, top row 2 (stand row 1)
+  set(190, 1, "C"); // checkpoint directly outside the throne room
   set(196, 1, "D"); // throne door
 
   return g.map((r) => r.join("")).join("\n");
@@ -131,12 +138,12 @@ const DECOR: DecorMark[] = [
 
 export const CASTLE: LevelDefinition = {
   id: "castle",
-  name: "The Devil King's Castle",
-  theme: "castle",
+  name: "The Rift Castle",
+  theme: "rift",
   bossId: "devil-king",
   music: "castle",
   map: buildMap(),
-  introDialogueId: "intro-castle",
+  introDialogueId: null,
   fragmentDialogueId: null, // the castle has no memory fragment
   corruption: CORRUPTION,
   decor: DECOR,

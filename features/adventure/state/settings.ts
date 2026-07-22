@@ -38,3 +38,22 @@ export function setAccessibility(
     settings: { ...save.settings, accessibility: { ...save.settings.accessibility, ...patch } },
   };
 }
+
+/** Apply settings edited by a long-lived UI onto the freshest progression
+ * snapshot, so opening the pause menu cannot roll back a level completed
+ * after the React overlay first mounted. */
+export function rebaseSettings(
+  latest: AdventureSave,
+  settings: AdventureSave["settings"],
+): AdventureSave {
+  return { ...latest, settings };
+}
+
+export function hazardAccessibilityProfile(slowerHazards: boolean): {
+  projectileSpeedScale: number;
+  hazardTimerScale: number;
+} {
+  return slowerHazards
+    ? { projectileSpeedScale: 0.8, hazardTimerScale: 1.25 }
+    : { projectileSpeedScale: 1, hazardTimerScale: 1 };
+}

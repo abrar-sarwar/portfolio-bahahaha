@@ -26,6 +26,12 @@ export interface ProgressShape {
   gameCompleted?: boolean;
 }
 
+export function castlePresentation(unlocked: boolean): { label: string; rifted: boolean } {
+  return unlocked
+    ? { label: "THE RIFT CASTLE", rifted: true }
+    : { label: "CASTLE", rifted: false };
+}
+
 /** Derive a node's display state from progress.
  *
  *  The archive (gallery) node is HIDDEN until the whole game is beaten

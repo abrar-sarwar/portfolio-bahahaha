@@ -468,7 +468,9 @@ The boss can technically be damaged through attacks, but using Truth must be dra
 >    stack (capped at `POWER_STACK_MAX`, shown as a HUD chip) that adds +1
 >    swing damage in the arena, so chip damage between downs is a real
 >    second axis instead of the fight being interaction-only. The enemies
->    are player-sized Crown Imp demons (`d`, 16×24, hp 2 — TWO stomps).
+>    are squat Crown Imp demons (`d`, 16×20 — a head shorter than the
+>    player, hp 2): the FIRST stomp STUNS them (dazed, stationary, safe to
+>    touch, ~2.5s), the second stomp kills.
 > 4. While the King is staggered/DOWNED his body deals NO contact damage —
 >    the mash demands standing against him.
 > 5. The temple arena is a 44×17 box with a completely FLAT floor: no dais,
@@ -488,6 +490,40 @@ The boss can technically be damaged through attacks, but using Truth must be dra
 > The King also spawns on the main floor with `spriteFeetY` grounding (he
 > floated a tile above the floor after charges off the old dais-height
 > spawn).
+>
+> **SECOND OWNER PASS (2026-07-22, supersedes Task 36/37 details below —
+> do not restore the old designs):**
+>
+> * The King's downed window plays a dedicated `downed` frame (knocked to
+>   one knee, propped on the planted sword, crown fallen on the ground) —
+>   `kneel` stays the defeat pose only. His body widened to 44px so brushing
+>   the sprite while he is UP always deals contact damage; staggered/downed
+>   remains safe to touch. Bosses render at depth 9 (player 10 in front).
+> * 1-1's imps: exactly one per wall-bounded floor segment (seven total) so
+>   they can never overlap; 16×20 (a head shorter than the player); first
+>   stomp STUNS, second kills.
+> * World 1-2 is ONE descending sand story: five sand terraces stepping
+>   down (sliding-sand conveyor lips, sink pits, a moat) into a SAND CASTLE
+>   (crenellated gate walls with walk-through arches + a windowed keep)
+>   whose foot holds the boss door. No underground half, no lift, no debris
+>   marks. Desert parallax = banded dusk sky + far dunes with the castle
+>   silhouette; the opaque cave-darkness layer is out of the level stack.
+> * THE HOLLOW GIANT (rewritten to the owner's fight): maxHp 3 — three
+>   HEART STOMPS end him. Attacks: `fist-slam` (usual, weight 4),
+>   `palm-slam` (RARE, weight 1 / 9s cooldown — the palm stays planted
+>   4.5s as the ONLY platform; heart at y≈140 is out of double-jump range
+>   from the floor, reachable only hand → double jump → stomp),
+>   `sweep-slap` (parryable low sweep, jumpable), `double-fist` (both
+>   fists + converging floor shockwaves — get airborne). No inhale, no
+>   mouth shockwave, no expose cycle, no forearm/arm-step platforms, no
+>   arena tiers/debris/anchors: the arena is a flat 48×17 vault and the
+>   torso is a 128×136 generated sandstone colossus with the heart cavity.
+> * `respawn()` teleports via `body.reset` (the old setPosition left the
+>   body's prev at the death spot and could tunnel the player under the
+>   checkpoint floor).
+> * `shapeBossAttack` now applies LIVE when the melee window is already
+>   armed (mechanics reshape on attack-active — previously always one
+>   attack late).
 
 ---
 
@@ -1517,7 +1553,7 @@ The redesign is complete only when:
 4. There are no dialogue boxes.
 5. World 1-1 moves from a city into a temple environment.
 6. The Broken King is defeated through the Truth mechanic.
-7. World 1-2 moves from a desert underground.
+7. World 1-2 descends through desert terraces into a sand castle.
 8. The Hollow Giant is defeated by attacking its heart.
 9. World 1-3 moves from a Portugal-inspired coast into a casino.
 10. The One-Eyed Dealer is defeated by forcing off the mask.

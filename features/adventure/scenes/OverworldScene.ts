@@ -20,6 +20,7 @@ import {
 import {
   NODE_ORDER,
   OVERWORLD_ACTIVATE_KEY_EVENTS,
+  castlePresentation,
   nodeStateFor,
   walkPath,
   type OverNodeId,
@@ -73,7 +74,7 @@ export class OverworldScene extends Phaser.Scene {
     super("Overworld");
   }
 
-  create(data: { justCompleted?: LevelId } = {}) {
+  create(data: { justCompleted?: LevelId; castleUnlocked?: boolean } = {}) {
     gameStore.set({ scene: "Overworld" });
     bus.emit("scene:changed", { scene: "Overworld" });
 
@@ -103,6 +104,7 @@ export class OverworldScene extends Phaser.Scene {
     this.drawNodes(data.justCompleted);
     this.spawnPlayer();
     this.drawHeader();
+    if (data.castleUnlocked) this.showToast("CASTLE UNLOCKED");
 
     audio.playTrack("overworld");
     this.input.once("pointerdown", () => {
@@ -171,11 +173,17 @@ export class OverworldScene extends Phaser.Scene {
   private drawCastle() {
     const castle = NODES.find((n) => n.id === "castle")!;
     const unlocked = this.stateOf("castle") !== "locked";
-    this.add
+    const presentation = castlePresentation(unlocked);
+    const keep = this.add
       .image(castle.x, castle.y - 34, OW_CASTLE.key)
       .setScale(2)
       .setAlpha(unlocked ? 0.95 : 0.4)
       .setDepth(-5);
+    if (presentation.rifted) {
+      keep.setTint(0xb21852);
+      this.tweens.add({ targets: keep, alpha: 0.62, duration: 520, yoyo: true, repeat: -1 });
+      this.add.circle(castle.x, castle.y - 38, 34, 0x5b0f8a, 0.18).setDepth(-6);
+    }
   }
 
   private drawNodes(justCompleted?: LevelId) {
@@ -191,7 +199,9 @@ export class OverworldScene extends Phaser.Scene {
 
       // Label under the node.
       this.add
-        .text(n.x, n.y + 26, NODE_LABEL[n.id], {
+        .text(n.x, n.y + 26, n.id === "castle"
+          ? castlePresentation(state !== "locked").label
+          : NODE_LABEL[n.id], {
           fontFamily: "monospace",
           fontSize: "11px",
           fontStyle: "bold",

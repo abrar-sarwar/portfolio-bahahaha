@@ -13,6 +13,17 @@ const ALL_IDS: TrackId[] = [
 ];
 
 describe("TRACKS integrity", () => {
+  it("uses the authored driving-percussion Scythebound theme", () => {
+    expect(TRACKS.scythebound.bpm).toBe(150);
+    expect(TRACKS.scythebound.sq1.filter((step) => step !== null).length).toBeGreaterThan(32);
+  });
+
+  it("ships distinct authored Devil King duel and arsenal themes", () => {
+    expect(TRACKS["devil-duel"].bpm).toBe(132);
+    expect(TRACKS["devil-arsenal"].bpm).toBe(158);
+    expect(TRACKS["devil-duel"].sq1).not.toEqual(TRACKS["devil-arsenal"].sq1);
+  });
+
   it("covers exactly the TrackIds in ids.ts (no missing, no extras)", () => {
     expect(Object.keys(TRACKS).sort()).toEqual([...ALL_IDS].sort());
   });

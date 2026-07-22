@@ -24,4 +24,4 @@ export type SfxId =
   | "heart-hit" | "weapon-swap" | "key-drop";
 export type SceneKey =
   | "Boot" | "Title" | "Overworld" | "Level" | "CombatBackdrop" | "Victory" | "Chest"
-  | "Arena";
+  | "Arena" | "Chase";

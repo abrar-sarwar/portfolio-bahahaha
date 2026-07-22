@@ -469,8 +469,10 @@ function stampBitmap(
   }
 }
 
-// Layer 0 (surface): dusk dune sky. A dithered vertical ramp — night-violet crown
-// -> warm amber horizon — with a low sun-glow disc and rolling distant dune humps.
+// Layer 0 (surface): dusk dune sky. BANDED vertical ramp — night-violet crown
+// -> warm amber horizon — solid within each band with only a narrow dithered
+// seam between stops (the old full-height stipple read as static noise), plus
+// stars in the night crown, a low sun-glow disc, and rolling dune humps.
 function duskRows(): string[] {
   const stops = ["K", "N", "U", "v", "U", "m", "M", "P", "s"]; // top -> horizon
   const rows: string[] = [];
@@ -483,7 +485,16 @@ function duskRows(): string[] {
     const frac = f - i;
     let row = "";
     for (let x = 0; x < BG_W; x++) {
-      let ch = hash(x, y) % 100 < frac * 100 ? stops[i + 1] : stops[i];
+      let ch: string;
+      if (frac < 0.38) ch = stops[i];
+      else if (frac > 0.62) ch = stops[i + 1];
+      else ch = hash(x, y) % 100 < ((frac - 0.38) / 0.24) * 100 ? stops[i + 1] : stops[i];
+      // stars in the upper night bands (violet field, rare bright tier)
+      if (y < 92) {
+        const s = hash(x * 3 + 1, y * 7 + 2);
+        if (s % 830 === 0) ch = "V";
+        else if (s % 2130 === 0) ch = "W";
+      }
       const dx = x - sunX, dy = (y - sunY) * 1.4, dd = Math.sqrt(dx * dx + dy * dy);
       if (dd < sunR) ch = dd < sunR * 0.55 ? "Y" : "M";
       else if (dd < sunR * 1.5 && hash(x, y) % 3 === 0) ch = "M";
@@ -499,19 +510,37 @@ function duskRows(): string[] {
   return rows;
 }
 
-// Layer 1 (surface): sandstorm band — a low-contrast horizontal veil of drifting
-// P/s sand, densest mid-strip and feathering out; transparent above/below.
-// reduceFlash-safe: a soft STATIC veil, no strobing or high-contrast flicker.
-function sandstormRows(): string[] {
+// Layer 1 (surface): FAR DUNES + the sand-castle silhouette on the horizon —
+// the level's destination, visible from the very first screen. A soft p/s
+// dune ridge, the castle (two towers + wall, crenellated, warm window specks)
+// on its crest, and a few thin drifting sand wisps — replacing the old
+// full-frame sandstorm stipple that read as TV static.
+function farDunesRows(): string[] {
   const g = blank();
-  const bandY = 150, bandH = 90;
-  for (let y = 0; y < BG_H; y++) {
-    const d = Math.abs(y - bandY) / (bandH / 2);
-    if (d > 1) continue;
-    const density = Math.round((1 - d) * 42) + 4; // denser at the band centre
+  // rolling near-horizon ridge
+  for (let x = 0; x < BG_W; x++) {
+    const ridge = 196 + Math.floor(12 * Math.sin(x / 57 + 1) + 7 * Math.sin(x / 19));
+    for (let y = ridge; y < BG_H; y++) {
+      g[y][x] = y <= ridge + 2 ? "P" : hash(x, y) % 7 === 0 ? "p" : "s";
+    }
+  }
+  // the distant sand castle on the right crest
+  const block = (x0: number, top: number, w: number) => {
+    for (let x = x0; x < x0 + w && x < BG_W; x++) for (let y = top; y < 232; y++) g[y][x] = "p";
+    for (let x = x0; x < x0 + w && x < BG_W; x += 2) {
+      for (let dy = 1; dy <= 3; dy++) if (top - dy >= 0) g[top - dy][x] = "p";
+    }
+  };
+  block(392, 176, 12); // outer tower
+  block(408, 188, 22); // curtain wall
+  block(432, 168, 16); // the keep
+  g[180][436] = "Y";
+  g[186][441] = "Y";
+  g[194][397] = "y"; // warm windows
+  // thin drifting sand wisps
+  for (let y = 120; y < 200; y++) {
     for (let x = 0; x < BG_W; x++) {
-      const streak = hash(Math.floor(x / 3), y * 2); // horizontal streak bias -> wind
-      if (streak % 100 < density) g[y][x] = hash(x, y) % 4 === 0 ? "s" : "P";
+      if (hash(Math.floor(x / 9), y * 3) % 100 < 3 && hash(x, y) % 3 === 0) g[y][x] = "P";
     }
   }
   return g.map((r) => r.join(""));
@@ -566,7 +595,7 @@ function darknessRows(): string[] {
 }
 
 export const DESERT_BG0: SpriteDef = { key: "bg-desert-0", w: BG_W, h: BG_H, frames: [duskRows()] };
-export const DESERT_BG1: SpriteDef = { key: "bg-desert-1", w: BG_W, h: BG_H, frames: [sandstormRows()] };
+export const DESERT_BG1: SpriteDef = { key: "bg-desert-1", w: BG_W, h: BG_H, frames: [farDunesRows()] };
 export const CAVE_BG0: SpriteDef = { key: "bg-cave-0", w: BG_W, h: BG_H, frames: [darknessRows()] };
 
 // --- registry ---------------------------------------------------------------

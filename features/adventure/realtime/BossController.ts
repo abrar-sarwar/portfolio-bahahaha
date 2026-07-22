@@ -62,6 +62,9 @@ export interface MechanicsApi {
   /** Fire `cb` when a player swing connects with `target` (once per swing).
    *  No machine event is emitted — weak-point semantics are the mechanics'. */
   onSwingHit(target: Phaser.GameObjects.GameObject, cb: () => void): void;
+  /** Decide a geometrically valid boss stomp. Return false to reject it as
+   *  dangerous body contact; return true after applying custom mechanics. */
+  onStomp(cb: () => boolean): () => void;
   sfx(id: SfxId): void;
 }
 
@@ -95,6 +98,8 @@ export interface BossControllerDeps {
   shapeAttack(shape: { w: number; h: number; ox?: number; oy?: number }): void;
   /** Weak-point swing binding (MechanicsApi.onSwingHit passthrough). */
   bindSwing(target: Phaser.GameObjects.GameObject, cb: () => void): void;
+  /** Objective-driven stomp binding (MechanicsApi.onStomp passthrough). */
+  bindStomp(cb: () => boolean): () => void;
   /** The machine reached `defeated` (absorbing) — scene runs the victory flow. */
   onDefeated(): void;
   rngSeed?: number;
@@ -136,6 +141,7 @@ export class BossController {
       interactPressed: () => this.interactTapped,
       shapeAttack: (shape) => deps.shapeAttack(shape),
       onSwingHit: (target, cb) => deps.bindSwing(target, cb),
+      onStomp: (cb) => deps.bindStomp(cb),
       sfx: (id) => audio.sfx(id),
     };
     this.mechanics = deps.mechanicsFactory?.(deps.scene, this.api);
@@ -292,6 +298,10 @@ export class BossController {
 
   /** Publish the BossHealthBar snapshot, skipping no-change frames. */
   private publish(force: boolean): void {
+    if (this.deps.def.hideHealthBar) {
+      gameStore.set({ rtBoss: null });
+      return;
+    }
     const snap = {
       name: this.deps.def.name,
       hp: this.state.hp,

@@ -96,6 +96,12 @@ describe("parseLevel", () => {
     expect(lvl.bridges).toEqual([]);
   });
 
+  it("classifies the mid-level boss marker (Q) without adding collision", () => {
+    const lvl = parseLevel(mini(["P.Q.D", "#####"].join("\n")));
+    expect(lvl.midBossDoor).toEqual({ tx: 2, ty: 0 });
+    expect(lvl.solids[0][2]).toBe(false);
+  });
+
   it("throws when P or D is missing", () => {
     expect(() => parseLevel(mini("...\n###"))).toThrow(/player start/i);
     expect(() => parseLevel(mini("P..\n###"))).toThrow(/boss door/i);
@@ -110,6 +116,30 @@ describe("authored levels", () => {
   it("every registered level parses", () => {
     for (const def of Object.values(LEVELS)) expect(() => parseLevel(def!)).not.toThrow();
   });
+
+  it("routes World 1-4 through Scythebound before the final boss door", () => {
+    const def = LEVELS["1-4"];
+    const parsed = parseLevel(def);
+    expect(def.midBossId).toBe("scythebound");
+    expect(parsed.midBossDoor).not.toBeNull();
+    expect(parsed.midBossDoor!.tx).toBeLessThan(parsed.bossDoor.tx);
+    expect(parsed.checkpoints.some((point) => point.tx > parsed.midBossDoor!.tx)).toBe(true);
+  });
+});
+
+describe("Rift Castle evolved-mechanic gauntlet", () => {
+  it("reuses every earlier-world hazard family without becoming another level chain", () => {
+    const map = LEVELS.castle.map;
+    for (const marker of ["!", "~", "L", "@", "*"]) {
+      expect(countChar(map, marker), `missing Rift Castle marker ${marker}`).toBeGreaterThan(0);
+    }
+  });
+
+  it("places a checkpoint directly outside the throne door", () => {
+    const parsed = parseLevel(LEVELS.castle);
+    expect(Math.max(...parsed.checkpoints.map((point) => point.tx))).toBeGreaterThanOrEqual(190);
+    expect(parsed.bossDoor.tx).toBeGreaterThanOrEqual(196);
+  });
 });
 
 describe("level content requirements", () => {
@@ -121,18 +151,24 @@ describe("level content requirements", () => {
     // Realtime rework (Task 34): the city→temple ascent. No enemies, no
     // fragment — three Truth Seals on the forced path instead (asserted in
     // the dedicated seal block below).
-    // POWER rework: the city stretch carries player-sized Crown Imp demons
-    // (two stomps each) whose kills grant swing-damage stacks for the King.
+    // POWER rework: the city stretch carries squat Crown Imp demons (first
+    // stomp stuns, second kills) whose kills grant swing stacks for the King.
     "1-1": { rowLen: 220, checkpointsMin: 2, fragments: 0,
              spawnMins: { "crown-imp": 5 }, hazards: true, oneWays: true },
-    // Realtime rework (Task 36): the desert→underground run. Re-skinned sparse
-    // enemies (sand crawler + cave bats); no fragment; lift + debris marks.
+    // Owner rework: the descending sand-terrace run into the sand castle.
+    // Sparse re-skinned enemies (two sand crawlers + two bats); no fragment.
     "1-2": { rowLen: 220, checkpointsMin: 2, fragments: 0,
              spawnMins: { "malware-bat": 2, "rootkit-slime": 1 }, hazards: true, oneWays: true },
-    "1-3": { rowLen: 180, checkpointsMin: 2, fragments: 1,
-             spawnMins: { brute: 2, "firewall-knight": 2, "rootkit-slime": 2 }, hazards: true, oneWays: true },
-    "1-4": { rowLen: 160, checkpointsMin: 2, fragments: 1,
-             spawnMins: { bugling: 3, "malware-bat": 2, "rootkit-slime": 3 }, hazards: true, oneWays: true },
+    // Realtime rework (Task 38): coast→casino. Re-skinned sparse enemies
+    // (two bats + one disguised sharper); no fragment; rotator roulette,
+    // gilded boat-lifts, security lasers, one timed gate.
+    "1-3": { rowLen: 220, checkpointsMin: 3, fragments: 0,
+             spawnMins: { "malware-bat": 2, phishling: 1 }, hazards: true, oneWays: true },
+    // Realtime rework (Tasks 40–41): one long Rain Kingdom → cathedral run.
+    // Two re-skinned bats + one slime; no fragment; four checkpoints split
+    // the six-minute world around its courtyard and cathedral sections.
+    "1-4": { rowLen: 256, checkpointsMin: 4, fragments: 0,
+             spawnMins: { "malware-bat": 2, "rootkit-slime": 1 }, hazards: true, oneWays: true },
     // The castle has NO memory fragment (fragments: 0) — its door is unsealed by
     // the castle key, not by finding an M. The content checks below must handle
     // fragments:0 (no M anywhere; parsed fragment stays null).

@@ -8,6 +8,7 @@
 // BossArenaScene owns (it gates the machine step); these are the visuals that
 // sell the impact. Flashes will become reduceFlash-aware in Task 48.
 import Phaser from "phaser";
+import { loadSave } from "../state/save";
 
 const GOLD = 0xffd75e;
 const WHITE = 0xffffff;
@@ -36,9 +37,15 @@ export function impactSparks(scene: Phaser.Scene, x: number, y: number, color = 
  * this exact flash so a parry always reads the same.
  */
 export function parryFlashRing(scene: Phaser.Scene, x: number, y: number): void {
+  const reduced = loadSave().settings.accessibility.reduceFlash;
   const ring = scene.add.circle(x, y, 6).setDepth(31);
   ring.setStrokeStyle(3, WHITE, 1);
-  ring.setFillStyle(GOLD, 0.18);
+  ring.setFillStyle(GOLD, reduced ? 0 : 0.18);
+  if (reduced) {
+    ring.setScale(3);
+    scene.time.delayedCall(260, () => ring.destroy());
+    return;
+  }
   scene.tweens.add({
     targets: ring,
     scale: 4,
@@ -60,11 +67,22 @@ export function parryFlashRing(scene: Phaser.Scene, x: number, y: number): void 
 
 /** A quick white tint pop on a boss sprite when a player hit lands. */
 export function hitFlash(scene: Phaser.Scene, sprite: Phaser.GameObjects.Sprite): void {
+  if (loadSave().settings.accessibility.reduceFlash) {
+    const bounds = sprite.getBounds();
+    const outline = scene.add
+      .rectangle(bounds.centerX, bounds.centerY, bounds.width + 4, bounds.height + 4)
+      .setStrokeStyle(2, GOLD, 0.9)
+      .setFillStyle(0, 0)
+      .setDepth(30);
+    scene.time.delayedCall(180, () => outline.destroy());
+    return;
+  }
   sprite.setTintFill(WHITE);
   scene.time.delayedCall(70, () => sprite.clearTint());
 }
 
 /** A short, small camera kick on impact (noShake-gated in Task 48). */
 export function cameraKick(scene: Phaser.Scene, intensity = 0.004, ms = 90): void {
+  if (loadSave().settings.accessibility.noShake) return;
   scene.cameras.main.shake(ms, intensity);
 }

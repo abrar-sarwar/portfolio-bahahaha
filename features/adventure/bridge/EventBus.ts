@@ -44,6 +44,9 @@ export interface AdventureEvents {
   "buff:collected": { buff: import("../ids").BuffId };
   "level:fragment": { levelId: import("../ids").LevelId };
   "nav:external": { href: string };
+  "ending:return-overworld": Record<string, never>;
+  "ui:pause-action": { action: "resume" | "restart" | "quit" };
+  "settings:changed": { accessibility: import("../state/save").AdventureSave["settings"]["accessibility"] };
   // Overworld → React → scene confirm-dialog result (Task 16). A scene raises a
   // confirm request via gameStore.confirm; the React ConfirmDialog answers by
   // emitting this, which the raising scene listens for (once) to act on.
@@ -59,11 +62,8 @@ export interface AdventureEvents {
   };
   "combat:fx": { kind: import("../combat/controllerLogic").CombatFxKind };
   "combat:over": { outcome: "victory" | "defeat"; bossId: import("../ids").BossId };
-  // Dialogue overlay lifecycle (Task 17). Raised by
-  // dialogue/dialogueController's openDialogue/closeDialogue so other
-  // systems can react without polling gameStore.dialogue every frame —
-  // currently PlatformLevelScene's physics.pause()/resume() while a Dialogue
-  // panel is up outside combat (see its create()/update() doc comments).
+  // Dormant legacy Dialogue/CombatPanel lifecycle seam. No active scene or
+  // mounted component subscribes to these events in the realtime rework.
   "dialogue:open": { id: string };
   "dialogue:closed": { id: string };
 }

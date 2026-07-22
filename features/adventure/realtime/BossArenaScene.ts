@@ -19,14 +19,14 @@
 import Phaser from "phaser";
 import { PlatformLevelScene, type LevelSceneData } from "../scenes/PlatformLevelScene";
 import type { LevelDefinition } from "../levels/types";
-import type { BossId, LevelId, SceneKey } from "../ids";
+import type { BossId, SceneKey } from "../ids";
 import { PHYSICS, TILE } from "../config";
 import { POWER_STACK_MAX, RT_PLAYER } from "./config";
 import { validateDef } from "./BossStateMachine";
 import type { RtAttackSpec, RtBossDef, RtBossId } from "./types";
 import { getRtBoss, getRtMechanics } from "./bossDefinitions";
 import { getArena } from "./arenas";
-import { classifyStomp } from "./StompSystem";
+import { classifyStomp, createStompHook } from "./StompSystem";
 import { PlayerCombatController } from "./PlayerCombatController";
 import { BossController } from "./BossController";
 import { ProjectileManager } from "./ProjectileManager";
@@ -41,6 +41,15 @@ import { audio } from "../audio/synth";
 import { completeLevel, loadSave, markBossDefeated, persistSave, recordDeath } from "../state/save";
 import { assistRTProfile, effectiveAttempts } from "./assistRT";
 import { bus } from "../bridge/EventBus";
+import { RIFT_SWORDSMAN_SPRITE } from "../art/sprites/bosses2";
+import { playCutscene } from "./cutscene";
+import { PARRY_WIDER_MULT } from "./ParrySystem";
+import { hazardAccessibilityProfile } from "../state/settings";
+import {
+  resolveArenaVictory,
+  shouldRunArcherAftermath,
+  type ArenaRouteData,
+} from "./arenaFlow";
 
 type Body = Phaser.Physics.Arcade.Body;
 
@@ -49,16 +58,8 @@ type Body = Phaser.Physics.Arcade.Body;
 // scope on purpose — it must survive scene restarts, never scene instances.
 const SESSION_FAILS = new Map<RtBossId, number>();
 
-export interface ArenaSceneData {
+export interface ArenaSceneData extends ArenaRouteData {
   bossId: RtBossId;
-  /** Level to credit + return through on victory (the real boss-door flow). */
-  fromLevel?: LevelId;
-  /** Scene to return to on victory/exit when no fromLevel (`?arena=` entry). */
-  returnScene?: SceneKey;
-  /** POWER stacks stomped out of the level's enemies (each = +1 swing damage
-   *  before the boss's damageScale). Rides the scene data so a death-retry
-   *  restart keeps what was earned. */
-  power?: number;
 }
 
 const STOMP_COOLDOWN_MS = 300; // guard a single overlap from registering many stomps
@@ -81,6 +82,7 @@ export class BossArenaScene extends PlatformLevelScene {
   private activeAttackDamage: 1 | 2 = 1;
   private machineFreezeUntil = 0;
   private stompReadyAt = 0;
+  private readonly stompHook = createStompHook();
   private victory = false;
   private defaultZone = { w: 70, h: 48, ox: 0, oy: 0 };
   private zoneShape = { w: 70, h: 48, ox: 0, oy: 0 };
@@ -118,6 +120,7 @@ export class BossArenaScene extends PlatformLevelScene {
     this.activeAttackDamage = 1;
     this.machineFreezeUntil = 0;
     this.stompReadyAt = 0;
+    this.stompHook.clear();
     this.victory = false;
 
     // Interior veil: arenas are enclosed halls, but their world tilesets ship
@@ -128,18 +131,18 @@ export class BossArenaScene extends PlatformLevelScene {
       .setOrigin(0, 0)
       .setDepth(-5);
 
-    // Full moveset in arenas regardless of save state (amendment §6).
-    this.fullMoveset = true;
-
     // Silent assist (amendment §6): 3+ failed attempts on this boss quietly
     // ease the fight — one bonus heart, recovery ×1.2, projectiles ×0.85,
     // parry window ×1.25. Never announced.
+    const arenaSave = loadSave();
     const persistedFails =
       this.bossDef.id === "training-dummy"
         ? 0
-        : loadSave().deaths[this.bossDef.id as BossId] ?? 0;
+        : arenaSave.deaths[this.bossDef.id as BossId] ?? 0;
     const fails = effectiveAttempts(SESSION_FAILS.get(this.bossDef.id) ?? 0, persistedFails);
     const assist = assistRTProfile(fails);
+    const initialAccessibility = arenaSave.settings.accessibility;
+    const initialHazards = hazardAccessibilityProfile(initialAccessibility.slowerHazards);
     if (assist.bonusMaxHearts > 0) {
       this.maxHealth = RT_PLAYER.maxHearts + assist.bonusMaxHearts;
       this.health = this.maxHealth;
@@ -162,7 +165,9 @@ export class BossArenaScene extends PlatformLevelScene {
     if (this.bossDef.spriteFeetY !== undefined) {
       this.bossSprite.setY(feetY - this.bossDef.spriteFeetY + this.bossSprite.height / 2);
     }
-    this.bossSprite.setDepth(12);
+    // The PLAYER (depth 10) always renders in front of the boss — nobody
+    // disappears behind a colossus torso or the King's cape mid-fight.
+    this.bossSprite.setDepth(9);
     const bb = this.bossSprite.body as Body;
     bb.setAllowGravity(false);
     bb.setImmovable(true);
@@ -170,7 +175,11 @@ export class BossArenaScene extends PlatformLevelScene {
     bb.setOffset((this.bossSprite.width - bw) / 2, this.bossSprite.height - bh);
 
     // Player combat layer: swing damages the boss (hit-stop + sparks on land).
-    this.combat = new PlayerCombatController(this, this.player, assist.parryWindowScale);
+    this.combat = new PlayerCombatController(
+      this,
+      this.player,
+      assist.parryWindowScale * (initialAccessibility.widerParry ? PARRY_WIDER_MULT : 1),
+    );
     // POWER stacks earned in the level (stomped enemies) sharpen every swing;
     // they ride arenaData so a death-retry keeps them, and surface in the HUD.
     this.powerStacks = Math.max(0, Math.min(POWER_STACK_MAX, this.arenaData.power ?? 0));
@@ -228,7 +237,7 @@ export class BossArenaScene extends PlatformLevelScene {
       isParrying: (now) => this.combat.isParrying(now),
       consumeParry: (now) => this.combat.consumeParry(now),
       onPlayerHit: (dmg) => this.takeDamage(dmg),
-      speedScale: assist.projectileSpeedScale,
+      speedScale: assist.projectileSpeedScale * initialHazards.projectileSpeedScale,
     });
     this.hazards = new ArenaHazardSystem(this, {
       player: this.player,
@@ -240,6 +249,11 @@ export class BossArenaScene extends PlatformLevelScene {
       }),
       onPlayerHit: (dmg) => this.takeDamage(dmg),
     });
+    this.hazards.setAccessibilityScales(
+      initialHazards.projectileSpeedScale,
+      initialHazards.hazardTimerScale,
+      initialAccessibility.reduceFlash,
+    );
 
     // The boss brain: pure machine + presentation + per-boss mechanics.
     this.controller = new BossController({
@@ -254,8 +268,22 @@ export class BossArenaScene extends PlatformLevelScene {
       onAttackEnd: () => this.disarmBossAttack(),
       shapeAttack: (shape) => this.shapeBossAttack(shape),
       bindSwing: (target, cb) => this.combat.onSwingOverlap(target, cb),
+      bindStomp: (cb) => this.stompHook.register(cb),
       onDefeated: () => this.onDefeat(),
       recoveryScale: assist.recoveryScale,
+    });
+
+    const offSettings = bus.on("settings:changed", ({ accessibility }) => {
+      const hazard = hazardAccessibilityProfile(accessibility.slowerHazards);
+      this.combat.setParryWindowScale(
+        assist.parryWindowScale * (accessibility.widerParry ? PARRY_WIDER_MULT : 1),
+      );
+      this.projectiles.setSpeedScale(assist.projectileSpeedScale * hazard.projectileSpeedScale);
+      this.hazards.setAccessibilityScales(
+        hazard.projectileSpeedScale,
+        hazard.hazardTimerScale,
+        accessibility.reduceFlash,
+      );
     });
 
     this.syncActions(true);
@@ -263,11 +291,19 @@ export class BossArenaScene extends PlatformLevelScene {
     this.cameras.main.fadeIn(200, 0, 0, 0);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      gameStore.set({ rtBoss: null, rtObjective: null, rtSeals: null });
+      const actions = gameStore.get().rtActions;
+      gameStore.set({
+        rtBoss: null,
+        rtObjective: null,
+        rtSeals: null,
+        rtActions: { ...actions, context: null },
+      });
       this.projectiles?.resetAll();
       this.hazards?.resetAll();
       this.controller?.destroy();
       this.combat?.destroy();
+      this.stompHook.clear();
+      offSettings();
     });
   }
 
@@ -293,6 +329,8 @@ export class BossArenaScene extends PlatformLevelScene {
         adv.bossHp = this.controller.state.hp;
         adv.bx = this.bossSprite.x;
         adv.proj = this.projectiles.count();
+        adv.projs = this.projectiles.snapshot();
+        adv.seals = gameStore.get().rtSeals?.lit ?? null;
         adv.ctx = gameStore.get().rtActions.context?.label ?? null;
       }
     }
@@ -365,10 +403,22 @@ export class BossArenaScene extends PlatformLevelScene {
     this.zoneShape = { ...this.defaultZone };
   }
 
-  /** Reshape the NEXT armed attack window (mechanics, per attack). Cleared
-   *  back to the default on every attack-end/stagger/defeat. */
+  /** Reshape the armed attack window (mechanics, per attack). Applies LIVE
+   *  when the window is already armed — mechanics see the attack-active
+   *  command only AFTER the scene armed the zone, so without this the reshape
+   *  would always be one attack late. Cleared back to the default on every
+   *  attack-end/stagger/defeat. */
   shapeBossAttack(shape: { w: number; h: number; ox?: number; oy?: number }): void {
     this.zoneShape = { w: shape.w, h: shape.h, ox: shape.ox ?? 0, oy: shape.oy ?? 0 };
+    const zb = this.bossAttackZone.body as Body;
+    if (zb.enable) {
+      this.bossAttackZone.setSize(this.zoneShape.w, this.zoneShape.h);
+      zb.setSize(this.zoneShape.w, this.zoneShape.h);
+      this.bossAttackZone.setPosition(
+        this.bossSprite.x + this.zoneShape.ox,
+        this.bossSprite.y + this.zoneShape.oy,
+      );
+    }
   }
 
   // ── overlaps ───────────────────────────────────────────────────────────────
@@ -400,6 +450,10 @@ export class BossArenaScene extends PlatformLevelScene {
       const now = this.time.now;
       if (now < this.stompReadyAt) return;
       this.stompReadyAt = now + STOMP_COOLDOWN_MS;
+      if (!this.stompHook.resolve()) {
+        this.takeDamage(this.bossDef.contactDamage);
+        return;
+      }
       body.setVelocityY(RT_PLAYER.stompBounceVel);
       this.combat.registerStomp();
       this.machineFreezeUntil = now + RT_PLAYER.hitStopMs;
@@ -415,6 +469,14 @@ export class BossArenaScene extends PlatformLevelScene {
 
   private onDefeat(): void {
     if (this.victory) return;
+    if (shouldRunArcherAftermath(this.arenaData, this.bossDef.id)) {
+      this.runArcherAftermath();
+      return;
+    }
+    if (this.bossDef.id === "devil-king" && this.arenaData.fromLevel === "castle") {
+      this.runDevilAftermath();
+      return;
+    }
     this.victory = true;
     this.disarmBossAttack();
     audio.sfx("collect");
@@ -422,7 +484,6 @@ export class BossArenaScene extends PlatformLevelScene {
     // before the fade; the next scene's create() takes over the music.
     audio.playTrack("victory");
 
-    const fromLevel = this.arenaData.fromLevel;
     const isTraining = this.bossDef.id === "training-dummy";
     const cam = this.cameras.main;
     this.add
@@ -442,23 +503,101 @@ export class BossArenaScene extends PlatformLevelScene {
       cam.fadeOut(FADE_MS, 0, 0, 0);
       cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
         gameStore.set({ rtBoss: null, rtObjective: null, rtSeals: null });
-        if (fromLevel) {
-          // The real boss-door flow: persist completion + the defeated boss,
-          // seed the runtime store, and land on the Overworld with the flag.
-          // (The dormant combat controller's level:complete listener is no
-          // longer wired into any active path, so persistence happens here.)
-          const save = markBossDefeated(
-            completeLevel(loadSave(), fromLevel),
-            this.bossDef.id as BossId,
-          );
-          persistSave(save);
-          gameStore.set({ completed: save.completed, unlocked: save.unlocked });
-          bus.emit("level:complete", { levelId: fromLevel });
-          this.scene.start("Overworld", { justCompleted: fromLevel });
+        const result = resolveArenaVictory(this.arenaData, this.bossDef.id, loadSave());
+        if (result.persist) {
+          persistSave(result.save);
+          gameStore.set({ completed: result.save.completed, unlocked: result.save.unlocked });
+        }
+        if (result.completedLevel) bus.emit("level:complete", { levelId: result.completedLevel });
+        if ("data" in result.destination) {
+          this.scene.start(result.destination.scene, result.destination.data);
         } else {
-          this.scene.start(this.returnScene);
+          this.scene.start(result.destination.scene);
         }
       });
+    });
+  }
+
+  /** The real castle clear has no generic VICTORY card. Persist the combat
+   *  result, hold on the collapse for one beat, then hand the silent dissolve
+   *  and controllable key walk to VictoryScene. Debug arena wins retain the
+   *  ordinary non-persisting return flow above. */
+  private runDevilAftermath(): void {
+    this.victory = true;
+    this.disarmBossAttack();
+    audio.stopTrack();
+    gameStore.set({ rtBoss: null, rtObjective: null, rtSeals: null });
+
+    const save = markBossDefeated(completeLevel(loadSave(), "castle"), "devil-king");
+    persistSave(save);
+    gameStore.set({ completed: save.completed, unlocked: save.unlocked });
+    bus.emit("level:complete", { levelId: "castle" });
+
+    this.time.delayedCall(900, () => {
+      this.cameras.main.fadeOut(240, 0, 0, 0);
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start("Victory"));
+    });
+  }
+
+  /** Task 42: the Archer does not use the generic VICTORY→Overworld handoff.
+   *  Her defeat runs the silent absorption and then starts the playable chase;
+   *  the chase scene is what completes 1-4 and unlocks the Rift Castle. */
+  private runArcherAftermath(): void {
+    this.victory = true;
+    this.disarmBossAttack();
+    audio.stopTrack();
+    gameStore.set({ rtBoss: null, rtObjective: null, rtSeals: null });
+
+    const save = markBossDefeated(loadSave(), "veiled-archer");
+    persistSave(save);
+
+    const floorY = this.bossSprite.y + 16;
+    const entryX = this.lvl.widthTiles * TILE - 34;
+    const swordsman = this.add
+      .sprite(entryX, floorY, frameKey(RIFT_SWORDSMAN_SPRITE.key, 0))
+      .setDepth(16)
+      .setAlpha(0)
+      .setFlipX(true);
+
+    playCutscene(this.time, [
+      { atMs: 0, run: () => {
+        this.bossSprite.play(animKey(this.bossDef.id, "defeat"), true);
+        this.cameras.main.fadeIn(180, 0, 0, 0);
+      } },
+      { atMs: 650, run: () => {
+        swordsman.setAlpha(1).play(animKey(RIFT_SWORDSMAN_SPRITE.key, "walk"), true);
+        this.tweens.add({ targets: swordsman, x: this.bossSprite.x + 54, duration: 1200, ease: "Sine.easeInOut" });
+      } },
+      { atMs: 1950, run: () => swordsman.play(animKey(RIFT_SWORDSMAN_SPRITE.key, "draw"), true) },
+      { atMs: 2450, run: () => {
+        swordsman.play(animKey(RIFT_SWORDSMAN_SPRITE.key, "slash"), true);
+        audio.sfx("slash");
+        if (loadSave().settings.accessibility.reduceFlash) {
+          swordsman.setTint(0xf4f0ff);
+          this.time.delayedCall(180, () => swordsman.clearTint());
+        } else {
+          this.cameras.main.flash(90, 244, 240, 255);
+        }
+      } },
+      { atMs: 2670, run: () => {
+        swordsman.play(animKey(RIFT_SWORDSMAN_SPRITE.key, "absorb"), true);
+        this.tweens.add({ targets: this.bossSprite, alpha: 0, scale: 0.2, duration: 650, ease: "Quad.easeIn" });
+        for (let i = 0; i < 18; i++) {
+          const mote = this.add.circle(this.bossSprite.x, this.bossSprite.y, 2, 0xf4f0ff, 0.8).setDepth(20);
+          this.tweens.add({ targets: mote, x: swordsman.x, y: swordsman.y - 8, alpha: 0, delay: i * 28, duration: 520, onComplete: () => mote.destroy() });
+        }
+      } },
+      { atMs: 3440, run: () => {
+        swordsman.play(animKey(RIFT_SWORDSMAN_SPRITE.key, "transform"), true);
+        swordsman.setTint(0xef4444);
+        audio.sfx("weapon-swap");
+      } },
+      { atMs: 3900, run: () => {
+        swordsman.clearTint().setFlipX(false).play(animKey(RIFT_SWORDSMAN_SPRITE.key, "run"), true);
+        this.tweens.add({ targets: swordsman, x: entryX + 80, duration: 560, ease: "Quad.easeIn" });
+      } },
+    ], () => {
+      this.scene.start("Chase", { levelId: "1-4", spawnAt: "start" });
     });
   }
 
@@ -496,6 +635,22 @@ export class BossArenaScene extends PlatformLevelScene {
     if (!force && key === this.lastActions) return; // avoid idle store churn
     this.lastActions = key;
     gameStore.set({ rtActions: next });
+  }
+
+  protected restartFromCheckpoint(): void {
+    gameStore.set({ paused: false });
+    this.scene.resume();
+    this.physics.resume();
+    this.scene.restart(this.arenaData);
+  }
+
+  protected quitToMap(): void {
+    gameStore.set({ paused: false, rtBoss: null, rtObjective: null, rtSeals: null });
+    this.scene.resume();
+    this.physics.resume();
+    this.scene.start(
+      this.arenaData.fromLevel || this.arenaData.midLevel ? "Overworld" : this.returnScene,
+    );
   }
 }
 

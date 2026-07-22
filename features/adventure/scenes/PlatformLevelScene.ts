@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { TILE, ZOOM, PHYSICS } from "../config";
 import { POWER_STACK_MAX, RT_PLAYER } from "../realtime/config";
-import type { LevelId, BuffId, AbilityId, SceneKey } from "../ids";
+import type { LevelId, BuffId, SceneKey } from "../ids";
 import { LEVELS } from "../levels";
 import { parseLevel } from "../levels/parse";
 import type { LevelDefinition, ParsedLevel, Pt } from "../levels/types";
@@ -35,6 +35,18 @@ import {
   DESERT_TILES, DESERT_PARALLAX, DESERT_TILE_KEYS, DESERT_PARALLAX_KEYS,
   CAVE_CRYSTAL_ANIM,
 } from "../art/sprites/tiles-desert";
+import {
+  COAST_TILES, CASINO_TILES, COAST_PARALLAX, CASINO_PARALLAX,
+  COAST_TILE_KEYS, CASINO_TILE_KEYS, COAST_PARALLAX_KEYS, CASINO_PARALLAX_KEYS,
+  COAST_WATER_ANIM, CASINO_NEON_ANIM, CASINO_SLOT_ANIM,
+} from "../art/sprites/tiles-coast";
+import {
+  RAIN_TILES, RAIN_PARALLAX, RAIN_TILE_KEYS, RAIN_PARALLAX_KEYS,
+  RAIN_LAMP_ANIM, RAIN_GLASS_ANIM,
+} from "../art/sprites/tiles-rain";
+import {
+  RIFT_TILES, RIFT_PARALLAX, RIFT_TILE_KEYS, RIFT_PARALLAX_KEYS, RIFT_LAVA_ANIM,
+} from "../art/sprites/tiles-rift";
 import { ENEMY_SPRITES } from "../art/sprites/enemies1";
 import { ENEMIES2_SPRITES } from "../art/sprites/enemies2";
 import { ENEMIES3_SPRITES } from "../art/sprites/enemies3";
@@ -42,15 +54,17 @@ import { PICKUP_SPRITES, pickupKeyFor } from "../art/sprites/pickups";
 import { audio } from "../audio/synth";
 import { bus } from "../bridge/EventBus";
 import { gameStore } from "../bridge/GameStore";
-import { collectMemoryFragment, loadSave, persistSave } from "../state/save";
+import { collectMemoryFragment, loadSave, persistSave, type AdventureSave } from "../state/save";
+import { isDebugEnabled } from "../state/debugQuery";
 import { getRtBoss, LEVEL_RT_BOSS } from "../realtime/bossDefinitions";
+import type { RtBossId } from "../realtime/types";
 import { input } from "../input/InputState";
 import { mergeRowRuns, runToRect, topExposed } from "./levelGeometry";
-import { shouldClipAscent, movementLocked } from "./controllerGates";
+import { shouldClipAscent, movementLocked, shouldStartDash } from "./controllerGates";
 import { Enemy, type EnemyHostScene } from "../enemies/Enemy";
 import { Bugling } from "../enemies/Bugling";
 import { MalwareBat } from "../enemies/MalwareBat";
-import { Phishling, ANALYZE_RANGE_PX } from "../enemies/Phishling";
+import { Phishling } from "../enemies/Phishling";
 import { BruteForceBrute } from "../enemies/BruteForceBrute";
 import { FirewallKnight } from "../enemies/FirewallKnight";
 import { RootkitSlime } from "../enemies/RootkitSlime";
@@ -225,31 +239,105 @@ function themeTilesFor(theme: LevelDefinition["theme"]): ThemeTiles {
       boatKey: CITY_TILE_KEYS.cityGirder,
     };
   }
+  if (theme === "rain") {
+    // World 1-4 (Task 40): England-rain streets into the cathedral. Column-
+    // driven: streets/rooftops (0–~140) → graveyard + cathedral (140+). The
+    // clock-tower band (52–66) reads as dressed clock masonry.
+    const cathedralAt = (tx: number) => tx >= 140;
+    return {
+      register: [...RAIN_PARALLAX, ...RAIN_TILES],
+      parallax: [
+        { key: RAIN_PARALLAX_KEYS.bg0, depth: -30, factor: 0.2 },
+        { key: RAIN_PARALLAX_KEYS.bg1, depth: -20, factor: 0.4 },
+        { key: RAIN_PARALLAX_KEYS.bg2, depth: -10, factor: 0.6 },
+      ],
+      ground: RAIN_TILE_KEYS.cobble,
+      groundFill: RAIN_TILE_KEYS.cobbleFill,
+      groundAt: (tx, ty, exposed) => {
+        if (cathedralAt(tx)) {
+          if (exposed) return RAIN_TILE_KEYS.stone;
+          return ty <= 13 ? RAIN_TILE_KEYS.pillar : RAIN_TILE_KEYS.cobbleFill;
+        }
+        if (tx >= 52 && tx <= 66) {
+          return exposed ? RAIN_TILE_KEYS.slate : RAIN_TILE_KEYS.clockBlock;
+        }
+        if (exposed) return ty <= 10 ? RAIN_TILE_KEYS.slate : RAIN_TILE_KEYS.cobble;
+        return ty <= 13 ? RAIN_TILE_KEYS.brick : RAIN_TILE_KEYS.cobbleFill;
+      },
+      oneWay: RAIN_TILE_KEYS.oneWay,
+      hazard: RAIN_TILE_KEYS.spikes,
+      fakeKey: RAIN_TILE_KEYS.oneWay, // no fakes/boats in rain levels
+      boatKey: RAIN_TILE_KEYS.oneWay,
+      bridgeKey: RAIN_TILE_KEYS.bridge,
+    };
+  }
+  if (theme === "coast" || theme === "casino") {
+    // World 1-3 (Task 38): Portugal-inspired coast dissolving into the casino
+    // strip. Column-driven: coast (0–~116) → strip transition (~116–136) →
+    // casino (136+). "casino" (the Dealer's private room) is casino-only.
+    const casinoAt = (tx: number) => theme === "casino" || tx >= 136;
+    const transAt = (tx: number) => theme !== "casino" && tx >= 116 && tx < 136;
+    return {
+      register: [...COAST_PARALLAX, ...CASINO_PARALLAX, ...COAST_TILES, ...CASINO_TILES],
+      parallax:
+        theme === "casino"
+          ? [
+              { key: CASINO_PARALLAX_KEYS.bg0, depth: -30, factor: 0.2 },
+              { key: CASINO_PARALLAX_KEYS.bg1, depth: -20, factor: 0.4 },
+              { key: CASINO_PARALLAX_KEYS.bg2, depth: -10, factor: 0.6 },
+            ]
+          : [
+              { key: COAST_PARALLAX_KEYS.bg0, depth: -30, factor: 0.2 },
+              { key: COAST_PARALLAX_KEYS.bg1, depth: -20, factor: 0.4 },
+              { key: COAST_PARALLAX_KEYS.bg2, depth: -10, factor: 0.6 },
+            ],
+      ground: COAST_TILE_KEYS.ground,
+      groundFill: COAST_TILE_KEYS.groundFill,
+      groundAt: (tx, ty, exposed) => {
+        if (casinoAt(tx)) {
+          if (exposed) return CASINO_TILE_KEYS.floor;
+          return ty <= 11 ? CASINO_TILE_KEYS.trim : CASINO_TILE_KEYS.floorFill;
+        }
+        if (transAt(tx)) {
+          // The strip: stone underfoot, gaudy trim rising in the stacks.
+          if (exposed) return COAST_TILE_KEYS.ground;
+          return ty <= 11 ? CASINO_TILE_KEYS.trim : COAST_TILE_KEYS.groundFill;
+        }
+        if (exposed) return COAST_TILE_KEYS.ground;
+        // Terrace stacks read as stucco buildings; below-grade as cobble body.
+        return ty <= 12 ? COAST_TILE_KEYS.wall : COAST_TILE_KEYS.groundFill;
+      },
+      oneWay: COAST_TILE_KEYS.tram,
+      oneWayAt: (tx) => (casinoAt(tx) ? CASINO_TILE_KEYS.glass : COAST_TILE_KEYS.tram),
+      hazard: COAST_TILE_KEYS.water,
+      hazardAnim: COAST_WATER_ANIM,
+      fakeKey: COAST_TILE_KEYS.tram, // no fakes in coast levels
+      boatKey: CASINO_TILE_KEYS.glass, // gilded moving lifts in the casino
+      rotatorKey: CASINO_TILE_KEYS.roulette, // roulette platforms (`@`)
+      gateKey: CASINO_TILE_KEYS.trim,
+      laserEmitterKey: CASINO_TILE_KEYS.laser,
+      laserBeamKey: CASINO_TILE_KEYS.laser,
+    };
+  }
   if (theme === "desert") {
-    // World 1-2 (Task 36): surface sand → cave rock → tunnel brick → gallery
-    // sandstone, selected by x-region + crown-vs-fill (integration.md).
+    // World 1-2 (owner rework): ONE sand story — dune terraces the whole run,
+    // switching to sandstone only for the sand castle (tx >= 172) and the
+    // Giant's vault roof. The old opaque cave-darkness parallax layer is gone
+    // (it blanketed the dusk sky); the arena darkens itself with its veil.
     return {
       register: [...DESERT_PARALLAX, ...DESERT_TILES, ...CITY_TILES.filter((t) => t.key === "tile-city-hazard")],
       parallax: [
         { key: DESERT_PARALLAX_KEYS.bg0, depth: -30, factor: 0.2 },
         { key: DESERT_PARALLAX_KEYS.bg1, depth: -20, factor: 0.35 },
-        { key: DESERT_PARALLAX_KEYS.caveBg0, depth: -10, factor: 0.5 },
       ],
-      ground: DESERT_TILE_KEYS.caveRock,
-      groundFill: DESERT_TILE_KEYS.caveRockFill,
+      ground: DESERT_TILE_KEYS.sand,
+      groundFill: DESERT_TILE_KEYS.sandFill,
       groundAt: (tx, ty, exposed) => {
-        if (ty <= 1) return DESERT_TILE_KEYS.caveRockFill; // cave roof band
-        if (tx <= 126) {
-          if (exposed) return DESERT_TILE_KEYS.sand;
-          return ty <= 7 ? DESERT_TILE_KEYS.sandstone : DESERT_TILE_KEYS.sandFill;
+        if (ty <= 1) return DESERT_TILE_KEYS.sandstoneFill; // the Giant's vault roof
+        if (tx >= 172) {
+          return exposed ? DESERT_TILE_KEYS.sandstone : DESERT_TILE_KEYS.sandstoneFill;
         }
-        if (tx <= 177) {
-          return exposed ? DESERT_TILE_KEYS.caveRock : DESERT_TILE_KEYS.caveRockFill;
-        }
-        if (tx <= 192) {
-          return exposed ? DESERT_TILE_KEYS.tunnelBrick : DESERT_TILE_KEYS.tunnelBrickFill;
-        }
-        return exposed ? DESERT_TILE_KEYS.sandstone : DESERT_TILE_KEYS.sandstoneFill;
+        return exposed ? DESERT_TILE_KEYS.sand : DESERT_TILE_KEYS.sandFill;
       },
       oneWay: DESERT_TILE_KEYS.timber,
       hazard: CITY_TILE_KEYS.hazard,
@@ -260,25 +348,32 @@ function themeTilesFor(theme: LevelDefinition["theme"]): ThemeTiles {
       bridgeKey: DESERT_TILE_KEYS.crumble,
     };
   }
-  if (theme === "castle") {
+  if (theme === "castle" || theme === "rift") {
     // The Devil King's Castle (Task 21). Black basalt ground, an iron-grate
     // one-way, and an animated red-lava hazard. Fireball fountains, collapsing
     // bridges, rising corruption, and decor are castle-only and driven from
     // CASTLE_TILE_KEYS directly in the castle build methods (gated on theme).
     return {
-      register: [...CASTLE_PARALLAX, ...CASTLE_TILES],
+      register: theme === "rift" ? [...RIFT_PARALLAX, ...RIFT_TILES] : [...CASTLE_PARALLAX, ...CASTLE_TILES],
       parallax: [
-        { key: CASTLE_PARALLAX_KEYS.bg0, depth: -30, factor: 0.2 },
-        { key: CASTLE_PARALLAX_KEYS.bg1, depth: -20, factor: 0.4 },
-        { key: CASTLE_PARALLAX_KEYS.bg2, depth: -10, factor: 0.6 },
+        { key: theme === "rift" ? RIFT_PARALLAX_KEYS.bg0 : CASTLE_PARALLAX_KEYS.bg0, depth: -30, factor: 0.2 },
+        { key: theme === "rift" ? RIFT_PARALLAX_KEYS.bg1 : CASTLE_PARALLAX_KEYS.bg1, depth: -20, factor: 0.4 },
+        { key: theme === "rift" ? RIFT_PARALLAX_KEYS.bg2 : CASTLE_PARALLAX_KEYS.bg2, depth: -10, factor: 0.6 },
       ],
-      ground: CASTLE_TILE_KEYS.ground,
-      groundFill: CASTLE_TILE_KEYS.groundFill,
-      oneWay: CASTLE_TILE_KEYS.oneWay,
-      hazard: CASTLE_TILE_KEYS.lava,
-      hazardAnim: CASTLE_LAVA_ANIM,
-      fakeKey: CASTLE_TILE_KEYS.oneWay, // no fakes/boats in castle levels
+      ground: theme === "rift" ? RIFT_TILE_KEYS.ground : CASTLE_TILE_KEYS.ground,
+      groundFill: theme === "rift" ? RIFT_TILE_KEYS.groundFill : CASTLE_TILE_KEYS.groundFill,
+      oneWay: theme === "rift" ? RIFT_TILE_KEYS.oneWay : CASTLE_TILE_KEYS.oneWay,
+      hazard: theme === "rift" ? RIFT_TILE_KEYS.lava : CASTLE_TILE_KEYS.lava,
+      hazardAnim: theme === "rift" ? RIFT_LAVA_ANIM : CASTLE_LAVA_ANIM,
+      fakeKey: CASTLE_TILE_KEYS.oneWay,
       boatKey: CASTLE_TILE_KEYS.oneWay,
+      bridgeKey: CASTLE_TILE_KEYS.bridge,
+      // In the rift, the old grate is re-purposed as a rotating scythe arm and
+      // the beam device. Player swings disable the glow-beam for four seconds.
+      rotatorKey: theme === "rift" ? CASTLE_TILE_KEYS.oneWay : undefined,
+      gateKey: theme === "rift" ? CASTLE_TILE_KEYS.ground : undefined,
+      laserEmitterKey: theme === "rift" ? CASTLE_TILE_KEYS.fireball : undefined,
+      laserBeamKey: theme === "rift" ? CASTLE_TILE_KEYS.oneWay : undefined,
     };
   }
   // Default: Bug Fields (Task 6). No fakes/boats are authored in fields levels,
@@ -414,6 +509,10 @@ interface Fountain {
 export interface LevelSceneData {
   levelId: LevelId;
   spawnAt?: "start" | "checkpoint" | "door";
+  /** Exact active checkpoint carried through a pause-menu scene restart. */
+  checkpoint?: Pt;
+  /** POWER stacks carried across an in-level mini-boss handoff. */
+  power?: number;
 }
 
 const IFRAMES_MS = 900;
@@ -448,11 +547,6 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private hurtAnimUntil = -Infinity;
   protected dead = false;
   private speedScale = 1;
-  private abilities: Record<AbilityId, boolean> = { dash: false, analyze: false, improvedParry: false };
-  /** Arenas (BossArenaScene) grant the full moveset regardless of save state
-   *  (amendment §6). When set, dash is always available and survives a
-   *  pause/resume re-read of the store. Levels leave this false. */
-  protected fullMoveset = false;
 
   // health / progression — 6 hearts everywhere (Task 32; RT_PLAYER.maxHearts).
   // Protected: BossArenaScene applies the silent-assist bonus heart (Task 33).
@@ -532,9 +626,11 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   protected drawDoorMarker = true;
   private checkpointMarkers: { pt: Pt; obj: Phaser.GameObjects.Rectangle }[] = [];
   private bg: { sprite: Phaser.GameObjects.TileSprite; factor: number }[] = [];
-  private pausedText?: Phaser.GameObjects.Text;
   private toast?: Phaser.GameObjects.Text;
   private detachInput?: () => void;
+  private accessibility!: AdventureSave["settings"]["accessibility"];
+  private midBossCleared = true;
+  private midBossLaunching = false;
 
   constructor(key: SceneKey = "Level") {
     // Parameterised so BossArenaScene (Task 32) can reuse this scene wholesale
@@ -574,8 +670,9 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.attackUntil = -Infinity;
     this.airJumpsUsed = 0;
     this.collectedSeals = new Set();
+    this.midBossLaunching = false;
     this.debugTelemetry =
-      typeof window !== "undefined" && new URLSearchParams(window.location.search).has("debug");
+      typeof window !== "undefined" && isDebugEnabled(new URLSearchParams(window.location.search));
 
     const def = this.resolveLevelDef(data);
     if (!def) throw new Error(`unknown level ${data.levelId}`);
@@ -589,7 +686,9 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     // fragment-sprite block can skip the spawn entirely. Read once and reuse
     // below for the level-intro seenIntros check too.
     const save = loadSave();
+    this.accessibility = save.settings.accessibility;
     this.fragmentCollected = save.memoryFragments.includes(def.id);
+    this.midBossCleared = !def.midBossId || save.bossesDefeated.includes(def.midBossId);
 
     // Per-theme tile/parallax wiring (fields vs harbor).
     this.theme = themeTilesFor(def.theme);
@@ -606,7 +705,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     ]);
 
     this.buildParallax();
-    this.spawnPlayer(data.spawnAt ?? "start"); // before buildTiles: colliders need the player
+    this.spawnPlayer(data.spawnAt ?? "start", data.checkpoint); // before buildTiles: colliders need the player
     this.buildTiles();
     this.buildFakes(); // fake platforms (Task 18): one-way look-alikes that collapse
     this.buildBoats(); // boats (Task 18): ferrying moving platforms
@@ -623,24 +722,11 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     // HUD / progression reset for this level. Full heal on start (6 hearts).
     this.health = RT_PLAYER.maxHearts;
     this.maxHealth = RT_PLAYER.maxHearts;
-    this.powerStacks = 0;
+    this.powerStacks = Math.max(0, Math.min(POWER_STACK_MAX, data.power ?? 0));
     this.buffs = [];
     this.fragments = this.fragmentCollected ? 1 : 0; // reflect a prior-session collection in the HUD count
     this.latchedCheckpoints.clear();
-    this.abilities = { ...gameStore.get().abilities };
     this.speedScale = this.buffs.includes("cache-boost") ? 1.25 : 1;
-
-    // Positioned at the camera's world midpoint on pause (reliable under zoom,
-    // unlike scrollFactor-0 which the camera zoom transform would offset).
-    this.pausedText = this.add
-      .text(0, 0, "PAUSED — press P to resume", {
-        fontFamily: "monospace",
-        fontSize: "10px",
-        color: "#c4b5fd",
-      })
-      .setOrigin(0.5)
-      .setDepth(100)
-      .setVisible(false);
 
     gameStore.set({
       scene: this.scene.key as SceneKey,
@@ -672,44 +758,19 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.detachInput = input.attachKeyboard();
     input.consume();
 
-    // Combat resume (e.g. a boss victory that just granted `dash`) doesn't
-    // re-run create() — Phaser only fires RESUME on the paused scene instance
-    // — so the abilities snapshot above would otherwise go stale until a full
-    // scene restart. Re-read the store every time this scene resumes.
-    const onResume = () => {
-      this.abilities = this.fullMoveset
-        ? { dash: true, analyze: true, improvedParry: true }
-        : { ...gameStore.get().abilities };
-    };
-    this.events.on(Phaser.Scenes.Events.RESUME, onResume);
-
-    // Dialogue (Task 17): freeze Arcade physics while a Dialogue overlay is
-    // up, independent of the P/Esc `paused` toggle (see the dialogue gate at
-    // the top of update() for why the two must stay separate flags — reusing
-    // `paused` would let Escape silently resume the world out from under an
-    // open dialogue, since that toggle's own branch knows nothing about
-    // dialogue and Dialogue.tsx treats Space/Enter/E as "advance the line").
-    // update()'s early-return below already stops player/enemy logic; this
-    // stops Arcade's own gravity/velocity step, which runs independently of
-    // this scene's update() body every frame.
-    const offDialogueOpen = bus.on("dialogue:open", () => this.physics.pause());
-    const offDialogueClosed = bus.on("dialogue:closed", () => {
-      this.physics.resume();
-      // The Space/E press that closed the dialogue also set InputState's
-      // one-shot flags in the same tick; clear them so the next update()
-      // frame doesn't turn a dialogue-close into a jump or interact.
-      input.consume();
+    const offPauseAction = bus.on("ui:pause-action", ({ action }) => {
+      if (action === "resume") this.resumeGame();
+      else if (action === "restart") this.restartFromCheckpoint();
+      else this.quitToMap();
     });
-
-    // Level-intro dialogue trigger removed by the realtime rework (Task 33):
-    // no dialogue anywhere in gameplay. The dialogue system itself stays
-    // dormant in-tree as the future seam (amendment §2, old Task 17).
+    const offSettings = bus.on("settings:changed", ({ accessibility }) => {
+      this.accessibility = accessibility;
+    });
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.detachInput?.();
-      this.events.off(Phaser.Scenes.Events.RESUME, onResume);
-      offDialogueOpen();
-      offDialogueClosed();
+      offPauseAction();
+      offSettings();
       // Seal pips are level-scoped; the Arena manages its own rtSeals field.
       if (this.lvl.seals.length > 0) gameStore.set({ rtSeals: null });
     });
@@ -741,6 +802,48 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
         .setDepth(l.depth);
       this.bg.push({ sprite, factor: l.factor });
     }
+    this.buildRainOverlay();
+  }
+
+  /** Rain + fog scene overlays for the "rain" theme (Task 40): slanted rain
+   *  streaks tweening down the world plus a slow horizontal fog band. Static-
+   *  cadence (no strobe — reduceFlash-safe); no-op for every other theme. */
+  private buildRainOverlay() {
+    if (this.def.theme !== "rain") return;
+    const w = this.mapWidthPx;
+    const h = this.mapHeightPx;
+    for (let i = 0; i < 60; i++) {
+      // Deterministic scatter (T18 hygiene: rebuilt every create()).
+      const seed = (i * 73856093) >>> 0;
+      const x0 = seed % w;
+      const drop = this.add
+        .rectangle(x0, ((seed >> 5) % h) - h, 1, 8, 0x9db4d0, 0.35)
+        .setDepth(25)
+        .setAngle(8);
+      this.tweens.add({
+        targets: drop,
+        y: `+=${h + 40}`,
+        x: `+=${Math.round(h / 8)}`,
+        duration: 900 + (seed % 500),
+        repeat: -1,
+        onRepeat: () => {
+          drop.y = -12;
+          drop.x = (seed * 31) % w;
+        },
+      });
+    }
+    const fog = this.add
+      .rectangle(0, h - 96, w * 2, 60, 0x9aa6b8, 0.08)
+      .setOrigin(0, 0)
+      .setDepth(24);
+    this.tweens.add({
+      targets: fog,
+      x: -w,
+      duration: 24000,
+      repeat: -1,
+      yoyo: true,
+      ease: "Sine.easeInOut",
+    });
   }
 
   private buildTiles() {
@@ -1233,7 +1336,9 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       this.fountains.push({
         x,
         y,
-        nextAt: this.time.now + (i * FOUNTAIN_PERIOD_MS) / n,
+        nextAt:
+          this.time.now +
+          ((i * FOUNTAIN_PERIOD_MS) / n) * (this.accessibility.slowerHazards ? 1.25 : 1),
         dir: i % 2 === 0 ? 1 : -1,
       });
     });
@@ -1305,6 +1410,43 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
         sprite.play(animKey(DESERT_TILE_KEYS.crystal, CAVE_CRYSTAL_ANIM));
         continue;
       }
+      if (d.kind === "roof" || d.kind === "azulejo" || d.kind === "balcony") {
+        const key =
+          d.kind === "roof"
+            ? COAST_TILE_KEYS.roof
+            : d.kind === "azulejo"
+              ? COAST_TILE_KEYS.azulejo
+              : COAST_TILE_KEYS.balcony;
+        this.add.sprite(d.tx * TILE + 8, d.ty * TILE + 8, frameKey(key, 0)).setDepth(1);
+        continue;
+      }
+      if (d.kind === "casino-neon" || d.kind === "casino-slot") {
+        const key = d.kind === "casino-neon" ? CASINO_TILE_KEYS.neon : CASINO_TILE_KEYS.slot;
+        const anim = d.kind === "casino-neon" ? CASINO_NEON_ANIM : CASINO_SLOT_ANIM;
+        // The slot is 16×24 — anchor its top-left to the tile cell.
+        const h = d.kind === "casino-slot" ? 24 : 16;
+        const sprite = this.add
+          .sprite(d.tx * TILE + 8, d.ty * TILE + h / 2, frameKey(key, 0))
+          .setDepth(1);
+        sprite.play(animKey(key, anim));
+        continue;
+      }
+      if (d.kind.startsWith("rain-")) {
+        const rainKeyByKind: Record<string, string> = {
+          "rain-lamp": RAIN_TILE_KEYS.lamp,
+          "rain-fence": RAIN_TILE_KEYS.fence,
+          "rain-clockface": RAIN_TILE_KEYS.clockFace,
+          "rain-glass": RAIN_TILE_KEYS.glass,
+          "rain-chandelier": RAIN_TILE_KEYS.chandelier,
+          "rain-bell": RAIN_TILE_KEYS.bell,
+          "rain-headstone": RAIN_TILE_KEYS.headstone,
+        };
+        const key = rainKeyByKind[d.kind];
+        const sprite = this.add.sprite(d.tx * TILE + 8, d.ty * TILE + 8, frameKey(key, 0)).setDepth(1);
+        if (d.kind === "rain-lamp") sprite.play(animKey(key, RAIN_LAMP_ANIM));
+        if (d.kind === "rain-glass") sprite.play(animKey(key, RAIN_GLASS_ANIM));
+        continue;
+      }
       const key =
         d.kind === "chain"
           ? CASTLE_TILE_KEYS.chain
@@ -1320,7 +1462,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       if (d.kind === "banner") sprite.play(animKey(CASTLE_TILE_KEYS.banner, CASTLE_BANNER_ANIM));
     }
 
-    if (this.def.theme !== "castle") return;
+    if (this.def.theme !== "castle" && this.def.theme !== "rift") return;
     // Lightning flicker: a world-covering red-white sheet (scrollFactor 1, so
     // zoom-safe like the parallax) that flashes on a storm cadence.
     this.lightningFlash = this.add
@@ -1329,7 +1471,9 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       .setDepth(-8);
     const strike = () => {
       if (!this.lightningFlash) return;
-      this.tweens.add({ targets: this.lightningFlash, alpha: { from: 0.3, to: 0 }, duration: 240, ease: "Quad.in" });
+      if (!this.accessibility.reduceFlash) {
+        this.tweens.add({ targets: this.lightningFlash, alpha: { from: 0.3, to: 0 }, duration: 240, ease: "Quad.in" });
+      }
       this.time.delayedCall(2200 + Math.floor(Math.random() * 3800), strike);
     };
     this.time.delayedCall(1400, strike);
@@ -1346,7 +1490,8 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     body.enable = true;
     body.reset(f.x, f.y);
     body.setAllowGravity(true); // gravity-affected arc
-    body.setVelocity(f.dir * FIREBALL_VX, FIREBALL_VY);
+    const speed = this.accessibility.slowerHazards ? 0.8 : 1;
+    body.setVelocity(f.dir * FIREBALL_VX * speed, FIREBALL_VY * speed);
     fb.setData("bornAt", this.time.now);
   }
 
@@ -1363,7 +1508,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     const now = this.time.now;
     for (const f of this.fountains) {
       if (now >= f.nextAt) {
-        f.nextAt = now + FOUNTAIN_PERIOD_MS;
+        f.nextAt = now + FOUNTAIN_PERIOD_MS * (this.accessibility.slowerHazards ? 1.25 : 1);
         this.spawnFireball(f);
       }
     }
@@ -1482,7 +1627,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     }
     for (const trap of this.debrisTraps) {
       if (trap.rock) {
-        trap.rock.y += (DEBRIS_FALL_SPEED * dtMs) / 1000;
+        trap.rock.y += (DEBRIS_FALL_SPEED * (this.accessibility.slowerHazards ? 0.8 : 1) * dtMs) / 1000;
         const rb = trap.rock.getBounds();
         if (
           pb.left < rb.right &&
@@ -1504,7 +1649,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       if (now < trap.rearmAt) continue;
       // Trigger when the player passes underneath the mark.
       if (Math.abs(this.player.x - trap.x) < 34 && this.player.y > trap.y) {
-        trap.rearmAt = now + 4200;
+        trap.rearmAt = now + 4200 * (this.accessibility.slowerHazards ? 1.25 : 1);
         trap.rock = this.add.rectangle(trap.x, trap.y + 6, 12, 12, 0x4a3524).setDepth(3);
       }
     }
@@ -1569,7 +1714,8 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     body.enable = true;
     body.reset(x, y);
     body.setAllowGravity(false);
-    body.setVelocity(vx, vy);
+    const speed = this.accessibility.slowerHazards ? 0.8 : 1;
+    body.setVelocity(vx * speed, vy * speed);
     p.setData("bornAt", this.time.now);
   }
 
@@ -1612,7 +1758,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
         // uses a blood-dark tint AND a +10 patrol-speed bonus (makeShadow stays
         // additive — see Enemy.makeShadow).
         if (this.def.theme === "archive") enemy.makeShadow();
-        else if (this.def.theme === "castle") enemy.makeShadow(CASTLE_SHADOW_TINT, CASTLE_SPEED_BONUS);
+        else if (this.def.theme === "castle" || this.def.theme === "rift") enemy.makeShadow(CASTLE_SHADOW_TINT, CASTLE_SPEED_BONUS);
         this.enemyGroup.add(enemy);
       }
     }
@@ -1771,12 +1917,13 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.time.delayedCall(ttlMs, () => rect.destroy());
   }
 
-  private spawnPlayer(spawnAt: "start" | "checkpoint" | "door") {
+  private spawnPlayer(spawnAt: "start" | "checkpoint" | "door", exactCheckpoint?: Pt) {
     let at: Pt = this.lvl.playerStart;
     if (spawnAt === "door") at = this.lvl.bossDoor;
+    else if (exactCheckpoint) at = exactCheckpoint;
     else if (spawnAt === "checkpoint" && this.lvl.checkpoints.length > 0)
       at = this.lvl.checkpoints[0];
-    this.lastCheckpoint = { ...this.lvl.playerStart };
+    this.lastCheckpoint = { ...at };
 
     this.player = this.physics.add.sprite(
       at.tx * TILE + TILE / 2,
@@ -1803,23 +1950,10 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   update(_t: number, dtMs: number) {
     const snap = input.read();
 
-    if (gameStore.get().dialogue) {
-      // A Dialogue overlay owns the screen (level intro / fragment note) —
-      // freeze the world exactly like the `paused` branch below, but gated
-      // on its own flag (see the dialogue:open/:closed listeners in create()
-      // for why `paused` itself is deliberately not reused here). No P/Esc
-      // escape hatch on this branch — the dialogue is dismissed by advancing
-      // or SKIP (Dialogue.tsx), not by the pause key.
-      input.consume();
-      return;
-    }
-
     if (gameStore.get().paused) {
       // Consume input while paused; P/Esc toggles back out (no soft-lock).
       if (snap.pausePressed) {
-        gameStore.set({ paused: false });
-        this.pausedText?.setVisible(false);
-        this.physics.resume(); // unfreeze enemies/pickups
+        this.resumeGame();
       }
       input.consume();
       return;
@@ -1893,7 +2027,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       body.setVelocityX(dir * PHYSICS.moveSpeed * this.speedScale); // cache-boost sets speedScale 1.25
       if (dir !== 0) this.player.setFlipX(dir < 0);
       const dashReady = this.time.now - this.dashStartedAt > PHYSICS.dashCooldownMs;
-      if (snap.dashPressed && dashReady && (this.abilities.dash || this.fullMoveset) && dir !== 0) {
+      if (shouldStartDash(snap.dashPressed, dashReady, dir)) {
         this.dashing = true;
         this.dashStartedAt = this.time.now;
         body.setVelocityX(dir * PHYSICS.dashSpeed);
@@ -1906,10 +2040,14 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
 
     this.updateProximity();
     this.updateCheckpoints();
+    if (this.updateMidBossEntry()) {
+      input.consume();
+      return;
+    }
 
     this.playAnimFor(body, onGround); // idle/run/jump/fall by velocity, unless attacking/hurt
     if (snap.attackPressed && !this.attacking) this.doAttack(); // 220ms hitbox 14x18 in front, sfx
-    if (snap.interactPressed) this.tryInteract(); // door / fragment / analyze exploit
+    if (snap.interactPressed) this.tryInteract(); // door / fragment
 
     // `?debug=1` read-only playtest telemetry (gated, shipped — see the field
     // doc). Subclasses may augment the object after super.update().
@@ -1947,12 +2085,44 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.updateCorruption(dtMs);
 
     if (snap.pausePressed) {
-      gameStore.set({ paused: true });
-      this.pausedText?.setPosition(cam.midPoint.x, cam.midPoint.y).setVisible(true);
-      this.physics.pause(); // freeze enemies/pickups velocities + positions
+      this.pauseGame();
     }
     if (this.player.y > this.mapHeightPx + 40) this.respawn(1); // pit: 1 dmg, checkpoint
     input.consume();
+  }
+
+  /** Pause the whole Phaser scene, not only its update body: scene time,
+   * tweens, delayed calls, Arcade bodies, and boss mechanic timers all freeze. */
+  private pauseGame(): void {
+    if (gameStore.get().paused) return;
+    gameStore.set({ paused: true });
+    this.physics.pause();
+    this.scene.pause();
+  }
+
+  private resumeGame(): void {
+    if (!gameStore.get().paused) return;
+    gameStore.set({ paused: false });
+    this.scene.resume();
+    this.physics.resume();
+    input.consume();
+  }
+
+  /** Pause-menu restart. A level rebuilds from the exact active checkpoint;
+   * arenas override this to rebuild the sealed room from its entry state. */
+  protected restartFromCheckpoint(): void {
+    const checkpoint = { ...this.lastCheckpoint };
+    gameStore.set({ paused: false });
+    this.scene.resume();
+    this.physics.resume();
+    this.scene.restart({ levelId: this.def.id, spawnAt: "checkpoint", checkpoint } satisfies LevelSceneData);
+  }
+
+  protected quitToMap(): void {
+    gameStore.set({ paused: false });
+    this.scene.resume();
+    this.physics.resume();
+    this.scene.start("Overworld");
   }
 
   // --- animation ------------------------------------------------------------
@@ -2033,15 +2203,6 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   }
 
   private tryInteract() {
-    // Analyze exploit: expose any disguised phishling in reach (needs the ability).
-    if (this.abilities.analyze) {
-      for (const obj of this.enemyGroup.getChildren()) {
-        if (!(obj instanceof Phishling)) continue;
-        const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, obj.x, obj.y);
-        if (d <= ANALYZE_RANGE_PX) obj.tryExpose();
-      }
-    }
-
     if (this.nearFragment && !this.fragmentCollected) {
       this.fragmentCollected = true;
       this.fragments += 1;
@@ -2074,6 +2235,44 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       fromLevel: this.def.id,
       power: this.powerStacks, // stomp-earned swing bonus rides into the fight
     });
+  }
+
+  /** World 1-4's sealed courtyard is an automatic mid-level handoff. Its
+   * victory resumes at the first checkpoint beyond `Q`; it never completes
+   * the world (the Veiled Archer + chase own that transition). */
+  private updateMidBossEntry(): boolean {
+    const marker = this.lvl.midBossDoor;
+    const bossId = this.def.midBossId as RtBossId | undefined;
+    if (!marker || !bossId || this.midBossCleared) return false;
+    if (this.midBossLaunching) return true;
+
+    const triggerX = marker.tx * TILE + TILE / 2;
+    if (this.player.x < triggerX) return false;
+    if (!getRtBoss(bossId)) {
+      this.midBossCleared = true;
+      this.showToast("COMING SOON");
+      return false;
+    }
+
+    this.midBossLaunching = true;
+    const resumeAt = this.lvl.checkpoints.find((point) => point.tx > marker.tx) ?? {
+      tx: marker.tx + 3,
+      ty: marker.ty,
+    };
+    (this.player.body as Body).setVelocity(0, 0);
+    this.physics.pause();
+    this.showToast("COURTYARD SEALED");
+    this.time.delayedCall(420, () => {
+      this.cameras.main.fadeOut(240, 0, 0, 0);
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+        this.scene.start("Arena", {
+          bossId,
+          midLevel: { levelId: this.def.id, resumeAt },
+          power: this.powerStacks,
+        });
+      });
+    });
+    return true;
   }
 
   // --- damage / respawn -----------------------------------------------------
@@ -2142,8 +2341,13 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.attacking = false;
 
     const cp = this.lastCheckpoint;
-    this.player.setPosition(cp.tx * TILE + TILE / 2, cp.ty * TILE + TILE / 2);
     const body = this.player.body as Body;
+    // Teleport via body.reset — setPosition alone leaves the body's `prev` at
+    // the DEATH spot, and the huge one-frame delta could tunnel the player
+    // through the checkpoint's floor ("respawning beneath the ground").
+    // Spawn 4px high of the cell centre so the body's feet land ON the floor
+    // face instead of starting embedded in it.
+    body.reset(cp.tx * TILE + TILE / 2, cp.ty * TILE + TILE / 2 - 4);
     body.setVelocity(0, 0);
     this.player.setAlpha(1);
     this.player.play(animKey("player", "idle"), true);

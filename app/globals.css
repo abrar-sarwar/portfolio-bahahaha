@@ -39,6 +39,240 @@
   }
 }
 
+.virtual-controls,
+.action-bar-mobile {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .virtual-controls,
+  .action-bar-mobile {
+    display: flex;
+  }
+  .action-bar-desktop {
+    display: none;
+  }
+  /* Reserve the bottom row for movement/jump/dash. The action trio sits on
+     its own row so 320–390px phones keep every 56px target unobstructed. */
+  .action-bar-root {
+    bottom: 5.25rem;
+  }
+}
+
+/* ----- Lost Archive -------------------------------------------------------
+   The gallery is one physical artifact, not a dashboard: a bruised-violet
+   clothbound book whose authentication strip is built into its fore-edge.
+   Opening the cover is the page's single orchestrated motion.
+   ------------------------------------------------------------------------ */
+.gallery-archive {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(91, 63, 184, 0.16), transparent 34%),
+    repeating-linear-gradient(90deg, transparent 0 31px, rgba(196, 181, 253, 0.018) 31px 32px),
+    #050507;
+  color: #e8e8ee;
+}
+
+.gallery-archive::before {
+  content: "";
+  position: absolute;
+  inset: 22px;
+  border: 1px solid rgba(196, 181, 253, 0.08);
+  pointer-events: none;
+}
+
+.gallery-catalog-mark {
+  position: absolute;
+  right: 32px;
+  top: 50%;
+  color: rgba(203, 178, 137, 0.2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: 0.45em;
+  writing-mode: vertical-rl;
+  transform: translateY(-50%);
+}
+
+.gallery-book {
+  position: relative;
+  width: min(78vw, 410px);
+  aspect-ratio: 1.42 / 1;
+  perspective: 1500px;
+  transform-style: preserve-3d;
+  filter: drop-shadow(0 30px 45px rgba(0, 0, 0, 0.65));
+}
+
+.gallery-pages,
+.gallery-inside,
+.gallery-cover {
+  position: absolute;
+  inset: 0;
+}
+
+.gallery-pages {
+  transform: translate(5px, 6px);
+  border: 1px solid rgba(203, 178, 137, 0.35);
+  background: repeating-linear-gradient(0deg, #b69f78 0 1px, #d9c7a4 1px 3px);
+}
+
+.gallery-inside {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 2rem;
+  border: 1px solid #8f7a55;
+  background:
+    linear-gradient(90deg, rgba(74, 53, 36, 0.14), transparent 12%, transparent 88%, rgba(74, 53, 36, 0.14)),
+    #cbb289;
+  text-align: center;
+}
+
+.gallery-page-rule {
+  position: absolute;
+  left: 23px;
+  top: 20px;
+  bottom: 20px;
+  width: 1px;
+  background: rgba(143, 52, 21, 0.3);
+}
+
+.gallery-cover {
+  z-index: 3;
+  overflow: hidden;
+  border: 1px solid rgba(196, 181, 253, 0.34);
+  background: #16121f;
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  transition: transform 1.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 500ms ease;
+  box-shadow: inset 14px 0 24px rgba(0, 0, 0, 0.45), inset 0 0 45px rgba(91, 63, 184, 0.1);
+}
+
+.gallery-book--open .gallery-cover {
+  transform: rotateY(-154deg);
+  pointer-events: none;
+  box-shadow: inset 18px 0 26px rgba(0, 0, 0, 0.5), 18px 18px 35px rgba(0, 0, 0, 0.28);
+}
+
+.gallery-cover-noise {
+  position: absolute;
+  inset: 0;
+  opacity: 0.28;
+  background: repeating-radial-gradient(circle at 20% 30%, rgba(196, 181, 253, 0.16) 0 1px, transparent 1px 5px);
+  mix-blend-mode: screen;
+}
+
+.gallery-spine {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 26px;
+  border-right: 1px solid rgba(255, 215, 94, 0.22);
+  background: linear-gradient(90deg, #0a0a0d, #23232c 55%, #16121f);
+  box-shadow: 6px 0 12px rgba(0, 0, 0, 0.35);
+}
+
+.gallery-cover-frame {
+  position: absolute;
+  inset: 20px 24px 78px 46px;
+  border: 1px solid rgba(255, 215, 94, 0.22);
+  padding: 20px;
+}
+
+.gallery-clasp {
+  position: absolute;
+  right: -7px;
+  top: 38%;
+  width: 54px;
+  height: 40px;
+  border: 1px solid #c9a227;
+  background: #ffd75e;
+  box-shadow: 0 0 20px rgba(255, 215, 94, 0.28), inset 0 0 0 5px #c9a227;
+}
+
+.gallery-keyhole {
+  position: absolute;
+  left: 20px;
+  top: 11px;
+  width: 9px;
+  height: 13px;
+  border-radius: 50% 50% 30% 30%;
+  background: #16161c;
+  clip-path: polygon(0 0, 100% 0, 72% 48%, 88% 100%, 12% 100%, 28% 48%);
+}
+
+.gallery-code-strip {
+  position: absolute;
+  right: 24px;
+  bottom: 18px;
+  left: 46px;
+}
+
+@keyframes gallery-denied-shake {
+  0%, 100% { transform: translateX(0); filter: none; }
+  20% { transform: translateX(-8px); filter: hue-rotate(25deg); }
+  40% { transform: translateX(6px); filter: brightness(1.35); }
+  60% { transform: translateX(-4px); filter: hue-rotate(-25deg); }
+  80% { transform: translateX(2px); filter: none; }
+}
+
+.gallery-cover--denied {
+  animation: gallery-denied-shake 280ms steps(2, end);
+}
+
+/* Secret-door pixel key: the rare 120ms glitch lives inside a restrained
+   four-second cycle. The shape is CSS pixels, so the homepage never imports
+   game art or Phaser. */
+@keyframes adventure-glitch {
+  0%, 94%, 100% { transform: translateX(0); filter: drop-shadow(0 0 8px rgba(196, 181, 253, 0.68)); }
+  95% { transform: translateX(-3px); filter: hue-rotate(55deg) drop-shadow(3px 0 #8b6cf0); }
+  97% { transform: translateX(3px); filter: hue-rotate(-35deg) drop-shadow(-3px 0 #ef4444); }
+  99% { transform: translateX(0); filter: drop-shadow(0 0 8px rgba(196, 181, 253, 0.68)); }
+}
+
+.adventure-pixel-key {
+  position: relative;
+  display: block;
+  width: 24px;
+  height: 24px;
+  animation: adventure-glitch 4s steps(1, end) infinite;
+  filter: drop-shadow(0 0 8px rgba(196, 181, 253, 0.68));
+}
+
+.adventure-pixel-key::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 2px;
+  width: 10px;
+  height: 10px;
+  border: 3px solid #ffd75e;
+  box-sizing: border-box;
+}
+
+.adventure-pixel-key::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 9px;
+  width: 4px;
+  height: 13px;
+  background: #ffd75e;
+  box-shadow: 4px 8px 0 #ffd75e, 7px 8px 0 #ffd75e, 4px 4px 0 #ffd75e;
+}
+
+@media (max-width: 639px) {
+  .gallery-book { width: min(90vw, 380px); }
+  .gallery-cover-frame { inset: 15px 18px 76px 39px; padding: 15px; }
+  .gallery-code-strip { right: 18px; left: 39px; }
+  .gallery-catalog-mark { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adventure-pixel-key { animation: none; }
+  .gallery-cover { transition-duration: 0.01ms; }
+}
+
 html,
 body {
   margin: 0;

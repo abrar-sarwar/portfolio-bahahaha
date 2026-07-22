@@ -151,6 +151,8 @@ export interface GameUIState {
   /** Boss-mechanic seal pips beside the ActionBar (e.g. Truth Seals); null when
    *  the active encounter has no seals. */
   rtSeals: { lit: number; of: number } | null;
+  /** Treasure-room reveal; non-null mounts the React ChestPanel over Phaser. */
+  chest: null | { code: string };
 }
 
 export const gameStore = createStore<GameUIState>({
@@ -186,6 +188,7 @@ export const gameStore = createStore<GameUIState>({
   },
   rtObjective: null,
   rtSeals: null,
+  chest: null,
 });
 
 /** Memoize a selector by store-state reference so getSnapshot returns a

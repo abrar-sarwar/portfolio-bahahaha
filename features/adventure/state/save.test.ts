@@ -10,6 +10,8 @@ import {
   markBossDefeated,
   collectMemoryFragment,
   markIntroSeen,
+  finishAdventure,
+  grantCompletionThrough,
   type AdventureSave,
   type StorageLike,
 } from "./save";
@@ -56,6 +58,7 @@ describe("defaultSave", () => {
     expect(s.settings.accessibility).toEqual({
       widerParry: false,
       slowerTyping: false,
+      slowerHazards: false,
       reduceFlash: false,
       noShake: false,
     });
@@ -253,5 +256,21 @@ describe("markIntroSeen", () => {
     const save = defaultSave();
     markIntroSeen(save, "1-1");
     expect(save.seenIntros).toEqual([]);
+  });
+});
+
+describe("finishAdventure", () => {
+  it("persists both ending flags and is reference-stable on replay", () => {
+    const finished = finishAdventure(defaultSave());
+    expect(finished).toMatchObject({ gameCompleted: true, codeReceived: true });
+    expect(finishAdventure(finished)).toBe(finished);
+  });
+});
+
+describe("grantCompletionThrough", () => {
+  it("uses the real unlock chain through the selected level", () => {
+    const save = grantCompletionThrough(defaultSave(), "1-3");
+    expect(save.completed).toEqual(["1-1", "1-2", "1-3"]);
+    expect(save.unlocked).toEqual(["1-1", "1-2", "1-3", "1-4"]);
   });
 });

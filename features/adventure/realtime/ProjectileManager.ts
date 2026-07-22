@@ -38,6 +38,9 @@ export interface RtProjectileOpts {
   glow?: boolean;
   /** Hearts of damage on player contact. Default 1. */
   damage?: 1 | 2;
+  /** Ignore arena-wall collision (the Archer's heavily telegraphed piercing
+   *  arrow passes through platforms and pillars). */
+  throughWalls?: boolean;
   /** Called once when the player parries this projectile (it now flies back). */
   onReflected?: () => void;
   /** Called once when a REFLECTED projectile reaches the boss body. */
@@ -57,6 +60,10 @@ const GLOW_COLOR = 0xffe08a; // the ONE parryable-signal gold, matching telegrap
 
 export class ProjectileManager {
   private live: LiveProjectile[] = [];
+
+  setSpeedScale(scale: number): void {
+    this.deps.speedScale = Math.max(0.1, scale);
+  }
 
   constructor(
     private scene: Phaser.Scene,
@@ -110,6 +117,19 @@ export class ProjectileManager {
     return this.live.length;
   }
 
+  /** Read-only kinematic snapshot of live projectiles (debug telemetry —
+   *  consumed by the gated `?debug=1` surface; capped for cheapness). */
+  snapshot(): { x: number; y: number; vx: number; vy: number; glow: boolean; reflected: boolean }[] {
+    return this.live.slice(0, 8).map((p) => ({
+      x: p.st.x,
+      y: p.st.y,
+      vx: p.st.vx,
+      vy: p.st.vy,
+      glow: !!p.opts.glow,
+      reflected: p.reflected,
+    }));
+  }
+
   update(dtMs: number): void {
     if (this.live.length === 0) return;
     const now = this.scene.time.now;
@@ -139,7 +159,7 @@ export class ProjectileManager {
       // stepProjectile; everything else shatters on contact. (Falling blade
       // arcs used to sink straight through the floor until their TTL ran out
       // — "attacks going through the ground".)
-      if (p.spec.kind !== "bouncing") {
+      if (p.spec.kind !== "bouncing" && !p.opts.throughWalls) {
         for (const w of walls) {
           if (p.st.x >= w.x && p.st.x <= w.x + w.w && p.st.y >= w.y && p.st.y <= w.y + w.h) {
             impactSparks(this.scene, p.st.x, p.st.y);

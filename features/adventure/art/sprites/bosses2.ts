@@ -173,6 +173,11 @@ export const TRAINING_DUMMY_SPRITE: SpriteDef = {
  *  sibling bosses2-*.ts modules; this file is the registry barrel. */
 import { BROKEN_KING_ALL } from "./bosses2-brokenKing";
 import { HOLLOW_GIANT_SPRITES } from "./bosses2-hollowGiant";
+import { ONE_EYED_DEALER_KIT } from "./bosses2-dealer";
+import { SCYTHEBOUND_SPRITES, SCYTHE_PROJECTILE_SPRITES } from "./bosses2-scythebound";
+import { VEILED_ARCHER_SPRITES } from "./bosses2-archer";
+import { RIFT_SWORDSMAN_SPRITE } from "./bosses2-swordsman";
+import { DEVIL_KING_SPRITE } from "./bosses2-devilKing";
 export {
   BROKEN_KING_SPRITES,
   BROKEN_KING_SHOCKWAVE,
@@ -181,12 +186,34 @@ export {
 export {
   HOLLOW_GIANT_TORSO,
   HOLLOW_GIANT_HAND,
-  HOLLOW_GIANT_FOREARM,
   HOLLOW_GIANT_HEART,
 } from "./bosses2-hollowGiant";
+export {
+  ONE_EYED_DEALER_SPRITES,
+  DEALER_MASK_SPRITES,
+  DEALER_PARRY_BULLET_SPRITES,
+  DEALER_BULLET_SPRITES,
+  DEALER_MUZZLE_SPRITES,
+} from "./bosses2-dealer";
+export { SCYTHEBOUND_SPRITES, SCYTHE_PROJECTILE_SPRITES } from "./bosses2-scythebound";
+export {
+  VEILED_ARCHER_SPRITE,
+  VA_ARROW_SPRITE,
+  VA_GLOW_ARROW_SPRITE,
+  VA_ARROW_PLATFORM_SPRITE,
+  VA_TARGET_SPRITE,
+} from "./bosses2-archer";
+export { RIFT_SWORDSMAN_SPRITE } from "./bosses2-swordsman";
+export { DEVIL_KING_SPRITE } from "./bosses2-devilKing";
 
 export const BOSSES2_SPRITES: SpriteDef[] = [
   TRAINING_DUMMY_SPRITE,
   ...BROKEN_KING_ALL,
   ...HOLLOW_GIANT_SPRITES,
+  ...ONE_EYED_DEALER_KIT,
+  SCYTHEBOUND_SPRITES,
+  SCYTHE_PROJECTILE_SPRITES,
+  ...VEILED_ARCHER_SPRITES,
+  RIFT_SWORDSMAN_SPRITE,
+  DEVIL_KING_SPRITE,
 ];

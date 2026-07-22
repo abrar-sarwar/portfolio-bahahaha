@@ -41,7 +41,13 @@ export interface AdventureSave {
   settings: {
     volume: number;
     muted: boolean;
-    accessibility: { widerParry: boolean; slowerTyping: boolean; reduceFlash: boolean; noShake: boolean };
+    accessibility: {
+      widerParry: boolean;
+      slowerTyping: boolean; // persisted legacy flag; deliberately dormant
+      slowerHazards: boolean;
+      reduceFlash: boolean;
+      noShake: boolean;
+    };
   };
 }
 
@@ -67,7 +73,7 @@ export function defaultSave(): AdventureSave {
     settings: {
       volume: 0.7,
       muted: false,
-      accessibility: { widerParry: false, slowerTyping: false, reduceFlash: false, noShake: false },
+      accessibility: { widerParry: false, slowerTyping: false, slowerHazards: false, reduceFlash: false, noShake: false },
     },
   };
 }
@@ -132,7 +138,18 @@ export function loadSave(storage: StorageLike | undefined = defaultStorage()): A
     // Additive field (Task 17, no version bump): a save written before
     // seenIntros existed simply lacks the key — fill it in here so every
     // downstream `.includes()` caller can rely on it without a null-check.
-    return Array.isArray(parsed.seenIntros) ? parsed : { ...parsed, seenIntros: [] };
+    const fallback = defaultSave().settings.accessibility;
+    return {
+      ...parsed,
+      seenIntros: Array.isArray(parsed.seenIntros) ? parsed.seenIntros : [],
+      settings: {
+        ...parsed.settings,
+        accessibility: {
+          ...fallback,
+          ...(parsed.settings.accessibility ?? {}),
+        },
+      },
+    };
   } catch {
     return defaultSave();
   }
@@ -224,4 +241,25 @@ export function collectMemoryFragment(save: AdventureSave, levelId: LevelId): Ad
 export function markIntroSeen(save: AdventureSave, levelId: LevelId): AdventureSave {
   if (save.seenIntros.includes(levelId)) return save;
   return { ...save, seenIntros: [...save.seenIntros, levelId] };
+}
+
+/** The treasure chest is the durable end of the adventure. Keeping the two
+ * flags in one transform prevents the gallery path and code receipt from
+ * drifting apart if the chest scene is replayed or interrupted. */
+export function finishAdventure(save: AdventureSave): AdventureSave {
+  if (save.gameCompleted && save.codeReceived) return save;
+  return { ...save, gameCompleted: true, codeReceived: true };
+}
+
+const LEVEL_CHAIN: LevelId[] = ["1-1", "1-2", "1-3", "1-4", "castle"];
+
+/** Shipped `?debug=1` progression action. It intentionally reuses
+ * completeLevel so debug saves obey exactly the same unlock chain as play. */
+export function grantCompletionThrough(save: AdventureSave, through: LevelId): AdventureSave {
+  let next = save;
+  for (const id of LEVEL_CHAIN) {
+    next = completeLevel(next, id);
+    if (id === through) break;
+  }
+  return next;
 }

@@ -173,31 +173,31 @@ const LEVEL_2: Track = {
 // LEVEL-3 — E minor, 126 bpm, driving factory. i–VI–III–VII (Em C G D)
 // ===========================================================================
 const LEVEL_3: Track = {
-  bpm: 126,
+  bpm: 116,
   loop: true,
   sq1: [
-    "E5", S, "F#5", S, "G5", S, "F#5", S, "E5", S, "D5", S, "E5", S, _, _,
-    "G5", S, "F#5", S, "E5", S, "D5", S, "C5", S, "D5", S, "E5", S, _, _,
-    "D5", S, "E5", S, "G5", S, "F#5", S, "E5", S, "D5", S, "B4", S, _, _,
-    "F#5", S, "E5", S, "F#5", S, "G5", S, "F#5", S, "E5", S, "D5", S, _, _,
+    "G4", S, "A4", S, "C5", S, "E5", S, "D5", S, "C5", S, "G4", S, _, _,
+    "A4", S, "G4", S, "F4", S, "A4", S, "C5", S, "D5", S, "E5", S, _, _,
+    "C5", _, "B4", _, "C5", _, "E5", _, "D5", _, "C5", _, "A4", _, "G#4", _,
+    "B4", _, "D5", _, "E5", _, "D5", _, "C5", _, "A4", _, "G#4", _, "A4", _,
   ],
   sq2: [
-    "E3", S, "B3", S, "E4", S, "B3", S, "E3", S, "B3", S, "E4", S, "B3", S,
-    "C3", S, "E3", S, "G3", S, "E3", S, "C3", S, "E3", S, "G3", S, "E3", S,
-    "G3", S, "B3", S, "D4", S, "B3", S, "G3", S, "B3", S, "D4", S, "B3", S,
-    "D3", S, "F#3", S, "A3", S, "F#3", S, "D3", S, "F#3", S, "A3", S, "F#3", S,
+    "C4", _, "E4", _, "G4", _, "E4", _, "C4", _, "E4", _, "G4", _, "E4", _,
+    "F3", _, "A3", _, "C4", _, "A3", _, "G3", _, "B3", _, "D4", _, "B3", _,
+    _, _, "E4", _, _, _, "C4", _, _, _, "E4", _, _, _, "A3", _,
+    _, _, "G#3", _, _, _, "E4", _, _, _, "D4", _, _, _, "B3", _,
   ],
   tri: [
-    "E2", S, "E2", S, "E2", S, "E2", S, "E2", S, "E2", S, "E2", S, "E2", S,
-    "C2", S, "C2", S, "C2", S, "C2", S, "C2", S, "C2", S, "C2", S, "C2", S,
-    "G2", S, "G2", S, "G2", S, "G2", S, "G2", S, "G2", S, "G2", S, "G2", S,
-    "D2", S, "D2", S, "D2", S, "D2", S, "D2", S, "D2", S, "D2", S, "D2", S,
+    "C2", S, S, S, "G2", S, S, S, "C2", S, S, S, "G2", S, S, S,
+    "F2", S, S, S, "C3", S, S, S, "G2", S, S, S, "D3", S, S, S,
+    "A2", S, S, S, "E3", S, S, S, "A2", S, S, S, "G#2", S, S, S,
+    "E2", S, S, S, "B2", S, S, S, "E3", S, S, S, "E2", S, S, S,
   ],
   noise: [
-    2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1,
-    2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1,
-    2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1,
-    2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 2, 2, 2,
+    2, _, 1, _, 1, _, 1, _, 2, _, 1, _, 1, _, 1, _,
+    2, _, 1, _, 1, _, 1, _, 2, _, 1, _, 1, _, 1, _,
+    2, _, _, 1, 2, _, 1, _, 2, _, _, 1, 2, _, 1, _,
+    2, _, _, 1, 2, _, 1, _, 2, _, 1, 1, 2, 1, 2, 2,
   ],
 };
 
@@ -205,31 +205,31 @@ const LEVEL_3: Track = {
 // LEVEL-4 — A minor, 84 bpm, sparse archive (long rests). i–VI–iv–V
 // ===========================================================================
 const LEVEL_4: Track = {
-  bpm: 84,
+  bpm: 76,
   loop: true,
   sq1: [
-    "E4", S, S, S, "A4", S, S, S, "B4", S, "C5", S, _, _, _, _,
-    "C5", S, S, S, "A4", S, S, S, _, _, _, _, _, _, _, _,
-    "D5", S, S, S, "C5", S, "B4", S, "A4", S, S, S, _, _, _, _,
-    "B4", S, S, S, "A4", S, S, S, "G#4", S, S, S, _, _, _, _,
+    "D5", S, S, S, "F5", S, "E5", S, "D5", S, S, S, "A4", S, S, S,
+    "A#4", S, S, S, "A4", S, S, S, "G4", S, "F4", S, "E4", S, S, S,
+    "D5", S, S, S, "E5", S, "F5", S, "E5", S, "D5", S, "C5", S, S, S,
+    "C#5", S, S, S, "D5", S, "E5", S, "F5", S, "E5", S, "D5", S, S, S,
   ],
   sq2: [
-    "C4", S, S, S, S, S, S, S, "E4", S, S, S, S, S, S, S,
-    "A3", S, S, S, S, S, S, S, "C4", S, S, S, S, S, S, S,
-    "F4", S, S, S, S, S, S, S, "D4", S, S, S, S, S, S, S,
-    "B3", S, S, S, S, S, S, S, "G#3", S, S, S, S, S, S, S,
+    "D4", _, _, _, "A4", _, _, _, "F4", _, _, _, "A4", _, _, _,
+    "A3", _, _, _, "E4", _, _, _, "C#4", _, _, _, "E4", _, _, _,
+    "G3", _, _, _, "D4", _, _, _, "A#3", _, _, _, "D4", _, _, _,
+    "A3", _, _, _, "E4", _, _, _, "C#4", _, _, _, "G4", _, _, _,
   ],
   tri: [
-    "A2", S, S, S, S, S, S, S, S, S, S, S, S, S, S, S,
-    "F2", S, S, S, S, S, S, S, S, S, S, S, S, S, S, S,
-    "D2", S, S, S, S, S, S, S, S, S, S, S, S, S, S, S,
-    "E2", S, S, S, S, S, S, S, S, S, S, S, S, S, S, S,
+    "D2", S, S, S, S, S, S, S, "A2", S, S, S, S, S, S, S,
+    "A2", S, S, S, S, S, S, S, "E2", S, S, S, S, S, S, S,
+    "G2", S, S, S, S, S, S, S, "D2", S, S, S, S, S, S, S,
+    "A2", S, S, S, S, S, S, S, "E2", S, S, S, S, S, S, S,
   ],
   noise: [
-    2, _, _, _, _, _, _, _, 1, _, _, _, _, _, _, _,
-    2, _, _, _, _, _, _, _, 1, _, _, _, _, _, _, _,
-    2, _, _, _, _, _, _, _, 1, _, _, _, _, _, _, _,
-    2, _, _, _, _, _, _, _, 1, _, _, _, _, _, 1, _,
+    2, _, _, 1, _, _, 1, _, 2, _, _, 1, _, _, 1, _,
+    2, _, _, 1, _, _, 1, _, 2, _, _, 1, _, _, 1, _,
+    2, _, _, 1, _, _, 1, _, 2, _, _, 1, _, _, 1, _,
+    2, _, _, 1, _, _, 1, _, 2, _, 1, 1, _, 1, 1, _,
   ],
 };
 
@@ -499,6 +499,143 @@ const HOLLOW_GIANT: Track = {
   ],
 };
 
+// Realtime rework boss themes wave B (amendment §5; Tasks 39/40/41).
+const ONE_EYED_DEALER: Track = {
+  bpm: 118,
+  loop: true,
+  sq1: [
+    "E5", S, _, "C5", S, _, "A4", S, _, _, "C5", _, "B4", _, "A4", _,
+    "D5", S, _, "A4", S, _, "F4", S, _, _, "A4", _, "G4", _, "F4", _,
+    "G#4", S, _, "B4", S, _, "E5", S, _, "D5", _, "B4", _, "G#4", _, _,
+    "A4", S, "C5", _, "E5", _, _, "D5", "C5", _, "B4", "A#4", "A4", _, _, _,
+  ],
+  sq2: [
+    _, _, "E4", _, _, _, "C4", _, _, _, "E4", _, _, _, "A3", _,
+    _, _, "F4", _, _, _, "D4", _, _, _, "F4", _, _, _, "A3", _,
+    _, _, "G#3", _, _, _, "E4", _, _, _, "D4", _, _, _, "B3", _,
+    _, _, "E4", _, _, _, "C4", _, _, _, "E4", _, _, _, "C4", _,
+  ],
+  tri: [
+    "A2", S, S, S, "C3", S, S, S, "E3", S, S, S, "C#3", S, S, S,
+    "D3", S, S, S, "F3", S, S, S, "A3", S, S, S, "D#3", S, S, S,
+    "E3", S, S, S, "G#3", S, S, S, "B3", S, S, S, "G#2", S, S, S,
+    "A2", S, S, S, "E3", S, S, S, "F3", S, S, S, "E3", S, S, S,
+  ],
+  noise: [
+    2, _, _, 1, 2, _, 1, _, 2, _, _, 1, 2, _, 1, _,
+    2, _, _, 1, 2, _, 1, _, 2, _, _, 1, 2, _, 1, _,
+    2, _, _, 1, 2, _, 1, _, 2, _, _, 1, 2, _, 1, _,
+    2, _, 1, 1, 2, _, 1, _, 2, 1, 2, 1, 2, 1, 2, 2,
+  ],
+};
+
+const SCYTHEBOUND: Track = {
+  bpm: 150,
+  loop: true,
+  sq1: [
+    "D5", _, "F5", _, "A5", _, "F5", _, "D5", _, "E5", "F5", "E5", _, "D5", _,
+    "C5", _, "E5", _, "G5", _, "E5", _, "C5", _, "D5", "E5", "D5", _, "C5", _,
+    "A#4", _, "D5", _, "F5", _, "D5", _, "A#4", _, "C5", "D5", "C5", _, "A#4", _,
+    "A4", _, "C#5", _, "E5", _, "C#5", _, "A4", _, "G5", "F5", "E5", "D5", "C#5", _,
+  ],
+  sq2: [
+    "A3", _, "D4", _, "A3", _, "D4", _, "A3", _, "D4", _, "A3", _, "D4", _,
+    "G3", _, "C4", _, "G3", _, "C4", _, "G3", _, "C4", _, "G3", _, "C4", _,
+    "F3", _, "A#3", _, "F3", _, "A#3", _, "F3", _, "A#3", _, "F3", _, "A#3", _,
+    "E3", _, "A3", _, "E3", _, "A3", _, "E3", _, "A3", _, "C#4", _, "E4", _,
+  ],
+  tri: [
+    "D2", _, "D2", _, "D2", _, "D2", _, "D2", _, "D2", _, "D2", _, "D2", _,
+    "C2", _, "C2", _, "C2", _, "C2", _, "C2", _, "C2", _, "C2", _, "C2", _,
+    "A#2", _, "A#2", _, "A#2", _, "A#2", _, "A#2", _, "A#2", _, "A#2", _, "A#2", _,
+    "A2", _, "A2", _, "A2", _, "A2", _, "A2", _, "A2", _, "A2", _, "C#3", _,
+  ],
+  noise: [
+    2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1,
+    2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1,
+    2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1,
+    2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 2, 2, 2,
+  ],
+};
+
+const VEILED_ARCHER: Track = {
+  bpm: 76,
+  loop: true,
+  sq1: [
+    "E5", S, S, S, "B5", S, S, S, "A5", S, "G5", S, "F#5", S, S, S,
+    "G5", S, S, S, "F#5", S, "E5", S, "D5", S, S, S, "E5", S, S, S,
+    "B5", S, S, S, "A#5", S, S, S, "A5", S, "G5", S, "F#5", S, S, S,
+    "E5", S, "F#5", S, "G5", S, "F#5", S, "E5", S, S, S, S, S, S, S,
+  ],
+  sq2: [
+    "E4", _, _, _, "G4", _, _, _, "B4", _, _, _, "G4", _, _, _,
+    "C4", _, _, _, "E4", _, _, _, "G4", _, _, _, "E4", _, _, _,
+    "G4", _, _, _, "B4", _, _, _, "D5", _, _, _, "B4", _, _, _,
+    "B3", _, _, _, "D#4", _, _, _, "F#4", _, _, _, "D#4", _, _, _,
+  ],
+  tri: [
+    "E2", S, S, S, S, S, S, S, S, S, S, S, S, S, S, S,
+    "C2", S, S, S, S, S, S, S, S, S, S, S, S, S, S, S,
+    "G2", S, S, S, S, S, S, S, S, S, S, S, S, S, S, S,
+    "B1", S, S, S, S, S, S, S, S, S, S, S, S, S, S, S,
+  ],
+  noise: [
+    2, _, _, _, _, _, _, _, 1, _, _, _, _, _, _, _,
+    2, _, _, _, _, _, _, _, 1, _, _, _, _, _, _, _,
+    2, _, _, _, _, _, _, _, 1, _, _, _, _, _, _, _,
+    2, _, _, _, _, _, _, _, 1, _, _, _, _, _, 1, _,
+  ],
+};
+
+// Final encounter, first half: the original B-minor Devil motif stripped back
+// to a deliberate human-scale duel. Keeping the melody lineage makes the
+// swordsman's identity audible before the arsenal transformation.
+const DEVIL_DUEL: Track = {
+  bpm: 132,
+  loop: true,
+  sq1: [...DEVIL_1.sq1],
+  sq2: [...DEVIL_1.sq2],
+  tri: [...DEVIL_1.tri],
+  noise: [
+    2, _, 1, _, 2, _, 1, _, 2, _, 1, _, 2, _, 1, _,
+    2, _, 1, _, 2, _, 1, _, 2, _, 1, _, 2, _, 1, _,
+    2, _, 1, _, 2, _, 1, _, 2, _, 1, _, 2, _, 1, _,
+    2, _, 1, 1, 2, _, 1, 1, 2, 1, 2, 1, 2, 1, 2, 2,
+  ],
+};
+
+// Second half: the motif fractures upward into a faster E-minor arsenal cue.
+// Syncopated square leads and relentless drums distinguish the weapon-cycle
+// phase immediately, even before the transformation animation completes.
+const DEVIL_ARSENAL: Track = {
+  bpm: 158,
+  loop: true,
+  sq1: [
+    "B4", _, "E5", "G5", "F#5", _, "E5", "B5", "A5", _, "G5", "F#5", "E5", "D#5", "E5", _,
+    "C5", _, "E5", "A5", "G5", _, "E5", "C6", "B5", _, "A5", "G5", "F#5", "E5", "D5", _,
+    "G5", _, "B5", "E6", "D6", _, "B5", "G5", "A5", "G5", "F#5", "E5", "D5", "B4", "D#5", _,
+    "F#5", _, "B5", "D#6", "C6", _, "B5", "F#5", "G5", "F#5", "E5", "D#5", "B4", "D#5", "E5", _,
+  ],
+  sq2: [
+    "E4", _, "B4", _, "G4", "B4", "E5", _, "E4", _, "B4", _, "G4", "B4", "D#5", _,
+    "C4", _, "G4", _, "E4", "G4", "C5", _, "C4", _, "G4", _, "E4", "G4", "B4", _,
+    "G3", _, "D4", _, "B3", "D4", "G4", _, "G3", _, "D4", _, "B3", "D4", "F#4", _,
+    "B3", _, "F#4", _, "D#4", "F#4", "B4", _, "B3", _, "F#4", _, "D#4", "F#4", "A4", _,
+  ],
+  tri: [
+    "E2", _, "E2", _, "B2", _, "E2", _, "E2", _, "G2", _, "B2", _, "D#2", _,
+    "C2", _, "C2", _, "G2", _, "C3", _, "C2", _, "E2", _, "G2", _, "B2", _,
+    "G2", _, "G2", _, "D3", _, "G2", _, "G2", _, "B2", _, "D3", _, "F#2", _,
+    "B1", _, "B1", _, "F#2", _, "B2", _, "B1", _, "D#2", _, "F#2", _, "B2", _,
+  ],
+  noise: [
+    2, 1, 1, 2, 1, 1, 2, 1, 2, 1, 1, 2, 1, 2, 1, 2,
+    2, 1, 1, 2, 1, 1, 2, 1, 2, 1, 1, 2, 1, 2, 1, 2,
+    2, 1, 1, 2, 1, 1, 2, 1, 2, 1, 1, 2, 1, 2, 1, 2,
+    2, 1, 2, 2, 1, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2,
+  ],
+};
+
 export const TRACKS: Record<import("../ids").TrackId, Track> = {
   title: TITLE,
   overworld: OVERWORLD,
@@ -513,12 +650,12 @@ export const TRACKS: Record<import("../ids").TrackId, Track> = {
   "devil-3": DEVIL_3,
   victory: VICTORY,
   chest: CHEST,
-  // real-time rework boss themes — placeholders until their boss tasks author them.
+  // real-time rework boss themes — authored through the World 1-4 bosses.
   "broken-king": BROKEN_KING,
   "hollow-giant": HOLLOW_GIANT,
-  "one-eyed-dealer": placeholder("E2"),
-  scythebound: placeholder("D2"),
-  "veiled-archer": placeholder("G2"),
-  "devil-duel": placeholder("F2"),
-  "devil-arsenal": placeholder("F2"),
+  "one-eyed-dealer": ONE_EYED_DEALER,
+  scythebound: SCYTHEBOUND,
+  "veiled-archer": VEILED_ARCHER,
+  "devil-duel": DEVIL_DUEL,
+  "devil-arsenal": DEVIL_ARSENAL,
 };

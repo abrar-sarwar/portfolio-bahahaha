@@ -11,7 +11,7 @@ export function parseLevel(def: LevelDefinition): ParsedLevel {
   const w = rows[0].length;
   const grid = <T,>(v: T) => rows.map(() => Array<T>(w).fill(v));
   const solids = grid(false), oneWays = grid(false), hazards = grid(false);
-  let playerStart: Pt | null = null, bossDoor: Pt | null = null, fragment: Pt | null = null;
+  let playerStart: Pt | null = null, bossDoor: Pt | null = null, midBossDoor: Pt | null = null, fragment: Pt | null = null;
   const checkpoints: Pt[] = [];
   const seals: Pt[] = []; // Truth Seal pickups (Task 34)
   const debrisMarks: Pt[] = []; // ceiling-debris markers (Task 36)
@@ -35,6 +35,7 @@ export function parseLevel(def: LevelDefinition): ParsedLevel {
       else if (ch === "^") hazards[ty][tx] = true;
       else if (ch === "P") playerStart = at;
       else if (ch === "D") bossDoor = at;
+      else if (ch === "Q") midBossDoor = at;
       else if (ch === "M") fragment = at;
       else if (ch === "C") checkpoints.push(at);
       else if (ch === "T") seals.push(at); // Truth Seal pickup (Task 34)
@@ -65,7 +66,7 @@ export function parseLevel(def: LevelDefinition): ParsedLevel {
   return {
     widthTiles: w, heightTiles: rows.length,
     solids, oneWays, hazards,
-    playerStart, checkpoints, fragment, bossDoor, spawns,
+    playerStart, checkpoints, fragment, bossDoor, midBossDoor, spawns,
     fakes, boats, conveyors, gates, lasers, rotators, fountains, bridges, seals,
     debrisMarks, lifts,
   };

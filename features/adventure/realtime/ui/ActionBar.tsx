@@ -1,6 +1,8 @@
 "use client";
 
+import { PointerEvent, useRef } from "react";
 import { useGameStore } from "../../bridge/GameStore";
+import { input } from "../../input/InputState";
 
 // Bottom action bar (amendment §3): the small, always-on control/ability strip
 // for Level + Arena. Slots: [ J ATTACK ] [ SPACE JUMP ] [ SHIFT DASH ]
@@ -11,12 +13,14 @@ import { useGameStore } from "../../bridge/GameStore";
 // pixel idiom; small + bottom-centered so it never covers the player.
 
 function Slot({
+  icon,
   keyLabel,
   label,
   frac = 0,
   progress,
   tone = "violet",
 }: {
+  icon: string;
   keyLabel: string;
   label: string;
   frac?: number;
@@ -45,21 +49,58 @@ function Slot({
         />
       )}
       <div className="relative">
-        <div className={`text-[9px] font-bold leading-tight ${text}`}>{keyLabel}</div>
-        <div className={`text-[7px] uppercase leading-tight tracking-widest ${sub}`}>{label}</div>
+        <div className={`text-[11px] font-black leading-none ${text}`} aria-hidden>{icon}</div>
+        <div className={`mt-0.5 text-[7px] uppercase leading-tight tracking-widest ${sub}`}>{label}</div>
+        <div className="mt-0.5 text-[6px] font-bold leading-none text-white/35">{keyLabel}</div>
       </div>
     </div>
   );
 }
 
+function TouchAction({ icon, label, frac = 0, held = false, onPress }: {
+  icon: string;
+  label: string;
+  frac?: number;
+  held?: boolean;
+  onPress: () => void;
+}) {
+  const active = useRef(new Set<number>());
+  const release = (event: PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    active.current.delete(event.pointerId);
+    if (held && active.current.size === 0) input.setHeld("interactHeld", false);
+  };
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        active.current.add(event.pointerId);
+        event.currentTarget.setPointerCapture(event.pointerId);
+        onPress();
+      }}
+      onPointerUp={release}
+      onPointerCancel={release}
+      onLostPointerCapture={release}
+      className="relative grid h-14 min-w-14 touch-none select-none place-items-center overflow-hidden rounded-full border border-violet-200/30 bg-black/55 px-2 font-mono text-violet-100 backdrop-blur-sm active:bg-violet-400/20"
+    >
+      {frac > 0 && <span className="absolute inset-x-0 bottom-0 bg-white/15" style={{ height: `${Math.min(1, frac) * 100}%` }} />}
+      <span className="relative text-center"><span className="block text-base font-black leading-none">{icon}</span><span className="mt-1 block text-[7px] font-bold uppercase tracking-wider">{label}</span></span>
+    </button>
+  );
+}
+
 export default function ActionBar() {
+  const scene = useGameStore((s) => s.scene);
   const actions = useGameStore((s) => s.rtActions);
   const objective = useGameStore((s) => s.rtObjective);
   const seals = useGameStore((s) => s.rtSeals);
   const context = actions.context;
+  const ending = scene === "Victory" || scene === "Chest";
 
   return (
-    <div className="pointer-events-none absolute bottom-2 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-1 font-mono">
+    <div className="action-bar-root pointer-events-none absolute bottom-2 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-1 font-mono">
       {(objective || seals) && (
         <div className="flex items-center gap-2">
           {objective && (
@@ -85,16 +126,30 @@ export default function ActionBar() {
         </div>
       )}
 
-      <div className="flex items-end gap-1">
-        <Slot keyLabel="J" label="ATTACK" frac={actions.attack.cooldownFrac} />
-        <Slot keyLabel="SPACE" label="JUMP" />
-        <Slot keyLabel="SHIFT" label="DASH" frac={actions.dash.cooldownFrac} />
-        <Slot keyLabel="K" label="PARRY" frac={actions.parry.cooldownFrac} />
+      {!ending && <div className="action-bar-desktop flex items-end gap-1">
+        <Slot icon="✦" keyLabel="J" label="ATTACK" frac={actions.attack.cooldownFrac} />
+        <Slot icon="↑" keyLabel="SPACE" label="JUMP" />
+        <Slot icon="»" keyLabel="SHIFT" label="DASH" frac={actions.dash.cooldownFrac} />
+        <Slot icon="◇" keyLabel="K" label="PARRY" frac={actions.parry.cooldownFrac} />
         {context ? (
-          <Slot keyLabel={context.key} label={context.label} progress={context.progress} tone="amber" />
+          <Slot icon="◆" keyLabel={context.key} label={context.label} progress={context.progress} tone="amber" />
         ) : (
-          <Slot keyLabel="E" label="INTERACT" />
+          <Slot icon="◆" keyLabel="E" label="INTERACT" />
         )}
+      </div>}
+
+      <div className="action-bar-mobile pointer-events-auto items-end gap-2">
+        {!ending && <TouchAction icon="✦" label="Attack" frac={actions.attack.cooldownFrac} onPress={() => input.press("attackPressed")} />}
+        {!ending && <TouchAction icon="◇" label="Parry" frac={actions.parry.cooldownFrac} onPress={() => input.press("parryPressed")} />}
+        <TouchAction
+          icon="◆"
+          label={context?.label ?? "Interact"}
+          held
+          onPress={() => {
+            input.setHeld("interactHeld", true);
+            input.press("interactPressed");
+          }}
+        />
       </div>
     </div>
   );

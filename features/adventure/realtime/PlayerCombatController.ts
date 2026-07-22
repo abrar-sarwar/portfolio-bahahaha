@@ -40,6 +40,10 @@ export class PlayerCombatController {
     this.attackBonus = Math.max(0, n);
   }
 
+  setParryWindowScale(scale: number): void {
+    this.parryWindowScale = Math.max(1, scale);
+  }
+
   /** Wire the swing to the boss sprite: a landed swing damages the boss. */
   bindTarget(boss: Phaser.GameObjects.GameObject, onLand: () => void): void {
     this.hitbox.overlapWith(boss, () => {

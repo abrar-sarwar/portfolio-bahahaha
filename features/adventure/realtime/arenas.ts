@@ -121,31 +121,31 @@ export const TEMPLE_ARENA: LevelDefinition = {
   ],
 };
 
-// The Hollow Giant's chamber (Task 37): 60×16 vault. The colossus torso is the
-// background-anchored boss sprite (spawn 29,11 — embedded, feet sunk into the
-// floor); three-tier one-way stacks flank it, two anchor nubs (# at 20/39)
-// brace the player against the Inhale, and the `*` marks are the passive
-// ceiling-debris traps. `D` is parked in the air over the player start (inert).
-// Tier spacing: floor top is row 14 (y224); jump rise ≈46px < 3 tiles, so the
-// flanking tiers step 2 tiles apiece (rows 12/10/8 — the forge draft's
-// 11/8/5 stack was unreachable from the floor; playtest-driven fix).
+// The Hollow Giant's chamber (Task 37, tightened on owner feedback): a 48×17
+// buried vault with a completely FLAT floor and NO scaffolding — no one-way
+// tiers, no debris marks, no anchor nubs. The colossus torso (128×136,
+// rendered BEHIND the player) sits centre with its base flush on the floor;
+// the ONLY way up to the chest cavity is the palm he occasionally plants
+// (bossDefinitions/hollowGiant.ts). `D` is parked at the torso column, inert
+// under enterBoss()'s no-op.
 const GIANT_ROWS = [
-  "############################################################",
-  "############################################################",
-  "#...........*...........*...........*...........*..........#",
-  "#..........................................................#",
-  "#..........................................................#",
-  "#..........................................................#",
-  "#..........................................................#",
-  "#..........................................................#",
-  "#...====............................................====...#",
-  "#...........................D..............................#",
-  "#...======........................................======...#",
-  "#..........................................................#",
-  "#...========....................................========...#",
-  "#...................#........P.........#...................#",
-  "############################################################",
-  "############################################################",
+  "################################################",
+  "#..............................................#",
+  "#..............................................#",
+  "#..............................................#",
+  "#..............................................#",
+  "#..............................................#",
+  "#..............................................#",
+  "#..............................................#",
+  "#..............................................#",
+  "#..............................................#",
+  "#..............................................#",
+  "#..............................................#",
+  "#..............................................#",
+  "#.......P...............D......................#",
+  "################################################",
+  "################################################",
+  "################################################",
 ];
 
 export const GIANT_ARENA: LevelDefinition = {
@@ -158,10 +158,176 @@ export const GIANT_ARENA: LevelDefinition = {
   introDialogueId: null,
   fragmentDialogueId: null,
   decor: [
-    { kind: "anchor", tx: 20, ty: 13 },
-    { kind: "anchor", tx: 39, ty: 13 },
-    { kind: "crystal", tx: 6, ty: 3 },
-    { kind: "crystal", tx: 53, ty: 3 },
+    { kind: "crystal", tx: 4, ty: 3 },
+    { kind: "crystal", tx: 43, ty: 3 },
+  ],
+};
+
+// The One-Eyed Dealer's private casino chamber (Task 39): a 48×18 room. Flat
+// plush floor for the duel, one high center beam + two mid side beams (glass
+// one-ways, double-jump reachable) for dodging bullet rain, and two low trim
+// blocks as ricochet cover. `D` parked in the air at the Dealer spawn (inert).
+const DEALER_ROWS = [
+  "################################################",
+  "#..............................................#",
+  "#..............................................#",
+  "#..............................................#",
+  "#..............................................#",
+  "#..............................................#",
+  "#..............................................#",
+  "#..............................................#",
+  "#..............................................#",
+  "#..............................................#",
+  "#..............................................#",
+  "#...................========...................#",
+  "#..............................................#",
+  "#.......=======..................=======.......#",
+  "#..............................................#",
+  "#...P.......##..........D.........##...........#",
+  "################################################",
+  "################################################",
+];
+
+export const DEALER_ARENA: LevelDefinition = {
+  id: "dealer-arena" as LevelId, // synthetic — never persisted (see TRAINING_ARENA)
+  name: "THE PRIVATE ROOM",
+  theme: "casino",
+  bossId: "one-eyed-dealer",
+  music: "one-eyed-dealer",
+  map: DEALER_ROWS.join("\n"),
+  introDialogueId: null,
+  fragmentDialogueId: null,
+  decor: [
+    { kind: "casino-neon", tx: 8, ty: 4 },
+    { kind: "casino-neon", tx: 39, ty: 4 },
+    { kind: "casino-slot", tx: 3, ty: 13 },
+    { kind: "casino-slot", tx: 44, ty: 13 },
+  ],
+};
+
+// The Scythebound's sealed courtyard (Task 40): a 40×18 rain-slick yard —
+// flat cobbles, one high center block, two low one-way ledges for the stomp
+// game. The arena stays locked until stomp 15 (the counter lives in the
+// mechanics; the crash-through wall beat is presentation).
+const COURTYARD_ROWS = [
+  "########################################",
+  "#......................................#",
+  "#......................................#",
+  "#......................................#",
+  "#......................................#",
+  "#......................................#",
+  "#......................................#",
+  "#......................................#",
+  "#...............########...............#",
+  "#......................................#",
+  "#......................................#",
+  "#....=====....................=====....#",
+  "#......................................#",
+  "#......................................#",
+  "#..P..........................D........#",
+  "########################################",
+  "########################################",
+  "########################################",
+];
+
+export const COURTYARD_ARENA: LevelDefinition = {
+  id: "courtyard-arena" as LevelId, // synthetic — never persisted
+  name: "THE SEALED COURTYARD",
+  theme: "rain",
+  bossId: "scythebound",
+  music: "scythebound",
+  map: COURTYARD_ROWS.join("\n"),
+  introDialogueId: null,
+  fragmentDialogueId: null,
+  decor: [
+    { kind: "rain-lamp", tx: 3, ty: 12 },
+    { kind: "rain-lamp", tx: 36, ty: 12 },
+    { kind: "rain-fence", tx: 8, ty: 13 },
+    { kind: "rain-fence", tx: 31, ty: 13 },
+  ],
+};
+
+// The Veiled Archer's cathedral chamber (Task 41): a 46×18 nave — three tall
+// pillars carrying elevated ledges, floor one-ways, her high center perch.
+// Pale-glow arrows that miss EMBED into surfaces and become temporary
+// platforms — the stairway to her ledge (mechanics-spawned).
+const CATHEDRAL_ROWS = [
+  "##############################################",
+  "#............................................#",
+  "#............................................#",
+  "#...........................#................#",
+  "#...........#...............#.......#........#",
+  "#...........#...........D...#.......#........#",
+  "#...........#.........=====.#.......#........#",
+  "#...........#...............#.......#........#",
+  "#...........#...............#.......#........#",
+  "#...........#..====.........#..====.#........#",
+  "#...........#...............#.......#........#",
+  "#...........#...............#.......#........#",
+  "#.....====..#...............#.......#..====..#",
+  "#...........#...............#.......#........#",
+  "#..P........#...............#.......#........#",
+  "##############################################",
+  "##############################################",
+  "##############################################",
+];
+
+export const CATHEDRAL_ARENA: LevelDefinition = {
+  id: "cathedral-arena" as LevelId, // synthetic — never persisted
+  name: "THE CENTRAL CHAMBER",
+  theme: "rain",
+  bossId: "veiled-archer",
+  music: "veiled-archer",
+  map: CATHEDRAL_ROWS.join("\n"),
+  introDialogueId: null,
+  fragmentDialogueId: null,
+  decor: [
+    { kind: "rain-glass", tx: 5, ty: 4 },
+    { kind: "rain-glass", tx: 40, ty: 4 },
+    { kind: "rain-chandelier", tx: 22, ty: 2 },
+    { kind: "rain-bell", tx: 33, ty: 3 },
+  ],
+};
+
+// The Devil King's last room (Tasks 44–45): a broad, level dueling floor with
+// two low escape ledges and a broken high gallery. The uncluttered centre keeps
+// the human-scale sword duel readable; the side ledges support the airborne
+// spear-seal answer without turning the room into platform clutter.
+const RIFT_THRONE_ROWS = [
+  "####################################################",
+  "#..................................................#",
+  "#..................................................#",
+  "#..................................................#",
+  "#..................................................#",
+  "#..................................................#",
+  "#..................................................#",
+  "#...................============...................#",
+  "#..................................................#",
+  "#..................................................#",
+  "#..................................................#",
+  "#..................................................#",
+  "#......======........................======........#",
+  "#..................................................#",
+  "#..................................................#",
+  "#....P......................................D......#",
+  "####################################################",
+  "####################################################",
+];
+
+export const RIFT_THRONE_ARENA: LevelDefinition = {
+  id: "rift-throne-arena" as LevelId, // synthetic — never persisted
+  name: "THE DARK THRONE",
+  theme: "rift",
+  bossId: "devil-king",
+  music: "devil-duel",
+  map: RIFT_THRONE_ROWS.join("\n"),
+  introDialogueId: null,
+  fragmentDialogueId: null,
+  decor: [
+    { kind: "statue", tx: 8, ty: 13 },
+    { kind: "banner", tx: 17, ty: 2 },
+    { kind: "banner", tx: 34, ty: 2 },
+    { kind: "statue", tx: 43, ty: 13 },
   ],
 };
 
@@ -169,6 +335,10 @@ export const ARENAS: Record<string, LevelDefinition> = {
   training: TRAINING_ARENA,
   "temple-throne": TEMPLE_ARENA,
   "hollow-giant": GIANT_ARENA,
+  "dealer-room": DEALER_ARENA,
+  courtyard: COURTYARD_ARENA,
+  cathedral: CATHEDRAL_ARENA,
+  "rift-throne": RIFT_THRONE_ARENA,
 };
 
 export function getArena(key: string): LevelDefinition | undefined {

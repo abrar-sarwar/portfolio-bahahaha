@@ -35,4 +35,15 @@ export const PALETTE: Record<string, string> = {
   // Hollow Giant flesh ramp (Task 37; kit chars E/e remapped → f/i)
   f: "#a3838c", // dead-flesh light (pallid mauve)
   i: "#6d5259", // dead-flesh shadow (deep mauve-brown)
+  // World 1-3 coast→casino additions (Task 38; kit chars Q/e remapped → o/a)
+  o: "#ff5cc8", // neon hot-pink — casino signage, slot marquee, skyline glow
+  a: "#ece0c4", // warm cream stucco — coastal building plaster
+  z: "#f2cf9b", // warm daylight haze — coast horizon + casino neon smog
+  // World 1-4 Rain Kingdom additions (Task 40; kit chars E/e/A/a remapped)
+  Z: "#7a4a3e", // wet brick, mid — lamplit warm brick face
+  q: "#4a2b24", // wet brick, deep — shadowed weathered course
+  I: "#3c4a5e", // wet slate, mid — rain-darkened cool stone
+  l: "#5d7089", // wet slate, light — rain-sheen highlight
+  // Veiled Archer spectral white (Task 41; kit char I remapped → j)
+  j: "#f4f0ff", // spectral halo — taut-arrow glow, embed platforms, dissolve motes
 };
