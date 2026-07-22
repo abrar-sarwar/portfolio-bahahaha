@@ -12,6 +12,8 @@ import {
   arsenalPhaseForElapsed,
   breakArsenalSeal,
   brokenSealCount,
+  devilBladePreview,
+  devilDuelTargetX,
   emptyArsenalSeals,
   type ArsenalSeal,
 } from "./devilKingLogic";
@@ -40,7 +42,7 @@ export const DEVIL_KING: RtBossDef = {
     { id: "mixed-arsenal", attackIds: [...SWORD_ATTACKS, ...BOW_ATTACKS, ...SPEAR_ATTACKS, ...HAMMER_ATTACKS], tempoScale: 0.78 },
   ],
   attacks: [
-    { id: "quick-slash", telegraphMs: 360, activeMs: 150, recoveryMs: 480, cooldownMs: 900, parryable: true, damage: 1, weight: 5, maxRangePx: 78 },
+    { id: "quick-slash", telegraphMs: 620, activeMs: 150, recoveryMs: 480, cooldownMs: 900, parryable: true, damage: 1, weight: 5, maxRangePx: 78 },
     { id: "delayed-slash", telegraphMs: 920, activeMs: 190, recoveryMs: 720, cooldownMs: 2100, parryable: true, damage: 2, weight: 2, maxRangePx: 94 },
     { id: "dash-cut", telegraphMs: 620, activeMs: 500, recoveryMs: 650, cooldownMs: 2500, parryable: true, damage: 1, weight: 3, minRangePx: 70 },
     { id: "air-slash", telegraphMs: 700, activeMs: 520, recoveryMs: 700, cooldownMs: 3000, damage: 1, weight: 2 },
@@ -53,7 +55,7 @@ export const DEVIL_KING: RtBossDef = {
     { id: "bow-spread", telegraphMs: 660, activeMs: 180, recoveryMs: 580, cooldownMs: 2200, damage: 1, weight: 3 },
     { id: "bow-explosive", telegraphMs: 900, activeMs: 220, recoveryMs: 760, cooldownMs: 3000, damage: 2, weight: 3 },
 
-    { id: "spear-thrust", telegraphMs: 470, activeMs: 220, recoveryMs: 520, cooldownMs: 1200, parryable: true, damage: 1, weight: 4, maxRangePx: 112 },
+    { id: "spear-thrust", telegraphMs: 620, activeMs: 220, recoveryMs: 520, cooldownMs: 1200, parryable: true, damage: 1, weight: 4, maxRangePx: 112 },
     { id: "spear-launch", telegraphMs: 700, activeMs: 460, recoveryMs: 620, cooldownMs: 2600, damage: 1, weight: 2 },
     { id: "spear-spin", telegraphMs: 740, activeMs: 850, recoveryMs: 720, cooldownMs: 3200, damage: 2, weight: 2, maxRangePx: 86 },
     { id: "spear-line", telegraphMs: 900, activeMs: 800, recoveryMs: 850, cooldownMs: 3400, damage: 2, weight: 3 },
@@ -110,10 +112,15 @@ export function createDevilKingMechanics(scene: Phaser.Scene, api: MechanicsApi)
   let hammerStuckUntil = 0;
   let exposedUntil = 0;
   let nextExposureAt = Number.POSITIVE_INFINITY;
+  let bladePreview: Phaser.GameObjects.Line | null = null;
 
   const inArsenal = () => arsenalStart !== null;
   const dir = (): 1 | -1 => (api.player.x < api.boss.x ? -1 : 1);
   const aim = () => Math.atan2(api.player.y - api.boss.y, api.player.x - api.boss.x);
+  const clearBladePreview = () => {
+    bladePreview?.destroy();
+    bladePreview = null;
+  };
 
   const setArsenalObjective = () => {
     const count = brokenSealCount(seals);
@@ -176,6 +183,10 @@ export function createDevilKingMechanics(scene: Phaser.Scene, api: MechanicsApi)
 
   return {
     onCommand(cmd) {
+      if (cmd.kind === "stagger" || cmd.kind === "defeated" || cmd.kind === "phase") {
+        clearBladePreview();
+        scene.tweens.killTweensOf(api.boss);
+      }
       if (cmd.kind === "phase") {
         if (cmd.phaseIndex === 1 && arsenalStart === null) {
           arsenalStart = scene.time.now;
@@ -201,6 +212,21 @@ export function createDevilKingMechanics(scene: Phaser.Scene, api: MechanicsApi)
       if (cmd.kind === "attack-start") {
         lastAttack = cmd.attackId;
         api.boss.setFlipX(api.player.x < api.boss.x);
+        clearBladePreview();
+        const d = dir();
+        const preview = devilBladePreview(cmd.attackId, d);
+        if (preview) {
+          const spec = api.def.attacks.find((attack) => attack.id === cmd.attackId);
+          const color = spec?.parryable ? 0xffd75e : 0xef4444;
+          const startX = api.boss.x + d * 8;
+          const endX = api.boss.x + preview.offsetX + d * preview.width / 2;
+          bladePreview = scene.add
+            .line(0, 0, startX, api.boss.y, endX, api.boss.y, color, 0.82)
+            .setOrigin(0, 0)
+            .setLineWidth(3, 1)
+            .setDepth(19);
+          scene.tweens.add({ targets: bladePreview, alpha: 0.25, duration: 150, yoyo: true, repeat: -1 });
+        }
         if (cmd.attackId === "counter-stance") {
           counterActive = true;
           pending.push({ kind: "set-invulnerable", value: true });
@@ -209,6 +235,7 @@ export function createDevilKingMechanics(scene: Phaser.Scene, api: MechanicsApi)
       }
 
       if (cmd.kind === "attack-end") {
+        clearBladePreview();
         if (cmd.attackId === "counter-stance") {
           counterActive = false;
           if (!inArsenal()) pending.push({ kind: "set-invulnerable", value: false });
@@ -217,6 +244,7 @@ export function createDevilKingMechanics(scene: Phaser.Scene, api: MechanicsApi)
       }
 
       if (cmd.kind !== "attack-active") return;
+      clearBladePreview();
       const d = dir();
       const id = cmd.attackId;
 
@@ -292,9 +320,21 @@ export function createDevilKingMechanics(scene: Phaser.Scene, api: MechanicsApi)
       }
     },
 
-    update() {
+    update(dtMs) {
       if (api.machine().fsm === "defeated") return;
       const now = scene.time.now;
+      const machine = api.machine();
+
+      if (machine.fsm === "idle" || machine.fsm === "recovery") {
+        const targetX = devilDuelTargetX(api.boss.x, api.player.x, ARENA_W);
+        const maxStep = 0.085 * dtMs;
+        const delta = Math.max(-maxStep, Math.min(maxStep, targetX - api.boss.x));
+        if (Math.abs(delta) > 0.1) {
+          api.boss.setX(api.boss.x + delta).setFlipX(api.player.x < api.boss.x + delta);
+          const move = `devil-king:move`;
+          if (scene.anims.exists(move)) api.boss.play(move, true);
+        }
+      }
 
       if (arsenalStart !== null && exposedUntil === 0) {
         const nextForm = arsenalPhaseForElapsed(now - arsenalStart);
@@ -328,6 +368,8 @@ export function createDevilKingMechanics(scene: Phaser.Scene, api: MechanicsApi)
     },
 
     destroy() {
+      clearBladePreview();
+      scene.tweens.killTweensOf(api.boss);
       disposeStomp();
       api.setObjective(null);
       api.setSeals(null);
