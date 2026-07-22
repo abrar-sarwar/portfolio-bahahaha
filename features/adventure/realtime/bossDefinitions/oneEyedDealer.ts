@@ -139,10 +139,24 @@ export function shouldPuntDealerMask(
 const FLOOR_Y = 16 * 16; // floor top (row 16)
 const CLASP_TOTAL = 3;
 const UNMASK_MS = 4000;
-const BULLET_SPEED = 240;
+export const DEALER_BULLET_SPEED = 190;
 const GLOW_EVERY = 3; // every 3rd bullet glows (parryable)
 const CHASE_HP = 4; // ≤ 4 hp → the mask stays down; he chases it
 const TELEPORT_SPOTS = [120, 240, 400, 560, 640];
+
+export function willNextDealerShotGlow(bulletCount: number): boolean {
+  return (bulletCount + 1) % GLOW_EVERY === 0;
+}
+
+export function dealerStrafeX(
+  bossX: number,
+  _playerX: number,
+  direction: 1 | -1,
+  dtMs: number,
+  arenaWidth: number,
+): number {
+  return Math.max(48, Math.min(arenaWidth - 48, bossX + direction * 0.07 * dtMs));
+}
 
 export function createDealerMechanics(scene: Phaser.Scene, api: MechanicsApi): BossMechanics {
   const pending: MachineEvent[] = [];
@@ -153,6 +167,9 @@ export function createDealerMechanics(scene: Phaser.Scene, api: MechanicsApi): B
   let chasing = false;
   let punted = false;
   let laserLine: Phaser.GameObjects.Line | null = null;
+  let parryWarning: Phaser.GameObjects.Arc | null = null;
+  let strafeDir: 1 | -1 = -1;
+  let nextStrafeFlipAt = 0;
 
   // The mask rides the Dealer's face until it falls; then it is a floor object.
   const mask = scene.add
@@ -167,6 +184,29 @@ export function createDealerMechanics(scene: Phaser.Scene, api: MechanicsApi): B
   const clearLaser = () => {
     laserLine?.destroy();
     laserLine = null;
+  };
+
+  const clearParryWarning = () => {
+    if (!parryWarning) return;
+    scene.tweens.killTweensOf(parryWarning);
+    parryWarning.destroy();
+    parryWarning = null;
+  };
+
+  const showParryWarning = () => {
+    clearParryWarning();
+    parryWarning = scene.add
+      .circle(api.boss.x, api.boss.y - 8, 13, 0xffd75e, 0.08)
+      .setStrokeStyle(2, 0xffd75e, 1)
+      .setDepth(22);
+    scene.tweens.add({
+      targets: parryWarning,
+      scale: 1.55,
+      alpha: 0.25,
+      duration: 160,
+      yoyo: true,
+      repeat: -1,
+    });
   };
 
   const claspHit = () => {
@@ -226,8 +266,8 @@ export function createDealerMechanics(scene: Phaser.Scene, api: MechanicsApi): B
         kind: "linear",
         x: bx + Math.cos(angleRad) * 16,
         y: by + Math.sin(angleRad) * 16,
-        vx: Math.cos(angleRad) * BULLET_SPEED,
-        vy: Math.sin(angleRad) * BULLET_SPEED,
+        vx: Math.cos(angleRad) * DEALER_BULLET_SPEED,
+        vy: Math.sin(angleRad) * DEALER_BULLET_SPEED,
         ttlMs: 3200,
       },
       sizePx: glow ? 8 : 6,
@@ -247,12 +287,15 @@ export function createDealerMechanics(scene: Phaser.Scene, api: MechanicsApi): B
     onCommand(cmd) {
       if (cmd.kind === "attack-start") {
         api.boss.setFlipX(api.player.x < api.boss.x);
-        if (cmd.attackId === "direct-shot" || cmd.attackId === "triple-shot") {
+        const firesBullet = ["direct-shot", "ricochet-shot", "triple-shot", "teleport-shot"].includes(cmd.attackId);
+        const nextIsGlow = firesBullet && willNextDealerShotGlow(bulletCount);
+        if (nextIsGlow) showParryWarning();
+        if (cmd.attackId === "direct-shot" || cmd.attackId === "triple-shot" || cmd.attackId === "ricochet-shot") {
           // The laser aim line (bullet-path preview).
           clearLaser();
           const ang = aimAngle();
           laserLine = scene.add
-            .line(0, 0, api.boss.x, api.boss.y - 8, api.boss.x + Math.cos(ang) * 500, api.boss.y - 8 + Math.sin(ang) * 500, 0xff5cc8, 0.5)
+            .line(0, 0, api.boss.x, api.boss.y - 8, api.boss.x + Math.cos(ang) * 500, api.boss.y - 8 + Math.sin(ang) * 500, nextIsGlow ? 0xffd75e : 0xff5cc8, nextIsGlow ? 0.9 : 0.5)
             .setOrigin(0, 0)
             .setDepth(19);
         } else if (cmd.attackId === "teleport-shot") {
@@ -270,8 +313,12 @@ export function createDealerMechanics(scene: Phaser.Scene, api: MechanicsApi): B
         }
         return;
       }
-      if (cmd.kind === "attack-end" || cmd.kind === "stagger" || cmd.kind === "defeated") clearLaser();
+      if (cmd.kind === "attack-end" || cmd.kind === "stagger" || cmd.kind === "defeated") {
+        clearLaser();
+        clearParryWarning();
+      }
       if (cmd.kind !== "attack-active") return;
+      clearParryWarning();
 
       if (cmd.attackId === "direct-shot") {
         fireBullet(aimAngle(), nextGlow());
@@ -283,8 +330,8 @@ export function createDealerMechanics(scene: Phaser.Scene, api: MechanicsApi): B
             kind: "bouncing",
             x: api.boss.x,
             y: api.boss.y - 8,
-            vx: Math.cos(ang - 0.5) * BULLET_SPEED,
-            vy: Math.sin(ang - 0.5) * BULLET_SPEED,
+            vx: Math.cos(ang - 0.5) * DEALER_BULLET_SPEED,
+            vy: Math.sin(ang - 0.5) * DEALER_BULLET_SPEED,
             ttlMs: 4200,
             maxBounces: 2,
           },
@@ -307,7 +354,7 @@ export function createDealerMechanics(scene: Phaser.Scene, api: MechanicsApi): B
       // pistol-strike: the melee window is the shared boss attack zone.
     },
 
-    update() {
+    update(dtMs) {
       const m = api.machine();
       if (m.fsm === "defeated") {
         clearLaser();
@@ -315,6 +362,17 @@ export function createDealerMechanics(scene: Phaser.Scene, api: MechanicsApi): B
       }
       // The worn mask rides his face; fallen mask sits where it dropped.
       if (masked) mask.setPosition(api.boss.x + (api.boss.flipX ? -2 : 2), api.boss.y - 12);
+      if (parryWarning) parryWarning.setPosition(api.boss.x, api.boss.y - 8);
+
+      if (masked && !chasing && (m.fsm === "idle" || m.fsm === "recovery")) {
+        if (scene.time.now >= nextStrafeFlipAt) {
+          strafeDir = strafeDir === 1 ? -1 : 1;
+          nextStrafeFlipAt = scene.time.now + 1100;
+        }
+        const nextX = dealerStrafeX(api.boss.x, api.player.x, strafeDir, dtMs, ARENA_W);
+        if (nextX <= 48 || nextX >= ARENA_W - 48) strafeDir = strafeDir === 1 ? -1 : 1;
+        api.boss.setX(nextX).setFlipX(api.player.x < nextX);
+      }
 
       if (chasing) {
         // He glides toward the mask; reaching it re-masks him (fight resets
@@ -353,6 +411,7 @@ export function createDealerMechanics(scene: Phaser.Scene, api: MechanicsApi): B
 
     destroy() {
       clearLaser();
+      clearParryWarning();
       mask.destroy();
       api.setContextAction(null);
       api.setObjective(null);

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseLevel } from "../levels/parse";
-import { TRAINING_ARENA, getArena } from "./arenas";
+import { CATHEDRAL_ARENA, TRAINING_ARENA, getArena } from "./arenas";
 import { TRAINING_DUMMY } from "./bossDefinitions/trainingDummy";
 import { validateDef } from "./BossStateMachine";
 
@@ -29,6 +29,17 @@ describe("training arena map", () => {
   it("getArena resolves the training key", () => {
     expect(getArena("training")).toBe(TRAINING_ARENA);
     expect(getArena("nope")).toBeUndefined();
+  });
+});
+
+describe("rebuilt archer arena", () => {
+  it("is a compact open nave without tall interior solid columns", () => {
+    const level = parseLevel(CATHEDRAL_ARENA);
+    expect(level.widthTiles).toBe(34);
+    expect(level.heightTiles).toBe(18);
+    for (let y = 1; y < 14; y++) {
+      expect(level.solids[y].slice(1, -1).some(Boolean)).toBe(false);
+    }
   });
 });
 

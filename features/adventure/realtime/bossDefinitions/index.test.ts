@@ -3,24 +3,22 @@ import { validateDef } from "../BossStateMachine";
 import { getRtBoss, getRtMechanics } from "./index";
 
 describe("late-world realtime boss registry", () => {
-  it("registers the objective-only Scythebound encounter", () => {
+  it("registers the health-based Scythebound encounter", () => {
     const def = getRtBoss("scythebound");
     expect(def).toBeDefined();
     expect(() => validateDef(def!)).not.toThrow();
     expect(def).toMatchObject({
-      maxHp: 15,
-      hideHealthBar: true,
-      damageScale: { attack: 0, stomp: 0 },
+      maxHp: 55,
       arenaKey: "courtyard",
     });
     expect(getRtMechanics("scythebound")).toBeTypeOf("function");
   });
 
-  it("registers the three-catch Veiled Archer encounter and all required attacks", () => {
+  it("registers the open-duel Veiled Archer encounter and all required attacks", () => {
     const def = getRtBoss("veiled-archer");
     expect(def).toBeDefined();
     expect(() => validateDef(def!)).not.toThrow();
-    expect(def).toMatchObject({ maxHp: 3, invulnerableBaseline: true, arenaKey: "cathedral" });
+    expect(def).toMatchObject({ maxHp: 35, arenaKey: "cathedral" });
     expect(def!.attacks.map((attack) => attack.id)).toEqual(expect.arrayContaining([
       "direct-arrow",
       "arrow-rain",
