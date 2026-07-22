@@ -21,7 +21,7 @@ import { PlatformLevelScene, type LevelSceneData } from "../scenes/PlatformLevel
 import type { LevelDefinition } from "../levels/types";
 import type { BossId, LevelId, SceneKey } from "../ids";
 import { PHYSICS, TILE } from "../config";
-import { RT_PLAYER } from "./config";
+import { POWER_STACK_MAX, RT_PLAYER } from "./config";
 import { validateDef } from "./BossStateMachine";
 import type { RtAttackSpec, RtBossDef, RtBossId } from "./types";
 import { getRtBoss, getRtMechanics } from "./bossDefinitions";
@@ -55,6 +55,10 @@ export interface ArenaSceneData {
   fromLevel?: LevelId;
   /** Scene to return to on victory/exit when no fromLevel (`?arena=` entry). */
   returnScene?: SceneKey;
+  /** POWER stacks stomped out of the level's enemies (each = +1 swing damage
+   *  before the boss's damageScale). Rides the scene data so a death-retry
+   *  restart keeps what was earned. */
+  power?: number;
 }
 
 const STOMP_COOLDOWN_MS = 300; // guard a single overlap from registering many stomps
@@ -151,6 +155,13 @@ export class BossArenaScene extends PlatformLevelScene {
     const bx = this.bossDef.spawn.tx * TILE + TILE / 2;
     const feetY = (this.bossDef.spawn.ty + 1) * TILE;
     this.bossSprite = this.physics.add.sprite(bx, feetY - bh / 2, frameKey(this.bossDef.id, 0));
+    // Art-aware grounding: when the def declares where the drawn feet END,
+    // align that line to the spawn tile's bottom — the body-height formula
+    // above assumes the feet reach the sprite's bottom edge, which sinks (or
+    // floats) any art with bottom padding by |spriteH - bodyH| px.
+    if (this.bossDef.spriteFeetY !== undefined) {
+      this.bossSprite.setY(feetY - this.bossDef.spriteFeetY + this.bossSprite.height / 2);
+    }
     this.bossSprite.setDepth(12);
     const bb = this.bossSprite.body as Body;
     bb.setAllowGravity(false);
@@ -160,6 +171,11 @@ export class BossArenaScene extends PlatformLevelScene {
 
     // Player combat layer: swing damages the boss (hit-stop + sparks on land).
     this.combat = new PlayerCombatController(this, this.player, assist.parryWindowScale);
+    // POWER stacks earned in the level (stomped enemies) sharpen every swing;
+    // they ride arenaData so a death-retry keeps them, and surface in the HUD.
+    this.powerStacks = Math.max(0, Math.min(POWER_STACK_MAX, this.arenaData.power ?? 0));
+    this.combat.setAttackBonus(this.powerStacks);
+    this.pushHud();
     this.combat.bindTarget(this.bossSprite, () => {
       this.machineFreezeUntil = this.time.now + RT_PLAYER.hitStopMs;
       impactSparks(this, this.bossSprite.x, this.bossSprite.y - 4);
@@ -180,7 +196,10 @@ export class BossArenaScene extends PlatformLevelScene {
     this.physics.add.overlap(this.bossAttackZone, this.player, () => this.onBossAttackHitsPlayer());
 
     // Player-vs-boss body: falling stomp (bounce + damage) or contact damage.
-    this.physics.add.overlap(this.player, this.bossSprite, () => this.onBodyContact());
+    // Background-anchored bosses (noContact) skip body interactions entirely.
+    if (!this.bossDef.noContact) {
+      this.physics.add.overlap(this.player, this.bossSprite, () => this.onBodyContact());
+    }
 
     // Projectiles + hazards (pooled; reset on every restart via create()).
     const widthPx = this.lvl.widthTiles * TILE;
@@ -234,6 +253,7 @@ export class BossArenaScene extends PlatformLevelScene {
       onAttackActive: (spec) => this.armBossAttack(spec),
       onAttackEnd: () => this.disarmBossAttack(),
       shapeAttack: (shape) => this.shapeBossAttack(shape),
+      bindSwing: (target, cb) => this.combat.onSwingOverlap(target, cb),
       onDefeated: () => this.onDefeat(),
       recoveryScale: assist.recoveryScale,
     });
@@ -252,10 +272,13 @@ export class BossArenaScene extends PlatformLevelScene {
   }
 
   update(t: number, dtMs: number): void {
-    // Capture the parry press BEFORE super.update() consumes the input snapshot.
-    const parryPressed = input.read().parryPressed;
+    // Capture the parry/interact presses BEFORE super.update() consumes the
+    // input snapshot (interact drives mash mechanics — the King's truth tear).
+    const snap = input.read();
+    const parryPressed = snap.parryPressed;
+    const interactPressed = snap.interactPressed;
     super.update(t, dtMs);
-    this.stepArena(dtMs, parryPressed);
+    this.stepArena(dtMs, parryPressed, interactPressed);
 
     // Augment the base `?debug=1` telemetry with arena/machine state — here,
     // not in stepArena, so the defeated/victory frames still publish.
@@ -286,7 +309,7 @@ export class BossArenaScene extends PlatformLevelScene {
     this.player.play(animKey("player", "attack"), true);
   }
 
-  private stepArena(dtMs: number, parryPressed: boolean): void {
+  private stepArena(dtMs: number, parryPressed: boolean, interactPressed = false): void {
     if (gameStore.get().paused || this.dead || this.victory) {
       if (this.dead || this.victory) this.disarmBossAttack();
       return;
@@ -315,7 +338,7 @@ export class BossArenaScene extends PlatformLevelScene {
     // Step the boss brain — hit-stop / parry-freeze skips the machine but the
     // queued events land on the first live step after.
     const frozen = now < this.machineFreezeUntil;
-    this.controller.update(dtMs, frozen, this.combat.drainEvents());
+    this.controller.update(dtMs, frozen, this.combat.drainEvents(), interactPressed);
     this.projectiles.update(dtMs);
     this.hazards.update(dtMs);
 
@@ -363,6 +386,10 @@ export class BossArenaScene extends PlatformLevelScene {
 
   private onBodyContact(): void {
     if (this.dead || this.victory) return;
+    // A staggered/DOWNED boss is safe to touch — the mash window sends the
+    // player right up against (and on top of) him; contact damage there would
+    // punish doing the intended thing.
+    if (this.controller?.state.fsm === "stagger") return;
     const body = this.player.body as Body;
     const bb = this.bossSprite.body as Body;
     const contact = classifyStomp(
@@ -391,6 +418,9 @@ export class BossArenaScene extends PlatformLevelScene {
     this.victory = true;
     this.disarmBossAttack();
     audio.sfx("collect");
+    // Victory fanfare (loop:false) — replaces the boss theme for the beat
+    // before the fade; the next scene's create() takes over the music.
+    audio.playTrack("victory");
 
     const fromLevel = this.arenaData.fromLevel;
     const isTraining = this.bossDef.id === "training-dummy";
@@ -407,7 +437,8 @@ export class BossArenaScene extends PlatformLevelScene {
       .setOrigin(0.5)
       .setDepth(100);
 
-    this.time.delayedCall(1600, () => {
+    // Long enough for the fanfare's opening phrase to land before the fade.
+    this.time.delayedCall(2600, () => {
       cam.fadeOut(FADE_MS, 0, 0, 0);
       cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
         gameStore.set({ rtBoss: null, rtObjective: null, rtSeals: null });

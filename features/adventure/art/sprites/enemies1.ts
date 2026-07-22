@@ -1,9 +1,9 @@
 import { frame } from "../grid";
 import type { SpriteDef } from "../textures";
 
-// World-1 enemies, 16x16 each. Authored to schema; a permanent integrity test
-// (art/grid.test.ts) parses every frame for palette membership, size, and
-// per-anim non-duplicate frames.
+// World-1 enemies (16x16, plus the 16x24 player-sized Crown Imp). Authored to
+// schema; a permanent integrity test (art/grid.test.ts) parses every frame for
+// palette membership, size, and per-anim non-duplicate frames.
 
 // --- Bugling: a round corrupted beetle-mushroom -----------------------------
 // Green mushroom cap (G/g) speckled with red glitch patches (R/r) over a dark
@@ -195,4 +195,73 @@ export const PHISHLING_SPRITES: SpriteDef = {
   ],
 };
 
-export const ENEMY_SPRITES: SpriteDef[] = [BUGLING_SPRITES, PHISHLING_SPRITES];
+// --- Crown Imp: a player-sized demon soldier of the false crown -------------
+// 16x24 (the player's exact box). Corruption-red hide (r) with deep-red X
+// shading, white horn tips over C horns, glowing gold Y eyes, a dark armored
+// chestplate (K) bearing the false crown's gold emblem (y), clawed hands and
+// digitigrade legs ending in X talons. Two stomps to put down (hp 2).
+
+const IMP_WALK_0 = frame(`
+  .CC..........CC.
+  ..CX........XC..
+  ...rrrrrrrrrr...
+  ..rrrrrrrrrrrr..
+  ..rYYrrrrrrYYr..
+  ..rrrrrrrrrrrr..
+  ...rrXXrrXXrr...
+  ...rrrXXXXrrr...
+  ....rrrrrrrr....
+  ...KKKKKKKKKK...
+  ..KKKKyyyyKKKK..
+  ..KKKKKyyKKKKK..
+  .rKKKKKKKKKKKKr.
+  .rrKKKKKKKKKKrr.
+  .Xr.KKKKKKKK.rX.
+  ....kkkkkkkk....
+  ...rrr....rrr...
+  ...rrX....Xrr...
+  ...rr......rr...
+  ..Xrr......rrX..
+  ...rr......rr...
+  ...rr......rr...
+  ..XrrX....XrrX..
+  ..XXXX....XXXX..
+`);
+
+// walk f1: stride converges, arms tuck in a half-swing.
+const IMP_WALK_1 = frame(`
+  .CC..........CC.
+  ..CX........XC..
+  ...rrrrrrrrrr...
+  ..rrrrrrrrrrrr..
+  ..rYYrrrrrrYYr..
+  ..rrrrrrrrrrrr..
+  ...rrXXrrXXrr...
+  ...rrrXXXXrrr...
+  ....rrrrrrrr....
+  ...KKKKKKKKKK...
+  ..KKKKyyyyKKKK..
+  ..KKKKKyyKKKKK..
+  ..rKKKKKKKKKKr..
+  ..rrKKKKKKKKrr..
+  ..X.KKKKKKKK.X..
+  ....kkkkkkkk....
+  ....rrr..rrr....
+  ....rrX..Xrr....
+  ....rr....rr....
+  ...Xrr....rrX...
+  ....rr....rr....
+  ....rr....rr....
+  ...XrrX..XrrX...
+  ...XXXX..XXXX...
+`);
+
+export const CROWN_IMP_SPRITES: SpriteDef = {
+  key: "enemy-crown-imp",
+  w: 16,
+  h: 24,
+  frames: [IMP_WALK_0, IMP_WALK_1],
+  anims: [{ key: "walk", frames: [0, 1], frameRate: 5, repeat: -1 }],
+};
+
+export const ENEMY_SPRITES: SpriteDef[] = [BUGLING_SPRITES, PHISHLING_SPRITES, CROWN_IMP_SPRITES];

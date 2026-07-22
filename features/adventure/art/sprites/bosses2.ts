@@ -172,10 +172,21 @@ export const TRAINING_DUMMY_SPRITE: SpriteDef = {
  *  sprites here so the arena can register them by RtBossId. Big kits live in
  *  sibling bosses2-*.ts modules; this file is the registry barrel. */
 import { BROKEN_KING_ALL } from "./bosses2-brokenKing";
+import { HOLLOW_GIANT_SPRITES } from "./bosses2-hollowGiant";
 export {
   BROKEN_KING_SPRITES,
   BROKEN_KING_SHOCKWAVE,
   BROKEN_KING_BLADE_ARC,
 } from "./bosses2-brokenKing";
+export {
+  HOLLOW_GIANT_TORSO,
+  HOLLOW_GIANT_HAND,
+  HOLLOW_GIANT_FOREARM,
+  HOLLOW_GIANT_HEART,
+} from "./bosses2-hollowGiant";
 
-export const BOSSES2_SPRITES: SpriteDef[] = [TRAINING_DUMMY_SPRITE, ...BROKEN_KING_ALL];
+export const BOSSES2_SPRITES: SpriteDef[] = [
+  TRAINING_DUMMY_SPRITE,
+  ...BROKEN_KING_ALL,
+  ...HOLLOW_GIANT_SPRITES,
+];

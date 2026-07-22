@@ -2,11 +2,17 @@
 //
 // THE BROKEN KING — World 1-1 (amendment Task 35; boss-demands/broken-king.md).
 // A towering, exhausted old king fighting with his one remaining arm. Attrition
-// is possible but ~10× slower than the intended solution: the TRUTH mechanic.
-// During any vulnerable window (missed heavy recovery, parried sweep, charge
-// wall-hit stagger) the player stands close and HOLDS E to reveal one Truth:
+// is possible but much slower than the intended solution: the TRUTH mechanic.
+// The big openings DOWN him: a parried sweep, a charge into the wall, or the
+// overhead slam's long recovery drop him to one knee for DOWNED_MS — he is
+// highlighted (gold ring + floor glow), a bouncing E keycap with a draining
+// timer hangs over him, and the player must RUN IN CLOSE and MASH E
+// (MASH_TARGET taps) before he gets back up. Each completed mash tears out one
+// Truth:
 //   1 cracks the crown · 2 removes the rage · 3 drops the sword → kneel → end.
-// No dialogue, no written truth statements — visual beats only.
+// Between downs, swings still chip him (POWER stacks from stomped level
+// enemies raise that chip). No dialogue, no written truth statements — visual
+// beats only.
 import type { MachineEvent, RtBossDef } from "../types";
 import type { BossMechanics, MechanicsApi } from "../BossController";
 import { animKey } from "../../art/textures";
@@ -91,7 +97,13 @@ export const BROKEN_KING: RtBossDef = {
   ],
   arenaKey: "temple-throne",
   track: "broken-king",
-  spawn: { tx: 30, ty: 12 },
+  // Spawn on the flat main floor (ty 13): his y never changes while charge
+  // tweens drag him across the arena, so any raised-ground baseline had him
+  // hovering over the floor everywhere else ("the king is floating").
+  spawn: { tx: 28, ty: 13 },
+  // The art keeps one transparent row under the boots; without this he sinks
+  // |spriteH − bodyH| − 1 = 3px into the floor (see BossArenaScene grounding).
+  spriteFeetY: 71,
   animFor: (anim, ctx) => {
     const perAttack: Record<string, Record<string, string>> = {
       telegraph: {
@@ -117,22 +129,124 @@ export const BROKEN_KING: RtBossDef = {
   },
 };
 
-const TRUTH_RANGE_PX = 52;
-const TRUTH_HOLD_MS = 900;
+const TRUTH_RANGE_PX = 56;
 const TRUTH_TOTAL = 3;
+// The downed window: he drops to one knee for this long — run in and MASH E
+// (MASH_TARGET taps, in range) to tear a truth out before he gets back up.
+const DOWNED_MS = 5000;
+const MASH_TARGET = 6;
+const REVEAL_STAGGER_MS = 1500;
 
 export function createBrokenKingMechanics(scene: Phaser.Scene, api: MechanicsApi): BossMechanics {
   let truths = 0;
   let sealsLeft = TRUTH_TOTAL; // arena entry silently tops the count to 3
-  let holdConsumed = false; // one truth per continuous E-hold
   let pendingTruthAnim: string | null = null;
   const pending: MachineEvent[] = [];
+
+  // Downed-window state: `downed` while he is on one knee waiting to be
+  // mashed; `mash` counts the in-range E-taps; `suppressVuln` swallows the
+  // vulnerable commands our OWN force-staggers echo back (they must not
+  // re-trigger a fresh window).
+  let downed = false;
+  let mash = 0;
+  let suppressVuln = 0;
 
   // Rage aura: a crimson glow behind the King while royal-rage is active.
   const aura = scene.add
     .ellipse(api.boss.x, api.boss.y, 64, 84, 0xef4444, 0.16)
     .setDepth(11)
     .setVisible(false);
+
+  // Downed-window presentation: gold floor glow + a pulsing ring highlight on
+  // the King, an "E / MASH!" keycap bobbing over his head, and a draining
+  // timer bar. Created once, hidden; positioned every update while downed.
+  const glow = scene.add.ellipse(0, 0, 78, 18, 0xffd75e, 0.22).setDepth(11).setVisible(false);
+  const ring = scene.add
+    .ellipse(0, 0, 66, 88)
+    .setStrokeStyle(2, 0xffd75e, 0.9)
+    .setFillStyle(0, 0)
+    .setDepth(30)
+    .setVisible(false);
+  const keycap = scene.add
+    .text(0, 0, " E ", {
+      fontFamily: "monospace",
+      fontSize: "11px",
+      fontStyle: "bold",
+      color: "#16161c",
+      backgroundColor: "#ffd75e",
+      padding: { x: 3, y: 2 },
+    })
+    .setOrigin(0.5)
+    .setDepth(31)
+    .setVisible(false);
+  const mashLabel = scene.add
+    .text(0, 0, "MASH!", {
+      fontFamily: "monospace",
+      fontSize: "8px",
+      fontStyle: "bold",
+      color: "#ffd75e",
+      backgroundColor: "#000000aa",
+      padding: { x: 2, y: 1 },
+    })
+    .setOrigin(0.5)
+    .setDepth(31)
+    .setVisible(false);
+  const timerBg = scene.add.rectangle(0, 0, 40, 3, 0x16161c, 0.8).setDepth(31).setVisible(false);
+  const timerFill = scene.add
+    .rectangle(0, 0, 40, 3, 0xffd75e, 1)
+    .setOrigin(0, 0.5)
+    .setDepth(32)
+    .setVisible(false);
+
+  const promptParts = [glow, ring, keycap, mashLabel, timerBg, timerFill];
+  const hidePrompt = () => {
+    for (const p of promptParts) p.setVisible(false);
+    api.setContextAction(null);
+    api.setObjective(null);
+  };
+
+  const endDowned = () => {
+    downed = false;
+    hidePrompt();
+  };
+
+  /** He drops: convert the opening into the scripted DOWNED_MS stagger and
+   *  light the whole mash affordance up. */
+  const beginDowned = () => {
+    downed = true;
+    mash = 0;
+    pendingTruthAnim = null; // a stale reveal pose must not hijack this window
+    suppressVuln++; // our force-stagger echoes one vulnerable command back
+    pending.push({ kind: "force-stagger", ms: DOWNED_MS });
+    for (const p of promptParts) p.setVisible(true);
+    // (no expose sfx here — the controller already plays it per vulnerable cmd)
+    api.setObjective("HE'S DOWN — GET CLOSE, MASH E!");
+  };
+
+  /** A full mash: tear one truth out (crown crack / rage removal / sword). */
+  const fireTruth = () => {
+    endDowned();
+    truths += 1;
+    sealsLeft -= 1;
+    api.setSeals({ lit: sealsLeft, of: TRUTH_TOTAL });
+    api.sfx("seal");
+    if (truths >= TRUTH_TOTAL) {
+      // Sword drop → kneel → the fight ends (no dialogue). No reveal stagger:
+      // the defeat flow owns the pose from here.
+      playBoss("sword-drop");
+      scene.time.delayedCall(700, () => api.forceDefeat());
+      return;
+    }
+    pendingTruthAnim = `truth-${truths}`;
+    // Hold the revelation beat; the machine parks in a scripted stagger.
+    suppressVuln++;
+    pending.push({ kind: "force-stagger", ms: REVEAL_STAGGER_MS });
+    if (truths === 2) {
+      // The rage leaves him — and can never return.
+      pending.push({ kind: "force-phase", phaseIndex: 0, lock: true });
+      aura.setVisible(false);
+    }
+  };
 
   api.setSeals({ lit: sealsLeft, of: TRUTH_TOTAL });
 
@@ -146,7 +260,26 @@ export function createBrokenKingMechanics(scene: Phaser.Scene, api: MechanicsApi
         return;
       }
       if (cmd.kind === "phase") {
+        if (downed) endDowned(); // a forced phase cancels the machine's stagger
         aura.setVisible(cmd.phaseIndex >= 1);
+        return;
+      }
+      if (cmd.kind === "defeated") {
+        if (downed) endDowned();
+        return;
+      }
+      if (cmd.kind === "vulnerable") {
+        if (suppressVuln > 0) {
+          suppressVuln--;
+          return;
+        }
+        // The big openings DOWN him: an attack-born stagger (parried sweep,
+        // charge into the wall) or the overhead slam's recovery. Smaller
+        // recoveries stay plain chip-damage punish windows.
+        const m = api.machine();
+        const bigOpening =
+          m.fsm === "stagger" || (m.fsm === "recovery" && m.currentAttackId === "overhead");
+        if (!downed && sealsLeft > 0 && bigOpening) beginDowned();
         return;
       }
       if (cmd.kind === "stagger" && pendingTruthAnim) {
@@ -155,9 +288,22 @@ export function createBrokenKingMechanics(scene: Phaser.Scene, api: MechanicsApi
         pendingTruthAnim = null;
         return;
       }
-      if (cmd.kind === "anim" && cmd.anim === "idle" && truths > 0) {
-        // The broken poses ARE his weakened idle — the crown stays cracked.
-        playBoss(`truth-${Math.min(truths, 3)}`);
+      if (cmd.kind === "anim") {
+        if (downed && (cmd.anim === "stagger" || cmd.anim === "recovery" || cmd.anim === "damage")) {
+          // Downed reads as DOWN: hold the kneel through the whole window
+          // (also re-asserted after damage-flinch frames from chip swings).
+          playBoss("kneel");
+          return;
+        }
+        if (cmd.anim === "idle") {
+          // Timer ran out → the machine stood him back up.
+          if (downed) endDowned();
+          if (truths > 0) {
+            // The broken poses ARE his weakened idle — the crown stays cracked.
+            playBoss(`truth-${Math.min(truths, 3)}`);
+          }
+          return;
+        }
         return;
       }
       if (cmd.kind !== "attack-active") return;
@@ -180,7 +326,9 @@ export function createBrokenKingMechanics(scene: Phaser.Scene, api: MechanicsApi
         api.shapeAttack({ w: 54, h: 62 });
         // Drive the sprite across the arena; reaching the wall = wall-hit →
         // the machine staggers (it is still inside the 2600ms active window).
-        const targetX = dir === 1 ? 60 * 16 - 44 : 44;
+        // Wall x derives from the camera bounds (the arena map size) so the
+        // charge always spans the CURRENT arena, not a hardcoded width.
+        const targetX = dir === 1 ? scene.cameras.main.getBounds().right - 44 : 44;
         const dist = Math.abs(targetX - bossX);
         scene.tweens.add({
           targets: api.boss,
@@ -212,43 +360,44 @@ export function createBrokenKingMechanics(scene: Phaser.Scene, api: MechanicsApi
 
       const m = api.machine();
       if (m.fsm === "defeated") {
+        if (downed) endDowned();
         api.setContextAction(null);
         return;
       }
-      const dist = Math.abs(api.player.x - api.boss.x);
-      const windowOpen = m.vulnerableMs > 0 && sealsLeft > 0 && dist <= TRUTH_RANGE_PX;
-      if (!windowOpen) {
-        api.setContextAction(null);
-        holdConsumed = false;
+      if (!downed) return;
+      if (m.fsm !== "stagger") {
+        // Safety net: the machine left the stagger some other way (e.g. a
+        // forced phase) — the window is over.
+        endDowned();
         return;
       }
-      const held = api.interactHeldMs();
-      if (held === 0) holdConsumed = false;
-      api.setContextAction({
-        key: "E",
-        label: "REVEAL TRUTH",
-        progress: holdConsumed ? 1 : Math.min(1, held / TRUTH_HOLD_MS),
-      });
-      if (!holdConsumed && held >= TRUTH_HOLD_MS) {
-        holdConsumed = true;
-        truths += 1;
-        sealsLeft -= 1;
-        api.setSeals({ lit: sealsLeft, of: TRUTH_TOTAL });
-        api.sfx("seal");
-        pendingTruthAnim = `truth-${truths}`;
-        // Hold the revelation beat; the machine parks in a scripted stagger.
-        pending.push({ kind: "force-stagger", ms: 1500 });
-        if (truths === 2) {
-          // The rage leaves him — and can never return.
-          pending.push({ kind: "force-phase", phaseIndex: 0, lock: true });
-          aura.setVisible(false);
-        }
-        if (truths >= TRUTH_TOTAL) {
-          // Sword drop → kneel → the fight ends (no dialogue).
-          playBoss("sword-drop");
-          scene.time.delayedCall(700, () => api.forceDefeat());
-          api.setContextAction(null);
-        }
+
+      const now = scene.time.now;
+      const bx = api.boss.x;
+      const by = api.boss.y;
+      const inRange = Math.abs(api.player.x - bx) <= TRUTH_RANGE_PX;
+
+      // Highlight + prompt track the kneeling King: floor glow, pulsing ring,
+      // bobbing E keycap (dimmed until in range) and the draining 5s bar.
+      glow.setPosition(bx, by + 34).setAlpha(0.18 + 0.1 * (1 + Math.sin(now / 140)));
+      ring.setPosition(bx, by + 4).setScale(1 + 0.05 * Math.sin(now / 120));
+      const bob = Math.sin(now / 110) * 2;
+      keycap.setPosition(bx, by - 56 + bob).setAlpha(inRange ? 1 : 0.6);
+      mashLabel
+        .setPosition(bx, by - 44 + bob)
+        .setAlpha(inRange ? 1 : 0.75)
+        .setText(inRange ? "MASH!" : "GET CLOSE!");
+      const remainingFrac = Math.max(0, Math.min(1, m.vulnerableMs / DOWNED_MS));
+      timerBg.setPosition(bx, by - 66);
+      timerFill.setPosition(bx - 20, by - 66).setSize(40 * remainingFrac, 3);
+
+      api.setContextAction({ key: "E", label: "MASH E!", progress: mash / MASH_TARGET });
+
+      if (inRange && api.interactPressed()) {
+        mash++;
+        api.sfx("type");
+        scene.tweens.add({ targets: keycap, scale: { from: 1.35, to: 1 }, duration: 90 });
+        if (mash >= MASH_TARGET) fireTruth();
       }
     },
 
@@ -260,7 +409,9 @@ export function createBrokenKingMechanics(scene: Phaser.Scene, api: MechanicsApi
 
     destroy() {
       aura.destroy();
+      for (const p of promptParts) p.destroy();
       api.setContextAction(null);
+      api.setObjective(null);
       api.setSeals(null);
     },
   };

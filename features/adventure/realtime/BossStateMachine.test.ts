@@ -525,3 +525,47 @@ describe("assist recoveryScale (StepInput)", () => {
     expect(s.vulnerableMs).toBe(300);
   });
 });
+
+// ── Hollow Giant cycle closure (Task 37): the def's data drives the tested
+// machine through all three heart cycles to defeat — deterministic proof of
+// the loop the browser harness demonstrated live through cycle 1. ──────────
+describe("hollow-giant def cycles", () => {
+  it("9 mechanic heart-hits walk phases 0→1→2 and end defeated", async () => {
+    const { HOLLOW_GIANT } = await import("./bossDefinitions/hollowGiant");
+    expect(() => validateDef(HOLLOW_GIANT)).not.toThrow();
+    let s = initBossState(HOLLOW_GIANT);
+    const inp = (events: MachineEvent[] = []): StepInput => ({
+      dt: 100, playerX: 400, playerY: 200, bossX: 472, bossY: 160,
+      events, rng: makeRng(7),
+    });
+    // spawn → idle
+    for (let i = 0; i < 10 && s.fsm === "spawn"; i++) s = stepBoss(HOLLOW_GIANT, s, inp()).state;
+    const phaseAt: number[] = [];
+    for (let hit = 1; hit <= 9; hit++) {
+      // the expose hold, as the mechanics module emits it
+      s = stepBoss(HOLLOW_GIANT, s, inp([{ kind: "force-stagger", ms: 10000 }])).state;
+      expect(s.fsm).toBe("stagger");
+      s = stepBoss(HOLLOW_GIANT, s, inp([{ kind: "hit", amount: 1, source: "mechanic" }])).state;
+      phaseAt.push(s.phaseIndex);
+      if (hit % 3 === 0 && hit < 9) {
+        // cycle boundary: the release + the hp-threshold phase crossing
+        s = stepBoss(HOLLOW_GIANT, s, inp([{ kind: "force-stagger", ms: 1 }])).state;
+        for (let i = 0; i < 12 && (s.fsm === "stagger" || s.fsm === "transition"); i++) {
+          s = stepBoss(HOLLOW_GIANT, s, inp()).state;
+        }
+      }
+    }
+    expect(s.hp).toBe(0);
+    expect(s.fsm).toBe("defeated");
+    // Cycle boundaries advance the phase in the SAME step the 3rd/6th hit
+    // lands (hits apply before the crossing check inside one stepBoss call).
+    expect(phaseAt[1]).toBe(0); // mid-cycle-1
+    expect(phaseAt[2]).toBe(1); // 3rd hit crosses 0.7 → cycle-2
+    expect(phaseAt[5]).toBe(2); // 6th hit crosses 0.34 → cycle-3
+    expect(phaseAt[7]).toBe(2); // mid-cycle-3
+    // Defeated is absorbing.
+    const r = stepBoss(HOLLOW_GIANT, s, inp([{ kind: "hit", amount: 5, source: "mechanic" }]));
+    expect(r.state.fsm).toBe("defeated");
+    expect(r.commands).toEqual([]);
+  });
+});

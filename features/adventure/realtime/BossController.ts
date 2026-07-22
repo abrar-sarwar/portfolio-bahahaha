@@ -52,9 +52,16 @@ export interface MechanicsApi {
   setSeals(v: { lit: number; of: number } | null): void;
   /** How long E has been continuously held, in ms (0 when up). */
   interactHeldMs(): number;
+  /** True on the single frame E was TAPPED (edge, not level) — mash mechanics
+   *  (the Broken King's downed-window truth tear). Captured by the scene
+   *  before the base update consumes the input snapshot. */
+  interactPressed(): boolean;
   /** Reshape the current/next attack's melee window (arena-wide sweeps,
    *  directional slams). Resets to the boss's default on attack-end. */
   shapeAttack(shape: { w: number; h: number; ox?: number; oy?: number }): void;
+  /** Fire `cb` when a player swing connects with `target` (once per swing).
+   *  No machine event is emitted — weak-point semantics are the mechanics'. */
+  onSwingHit(target: Phaser.GameObjects.GameObject, cb: () => void): void;
   sfx(id: SfxId): void;
 }
 
@@ -86,6 +93,8 @@ export interface BossControllerDeps {
   onAttackEnd(): void;
   /** Reshape the melee window (MechanicsApi.shapeAttack passthrough). */
   shapeAttack(shape: { w: number; h: number; ox?: number; oy?: number }): void;
+  /** Weak-point swing binding (MechanicsApi.onSwingHit passthrough). */
+  bindSwing(target: Phaser.GameObjects.GameObject, cb: () => void): void;
   /** The machine reached `defeated` (absorbing) — scene runs the victory flow. */
   onDefeated(): void;
   rngSeed?: number;
@@ -100,6 +109,7 @@ export class BossController {
   private rng: () => number;
   private queued: MachineEvent[] = [];
   private interactHeldSince: number | null = null;
+  private interactTapped = false;
   private lastSnapshotKey = "";
 
   constructor(private deps: BossControllerDeps) {
@@ -123,7 +133,9 @@ export class BossController {
       setSeals: (v) => gameStore.set({ rtSeals: v }),
       interactHeldMs: () =>
         this.interactHeldSince === null ? 0 : this.deps.scene.time.now - this.interactHeldSince,
+      interactPressed: () => this.interactTapped,
       shapeAttack: (shape) => deps.shapeAttack(shape),
+      onSwingHit: (target, cb) => deps.bindSwing(target, cb),
       sfx: (id) => audio.sfx(id),
     };
     this.mechanics = deps.mechanicsFactory?.(deps.scene, this.api);
@@ -144,8 +156,12 @@ export class BossController {
   }
 
   /** Step the boss one frame. `frozen` (hit-stop / parry freeze) skips the
-   *  machine but keeps queued events for the first live step after. */
-  update(dtMs: number, frozen: boolean, sceneEvents: MachineEvent[]): void {
+   *  machine but keeps queued events for the first live step after.
+   *  `interactPressed` is the frame's E-tap edge, captured by the scene BEFORE
+   *  the base update consumed the input snapshot (mash mechanics read it via
+   *  MechanicsApi.interactPressed). */
+  update(dtMs: number, frozen: boolean, sceneEvents: MachineEvent[], interactPressed = false): void {
+    this.interactTapped = interactPressed;
     // Track the E-hold for mechanics (REVEAL TRUTH-style holds).
     if (input.read().interactHeld) {
       if (this.interactHeldSince === null) this.interactHeldSince = this.deps.scene.time.now;

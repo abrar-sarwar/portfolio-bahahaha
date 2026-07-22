@@ -22,7 +22,16 @@ export interface CorruptionSegment {
  *  temple door). No collision, no gameplay — the scene renders these behind
  *  the actors when a level authors them. */
 export interface DecorMark {
-  kind: "chain" | "banner" | "statue" | "neon" | "lantern" | "temple-door";
+  kind:
+    | "chain"
+    | "banner"
+    | "statue"
+    | "neon"
+    | "lantern"
+    | "temple-door"
+    | "anchor"
+    | "crystal"
+    | "sinkhole";
   tx: number;
   ty: number;
 }
@@ -31,8 +40,9 @@ export interface LevelDefinition {
   id: LevelId;
   name: string;
   /** "city" = the dual-biome World 1-1 ascent; "temple" = its temple-only
-   *  biome (the Broken King arena). Both draw from tiles-city (Task 34). */
-  theme: "fields" | "harbor" | "factory" | "archive" | "castle" | "city" | "temple";
+   *  biome (the Broken King arena). "desert" = the World 1-2 surface→cave run
+   *  (tiles-desert, Task 36). */
+  theme: "fields" | "harbor" | "factory" | "archive" | "castle" | "city" | "temple" | "desert";
   bossId: BossId;
   music: TrackId;
   map: string;
@@ -62,7 +72,8 @@ export type EnemyKind =
   | "malware-bat"
   | "brute"
   | "firewall-knight"
-  | "rootkit-slime";
+  | "rootkit-slime"
+  | "crown-imp";
 
 export interface ParsedLevel {
   widthTiles: number;
@@ -109,4 +120,10 @@ export interface ParsedLevel {
    *  on overlap; each lights one `rtSeals` pip beside the ActionBar and plays
    *  the `seal` sfx. The Broken King arena silently tops the count to 3. */
   seals: Pt[];
+  /** Ceiling-debris marker cells (legend `*`, Task 36): a glinting mark that
+   *  drops a rock when the player passes beneath (telegraphed, re-arming). */
+  debrisMarks: Pt[];
+  /** Vertical-lift cells (legend `I`, Task 36): a one-way mover platform that
+   *  rides between its spawn row and 6 rows above, carrying the player. */
+  lifts: Pt[];
 }

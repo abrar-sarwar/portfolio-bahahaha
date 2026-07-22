@@ -86,6 +86,9 @@ export interface HudState {
   maxHealth: number;
   buffs: BuffId[];
   fragments: number;
+  /** POWER stacks (stomp-killed enemies this level, capped) — bonus swing
+   *  damage carried into the boss arena. 0 hides the chip. */
+  power: number;
   levelId: LevelId | null;
 }
 
@@ -158,6 +161,7 @@ export const gameStore = createStore<GameUIState>({
     maxHealth: PLAYER_BASE.maxHealth,
     buffs: [],
     fragments: 0,
+    power: 0,
     levelId: null,
   },
   levelBuffs: [],

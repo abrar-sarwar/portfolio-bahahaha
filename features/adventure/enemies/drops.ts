@@ -14,6 +14,9 @@ const TABLE: Record<EnemyKind, [number, Drop][]> = {
   brute: [[0.4, "firewall-layer"], [0.8, "heart"]],
   "firewall-knight": [[0.5, "parry-module"], [0.7, "recovery-packet"]],
   "rootkit-slime": [[0.4, "root-access"], [0.6, "exploit-insight"]],
+  // Crown Imp (realtime rework): a two-stomp demon whose real reward is the
+  // POWER stack — the drop table just tops hearts up on the road to the King.
+  "crown-imp": [[0.35, "heart"]],
 };
 
 export function rollDrop(kind: EnemyKind, rand: number): Drop {

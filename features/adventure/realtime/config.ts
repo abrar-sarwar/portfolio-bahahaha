@@ -22,6 +22,12 @@ export const RT_PLAYER = {
   hurtIframesMs: 900,
 } as const;
 
+// POWER stacks: stomping a level enemy dead grants one stack (capped); each
+// stack adds +1 to the player's swing damage in that level's boss arena,
+// applied BEFORE the boss's damageScale. Earned in PlatformLevelScene,
+// carried through the boss door in ArenaSceneData.power.
+export const POWER_STACK_MAX = 5;
+
 // Machine-level timings that are not part of any per-attack spec.
 export const RT_TUNING = {
   spawnMs: 600, // spawn -> idle intro beat

@@ -6,6 +6,8 @@ import { PLAYER_SPRITES } from "../art/sprites/player";
 import { tilesetFor } from "../art/sprites/tiles-fields";
 import { loadSave } from "../state/save";
 import { applyAudioSettings } from "../state/settings";
+import { getRtBoss } from "../realtime/bossDefinitions";
+import type { RtBossId } from "../realtime/types";
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -35,17 +37,21 @@ export class BootScene extends Phaser.Scene {
 
     bus.emit("scene:changed", { scene: "Boot" });
 
-    // Debug/verification entry (Task 32): ?arena=training jumps straight into the
-    // BossArenaScene with the shipped, gated, harmless training dummy. This is
-    // the internal test arena the brief mandates; the Task-48 debug menu reuses
-    // the same launch. Anything else boots normally to the Title.
+    // Debug/verification entry (Tasks 32/37): ?arena=<rt-boss-id> jumps
+    // straight into the BossArenaScene for any REGISTERED realtime boss
+    // (?arena=training aliases the dummy). Shipped, gated, harmless — the
+    // Task-48 debug menu reuses the same launch. No fromLevel, so a debug
+    // victory never writes completion. Anything else boots to the Title.
     const arena =
       typeof window !== "undefined"
         ? new URLSearchParams(window.location.search).get("arena")
         : null;
-    if (arena === "training") {
-      this.scene.start("Arena", { bossId: "training-dummy", returnScene: "Title" });
-      return;
+    if (arena) {
+      const bossId = (arena === "training" ? "training-dummy" : arena) as RtBossId;
+      if (getRtBoss(bossId)) {
+        this.scene.start("Arena", { bossId, returnScene: "Title" });
+        return;
+      }
     }
 
     this.scene.start("Title");

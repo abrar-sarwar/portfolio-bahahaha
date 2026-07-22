@@ -21,7 +21,7 @@ import {
   type ProjectileState,
   type Wall,
 } from "./ProjectileSystem";
-import { parryFlashRing } from "./effects";
+import { impactSparks, parryFlashRing } from "./effects";
 import { animKey, frameKey } from "../art/textures";
 import { audio } from "../audio/synth";
 
@@ -117,6 +117,7 @@ export class ProjectileManager {
     const boss = this.deps.boss;
     const pb = player.body as Body;
     const bb = boss.body as Body;
+    const walls = this.deps.walls();
 
     for (const p of this.live) {
       // Reflected projectiles steer home to the boss; normal homing to the player.
@@ -127,12 +128,27 @@ export class ProjectileManager {
         dt: dtMs,
         targetX: homingTarget.x,
         targetY: homingTarget.y,
-        walls: this.deps.walls(),
+        walls,
       });
       p.go.setPosition(p.st.x, p.st.y);
       p.glowHalo?.setPosition(p.st.x, p.st.y);
 
       if (!p.st.alive) continue;
+
+      // Solid walls stop EVERY projectile: bouncing kinds reflect inside
+      // stepProjectile; everything else shatters on contact. (Falling blade
+      // arcs used to sink straight through the floor until their TTL ran out
+      // — "attacks going through the ground".)
+      if (p.spec.kind !== "bouncing") {
+        for (const w of walls) {
+          if (p.st.x >= w.x && p.st.x <= w.x + w.w && p.st.y >= w.y && p.st.y <= w.y + w.h) {
+            impactSparks(this.scene, p.st.x, p.st.y);
+            p.st = { ...p.st, alive: false };
+            break;
+          }
+        }
+        if (!p.st.alive) continue;
+      }
 
       const r = (p.opts.sizePx ?? 6) / 2 + 2;
       if (!p.reflected) {

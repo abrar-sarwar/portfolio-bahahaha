@@ -550,18 +550,48 @@ function skyRows(): string[] {
     for (let x = 0; x < BG_W; x++) {
       const u = x / (BG_W - 1);
       const uu = Math.pow(u, 1.3); // bias the warmth toward the right edge
-      const coolCh = gradSample(cool, t, x, y);
-      const warmCh = gradSample(warm, t, x, y);
-      let ch = hash(x * 2 + 5, y * 2 + 9) % 100 < uu * 100 ? warmCh : coolCh;
-      // Pale moon, upper-left cool sky (a soft C disc with a c crescent shade).
+      let ch: string;
+      if (y >= HORIZON_Y) {
+        // Below the horizon: a calm, near-black ground haze. (The gradient
+        // used to keep dithering full-height, leaving a loud noise band
+        // behind the playfield between skyline and foreground.)
+        const depth = (y - HORIZON_Y) / (BG_H - HORIZON_Y);
+        ch = hash(x * 7 + 1, y * 3 + 5) % 100 < 20 - depth * 16 ? "k" : "K";
+      } else {
+        const coolCh = gradSample(cool, t, x, y);
+        const warmCh = gradSample(warm, t, x, y);
+        ch = hash(x * 2 + 5, y * 2 + 9) % 100 < uu * 100 ? warmCh : coolCh;
+        // Thin drifting haze bands across the cool left sky (soft horizontal
+        // streaks, sine-warped so they read as strata, not scanlines).
+        const band = Math.sin(y / 9 + Math.sin(x / 31) * 1.7);
+        if (u < 0.55 && y > 40 && y < 150 && band > 0.86 && hash(x * 3 + 7, y * 5 + 1) % 100 < 34)
+          ch = y < 95 ? "N" : "b";
+        // Gold streak clouds hanging over the warm right horizon.
+        if (u > 0.55 && y > HORIZON_Y - 58 && y < HORIZON_Y - 26) {
+          const streak = Math.sin(y / 3.2 + x / 17);
+          if (streak > 0.94 && hash(x * 9 + 2, y * 7 + 6) % 100 < 60)
+            ch = y < HORIZON_Y - 44 ? "y" : "M";
+        }
+      }
+      // Pale moon, upper-left cool sky: soft C disc, c crescent shade, a few
+      // hashed craters, and a thin d halo feathering into the sky.
       const mx = 74,
         my = 52,
         mr = 13;
       const dm = Math.hypot(x - mx, y - my);
-      if (dm < mr) ch = (x - mx) * 0.5 + (y - my) * 0.3 > 2 ? "c" : "C";
-      // Cool stars, upper-left only (kept off the moon).
-      if (y < BG_H * 0.42 && u < 0.5 && dm > mr + 3 && hash(x * 3 + 1, y * 7 + 2) % 760 === 0)
-        ch = "V";
+      if (dm < mr) {
+        ch = (x - mx) * 0.5 + (y - my) * 0.3 > 2 ? "c" : "C";
+        if (hash(x * 11 + 3, y * 13 + 8) % 23 === 0) ch = "c"; // craters
+      } else if (dm < mr + 3 && y < HORIZON_Y) {
+        if (hash(x * 5 + 9, y * 3 + 4) % 100 < 40 - (dm - mr) * 12) ch = "d"; // halo
+      }
+      // Cool stars, upper-left only (kept off the moon): a violet field with
+      // a rarer bright-white tier.
+      if (y < BG_H * 0.42 && u < 0.5 && dm > mr + 3) {
+        const star = hash(x * 3 + 1, y * 7 + 2);
+        if (star % 760 === 0) ch = "V";
+        else if (star % 1861 === 0) ch = "W";
+      }
       // Warm horizon glow, lower-right: a gold pool over a jade band.
       if (u > 0.5 && y > HORIZON_Y - 34 && y < HORIZON_Y) {
         const gz = hash(x * 5 + 3, y * 9 + 4) % 5;
@@ -583,7 +613,20 @@ function skyRows(): string[] {
 function skylineRows(): string[] {
   const g = blank();
 
-  // Mountain ridge across the right two-thirds, rising toward the right.
+  // Distant second ridge — hazier (d crest over D body), drawn FIRST so the
+  // near ridge overlaps it. Far right only, tracking ~14px above the near
+  // ridge line: a depth sliver behind the pagoda, never a wall over the warm
+  // dusk sky (an earlier, taller version blanketed the whole right sky).
+  for (let x = 0; x < BG_W; x++) {
+    const u = x / (BG_W - 1);
+    if (u < 0.62) continue;
+    const base = HORIZON_Y - 14 - Math.floor((u - 0.32) * 150);
+    const n = (hash(Math.floor(x / 11), 29) % 18) - 6;
+    const ridge = Math.max(56, base - n);
+    for (let y = ridge; y < HORIZON_Y; y++) g[y][x] = y <= ridge + 1 ? "d" : "D";
+  }
+
+  // Near mountain ridge across the right two-thirds, rising toward the right.
   for (let x = 0; x < BG_W; x++) {
     const u = x / (BG_W - 1);
     if (u < 0.32) continue;
@@ -607,13 +650,28 @@ function skylineRows(): string[] {
     for (let y = Math.max(0, top); y < HORIZON_Y; y++) {
       for (let xx = tx; xx < Math.min(tx + tw, BG_W); xx++) {
         const edge = xx === tx || xx === tx + tw - 1 || y === top;
-        // Lit windows on a grid; occasional B (bright) among b.
+        // Lit windows on a grid: mostly b, a bright B tier, a rare magenta E
+        // sign among them.
         let ch = "D";
         if (!edge && (xx - tx) % 4 === 2 && (y - top) % 5 === 2) {
-          ch = hash(xx, y) % 5 === 0 ? "B" : "b";
+          const r = hash(xx, y) % 17;
+          ch = r === 0 ? "E" : r < 4 ? "B" : "b";
         }
         g[y][xx] = edge ? "K" : ch;
       }
+    }
+    // Rooftop furniture: an antenna mast (R warning light) or a squat water
+    // tank, hashed per tower so the roofline stops reading as a bare comb.
+    const roofKind = hash(tx, 17) % 3;
+    if (roofKind === 0) {
+      const ax = tx + 3 + (hash(tx, 19) % Math.max(1, tw - 6));
+      const ah = 6 + (hash(tx, 23) % 9);
+      for (let y = Math.max(0, top - ah); y < top; y++) g[y][ax] = "D";
+      if (top - ah - 1 >= 0) g[top - ah - 1][ax] = "R";
+    } else if (roofKind === 1 && tw >= 12) {
+      const wx = tx + 2 + (hash(tx, 31) % Math.max(1, tw - 10));
+      for (let y = Math.max(0, top - 5); y < top; y++)
+        for (let xx = wx; xx < wx + 7; xx++) g[y][xx] = y === top - 5 ? "D" : "k";
     }
     tx += tw + 2 + (hash(tx, 3) % 8);
   }
@@ -629,7 +687,9 @@ function skylineRows(): string[] {
         const px = cx + dx;
         const py = y0 + dy;
         if (px >= 0 && px < BG_W && py >= 0 && py < BG_H) {
-          g[py][px] = dy === 0 || Math.abs(dx) === w ? roofCh : "K";
+          // Two-px lacquer courses so the roofs read as solid planes against
+          // the dark sky (single-px edges looked like hollow wireframes).
+          g[py][px] = dy <= 1 || Math.abs(dx) >= w - 1 ? roofCh : "K";
         }
       }
       // upturned tips
@@ -638,10 +698,12 @@ function skylineRows(): string[] {
         if (cx + w + 1 < BG_W) g[y0 + dy - 1][cx + w + 1] = roofCh;
       }
     }
-    // body under this roof
+    // body under this roof, warm window slits glowing through the dark
     for (let by = y0 + 7; by < y0 + 12; by++) {
       for (let bx = cx - (halfW - 8); bx <= cx + (halfW - 8); bx++) {
-        if (bx >= 0 && bx < BG_W && by >= 0 && by < BG_H) g[by][bx] = "K";
+        if (bx >= 0 && bx < BG_W && by >= 0 && by < BG_H) {
+          g[by][bx] = (bx - cx) % 5 === 0 && by === y0 + 9 ? "Y" : "K";
+        }
       }
     }
   };
@@ -671,14 +733,15 @@ function foregroundRows(): string[] {
       // City rooftop parapet.
       for (let y = bandTop + 6; y < BG_H; y++) g[y][x] = (x + y) % 7 === 0 ? "D" : "k";
     } else {
-      // Temple wall with a jade coping course.
+      // Temple wall with a jade coping course + cinnabar post caps.
       for (let y = bandTop + 6; y < BG_H; y++) {
         g[y][x] = y === bandTop + 6 ? "J" : y === bandTop + 7 ? "t" : (x + y) % 6 === 0 ? "k" : "p";
       }
+      if (x % 28 === 0) g[bandTop + 6][x] = "e";
     }
   }
 
-  // Left: water tanks + antennae rising off the parapet.
+  // Left: water tanks, antennae, and squat AC boxes rising off the parapet.
   let cx = 20;
   while (cx < BG_W * 0.5) {
     const kind = hash(cx, 5) % 3;
@@ -693,12 +756,21 @@ function foregroundRows(): string[] {
         }
       }
       if (hash(cx, 9) % 2 === 0) g[bandTop - th + 3][cx + 3] = "b"; // lit port
-    } else {
+    } else if (kind === 1) {
       // antenna mast
       const mh = 24 + (hash(cx, 4) % 30);
       for (let y = bandTop + 6 - mh; y < bandTop + 6; y++) g[y][cx] = "D";
       g[bandTop + 6 - mh][cx] = "R"; // aircraft-warning light
       if (cx + 2 < BG_W) for (let y = bandTop - 6; y < bandTop + 6; y++) g[y][cx + 2] = "k";
+    } else {
+      // AC box: a squat vented unit sitting on the parapet
+      const bw = 10 + (hash(cx, 12) % 6);
+      for (let y = bandTop - 4; y < bandTop + 6; y++) {
+        for (let xx = cx; xx < Math.min(cx + bw, BG_W); xx++) {
+          const edge = y === bandTop - 4 || xx === cx || xx === cx + bw - 1;
+          g[y][xx] = edge ? "D" : (y - bandTop) % 2 === 0 ? "d" : "k";
+        }
+      }
     }
     cx += 34 + (hash(cx, 6) % 30);
   }
@@ -721,6 +793,21 @@ function foregroundRows(): string[] {
       if (top + dy < BG_H && top + dy >= 0) g[top + dy][px] = "h"; // trunk
     }
     px += 30 + (hash(px, 7) % 26);
+  }
+
+  // Stone lanterns spaced between the pines: sepia pillar, capped housing
+  // with a warm Y light — drawn last so they stand in front of the trees.
+  let lx = Math.floor(BG_W * 0.56) + 9;
+  while (lx < BG_W - 3) {
+    const baseY = bandTop + 5;
+    for (let y = baseY - 7; y <= baseY; y++) g[y][lx] = "p";
+    g[baseY - 8][lx - 1] = "k";
+    g[baseY - 8][lx] = "Y"; // the light
+    g[baseY - 8][lx + 1] = "k";
+    g[baseY - 9][lx - 1] = "p";
+    g[baseY - 9][lx] = "P";
+    g[baseY - 9][lx + 1] = "p"; // cap
+    lx += 52 + (hash(lx, 9) % 40);
   }
 
   return g.map((r) => r.join(""));

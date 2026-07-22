@@ -23,6 +23,7 @@ export class PlayerCombatController {
   private attackReadyAt = 0;
   private parryStanceUntil = 0;
   private committedUntil = 0; // parry recovery / fail-vulnerable window end
+  private attackBonus = 0; // POWER stacks (level stomps) — flat swing damage
 
   constructor(
     private scene: Phaser.Scene,
@@ -33,12 +34,25 @@ export class PlayerCombatController {
     this.hitbox = new AttackHitbox(scene);
   }
 
+  /** POWER stacks (stomped level enemies): flat damage added to every landed
+   *  swing, applied before the boss def's damageScale. */
+  setAttackBonus(n: number): void {
+    this.attackBonus = Math.max(0, n);
+  }
+
   /** Wire the swing to the boss sprite: a landed swing damages the boss. */
   bindTarget(boss: Phaser.GameObjects.GameObject, onLand: () => void): void {
     this.hitbox.overlapWith(boss, () => {
-      this.events.push({ kind: "hit", amount: RT_PLAYER.attackDamage, source: "attack" });
+      this.events.push({ kind: "hit", amount: RT_PLAYER.attackDamage + this.attackBonus, source: "attack" });
       onLand();
     });
+  }
+
+  /** Wire the swing to an EXTRA target (weak points — the Hollow Giant's
+   *  heart) without the standard machine hit event; the mechanics module
+   *  decides what a connected swing means. One fire per swing per target. */
+  onSwingOverlap(target: Phaser.GameObjects.GameObject, cb: () => void): void {
+    this.hitbox.overlapWith(target, cb);
   }
 
   /** Attempt a swing. Cooldown-gated → holding the key yields one swing per

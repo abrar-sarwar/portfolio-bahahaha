@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { TILE, ZOOM, PHYSICS } from "../config";
-import { RT_PLAYER } from "../realtime/config";
+import { POWER_STACK_MAX, RT_PLAYER } from "../realtime/config";
 import type { LevelId, BuffId, AbilityId, SceneKey } from "../ids";
 import { LEVELS } from "../levels";
 import { parseLevel } from "../levels/parse";
@@ -31,6 +31,10 @@ import {
   CITY_TILES, CITY_PARALLAX, CITY_TILE_KEYS, CITY_PARALLAX_KEYS,
   CITY_NEON_ANIM, TEMPLE_LANTERN_ANIM, CITY_HAZARD_ANIM,
 } from "../art/sprites/tiles-city";
+import {
+  DESERT_TILES, DESERT_PARALLAX, DESERT_TILE_KEYS, DESERT_PARALLAX_KEYS,
+  CAVE_CRYSTAL_ANIM,
+} from "../art/sprites/tiles-desert";
 import { ENEMY_SPRITES } from "../art/sprites/enemies1";
 import { ENEMIES2_SPRITES } from "../art/sprites/enemies2";
 import { ENEMIES3_SPRITES } from "../art/sprites/enemies3";
@@ -50,6 +54,7 @@ import { Phishling, ANALYZE_RANGE_PX } from "../enemies/Phishling";
 import { BruteForceBrute } from "../enemies/BruteForceBrute";
 import { FirewallKnight } from "../enemies/FirewallKnight";
 import { RootkitSlime } from "../enemies/RootkitSlime";
+import { CrownImp } from "../enemies/CrownImp";
 import { resolvePlayerContact, applyRestompWindow } from "../enemies/enemyLogic";
 import type { DropItem } from "../enemies/drops";
 
@@ -65,6 +70,10 @@ const FAKE_H = 8; // 16x8 one-way look-alike
 const BOAT_W = 32;
 const BOAT_AMPLITUDE = 64;
 const BOAT_SPEED = (BOAT_AMPLITUDE * 2) / 1.5 / 1000; // px/ms, ~1.5s from end to end
+// Desert mechanics (Task 36): the tunnel lift rides 6 rows at this speed; the
+// ceiling rocks fall fast enough to demand a reaction but not a prediction.
+const LIFT_SPEED = 55; // px/s
+const DEBRIS_FALL_SPEED = 300; // px/s
 
 type Body = Phaser.Physics.Arcade.Body;
 
@@ -81,6 +90,10 @@ interface ThemeTiles {
    *  can dissolve from one biome into another left→right. */
   groundAt?(tx: number, ty: number, exposed: boolean): string;
   oneWayAt?(tx: number): string;
+  /** Vertical-lift platform tile (desert `I` cells, Task 36). */
+  liftKey?: string;
+  /** Collapsing-floor tile for `~` cells (default: the castle iron plank). */
+  bridgeKey?: string;
   /** When set, one-way cells render as animated sprites playing this anim
    *  (archive floating pages) rather than a static image. */
   oneWayAnim?: string;
@@ -210,6 +223,41 @@ function themeTilesFor(theme: LevelDefinition["theme"]): ThemeTiles {
       hazardAnim: CITY_HAZARD_ANIM,
       fakeKey: CITY_TILE_KEYS.cityGirder, // no fakes/boats in city levels
       boatKey: CITY_TILE_KEYS.cityGirder,
+    };
+  }
+  if (theme === "desert") {
+    // World 1-2 (Task 36): surface sand → cave rock → tunnel brick → gallery
+    // sandstone, selected by x-region + crown-vs-fill (integration.md).
+    return {
+      register: [...DESERT_PARALLAX, ...DESERT_TILES, ...CITY_TILES.filter((t) => t.key === "tile-city-hazard")],
+      parallax: [
+        { key: DESERT_PARALLAX_KEYS.bg0, depth: -30, factor: 0.2 },
+        { key: DESERT_PARALLAX_KEYS.bg1, depth: -20, factor: 0.35 },
+        { key: DESERT_PARALLAX_KEYS.caveBg0, depth: -10, factor: 0.5 },
+      ],
+      ground: DESERT_TILE_KEYS.caveRock,
+      groundFill: DESERT_TILE_KEYS.caveRockFill,
+      groundAt: (tx, ty, exposed) => {
+        if (ty <= 1) return DESERT_TILE_KEYS.caveRockFill; // cave roof band
+        if (tx <= 126) {
+          if (exposed) return DESERT_TILE_KEYS.sand;
+          return ty <= 7 ? DESERT_TILE_KEYS.sandstone : DESERT_TILE_KEYS.sandFill;
+        }
+        if (tx <= 177) {
+          return exposed ? DESERT_TILE_KEYS.caveRock : DESERT_TILE_KEYS.caveRockFill;
+        }
+        if (tx <= 192) {
+          return exposed ? DESERT_TILE_KEYS.tunnelBrick : DESERT_TILE_KEYS.tunnelBrickFill;
+        }
+        return exposed ? DESERT_TILE_KEYS.sandstone : DESERT_TILE_KEYS.sandstoneFill;
+      },
+      oneWay: DESERT_TILE_KEYS.timber,
+      hazard: CITY_TILE_KEYS.hazard,
+      hazardAnim: CITY_HAZARD_ANIM,
+      fakeKey: DESERT_TILE_KEYS.timber, // no fakes/boats in desert levels
+      boatKey: DESERT_TILE_KEYS.timber,
+      liftKey: DESERT_TILE_KEYS.lift,
+      bridgeKey: DESERT_TILE_KEYS.crumble,
     };
   }
   if (theme === "castle") {
@@ -386,6 +434,8 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private lastGroundedAt = -Infinity;
   private jumpQueuedAt = -Infinity;
   private jumpFiredAt = -Infinity;
+  /** Air jumps spent since last grounded (double jump: max 1). */
+  private airJumpsUsed = 0;
   private knockbackUntil = -Infinity;
   private dashing = false;
   protected dashStartedAt = -Infinity;
@@ -408,6 +458,10 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   // Protected: BossArenaScene applies the silent-assist bonus heart (Task 33).
   protected health: number = RT_PLAYER.maxHearts;
   protected maxHealth: number = RT_PLAYER.maxHearts;
+  /** POWER stacks (capped): +1 per stomp-KILLED enemy this run; carried
+   *  through the boss door as bonus swing damage (ArenaSceneData.power).
+   *  Protected: BossArenaScene seeds it from arenaData for its HUD chip. */
+  protected powerStacks = 0;
   private buffs: BuffId[] = [];
   private fragments = 0;
   private lastCheckpoint: Pt = { tx: 0, ty: 0 };
@@ -440,6 +494,14 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
   private lasers: Laser[] = [];
   private rotators: Rotator[] = [];
   private bridges: Bridge[] = [];
+  private lifts: { sprite: Phaser.Physics.Arcade.Image; topY: number; bottomY: number; prevY: number }[] = [];
+  private debrisTraps: {
+    x: number;
+    y: number;
+    glint: Phaser.GameObjects.Rectangle;
+    rock: Phaser.GameObjects.Rectangle | null;
+    rearmAt: number;
+  }[] = [];
   private fountains: Fountain[] = [];
   // Rising-corruption shaft state (Task 21 castle). `tideTop` is the world-y of
   // the tide surface; it rises while the player is in the segment span and
@@ -493,6 +555,8 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.lasers = [];
     this.rotators = [];
     this.bridges = [];
+    this.lifts = [];
+    this.debrisTraps = [];
     this.fountains = [];
     this.conveyorDir = new Map();
     this.bg = [];
@@ -508,6 +572,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.dead = false;
     this.attacking = false;
     this.attackUntil = -Infinity;
+    this.airJumpsUsed = 0;
     this.collectedSeals = new Set();
     this.debugTelemetry =
       typeof window !== "undefined" && new URLSearchParams(window.location.search).has("debug");
@@ -549,6 +614,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     this.setupAttackHitbox(); // after spawnEnemies: overlap needs enemyGroup
     this.setupProjectiles(); // pooled enemy-projectile group (malware-bat packets)
     this.buildFactoryHazards(); // gates + lasers (after attackHitbox: emitter overlap)
+    this.buildDesertMechanics(); // `I` lifts + `*` ceiling-debris marks (Task 36)
     this.buildRotators(); // rotating page clusters (Task 20 archive)
     this.buildCastleHazards(); // fountains + fireballs + bridges + corruption (Task 21)
     this.buildCastleDecor(); // chains / banners / statues + lightning (Task 21)
@@ -557,6 +623,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     // HUD / progression reset for this level. Full heal on start (6 hearts).
     this.health = RT_PLAYER.maxHearts;
     this.maxHealth = RT_PLAYER.maxHearts;
+    this.powerStacks = 0;
     this.buffs = [];
     this.fragments = this.fragmentCollected ? 1 : 0; // reflect a prior-session collection in the HUD count
     this.latchedCheckpoints.clear();
@@ -585,6 +652,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
         maxHealth: this.maxHealth,
         buffs: this.buffs,
         fragments: this.fragments,
+        power: this.powerStacks,
         levelId: def.id,
       },
     });
@@ -1175,7 +1243,9 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     for (const b of this.lvl.bridges) {
       const cx = b.tx * TILE + TILE / 2;
       const cy = b.ty * TILE + TILE / 2;
-      const sprite = this.add.sprite(cx, cy, frameKey(CASTLE_TILE_KEYS.bridge, 0)).setDepth(2);
+      const sprite = this.add
+        .sprite(cx, cy, frameKey(this.theme.bridgeKey ?? CASTLE_TILE_KEYS.bridge, 0))
+        .setDepth(2);
       const rect = this.add.rectangle(cx, cy, TILE, TILE).setVisible(false);
       this.bridgeGroup.add(rect);
       const body = rect.body as Phaser.Physics.Arcade.StaticBody;
@@ -1221,6 +1291,18 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
           .sprite(d.tx * TILE + 8, d.ty * TILE + 8, frameKey(key, 0))
           .setDepth(1);
         sprite.play(animKey(key, anim));
+        continue;
+      }
+      if (d.kind === "anchor" || d.kind === "sinkhole") {
+        const key = d.kind === "anchor" ? DESERT_TILE_KEYS.anchor : DESERT_TILE_KEYS.sinkhole;
+        this.add.sprite(d.tx * TILE + 8, d.ty * TILE + 8, frameKey(key, 0)).setDepth(1);
+        continue;
+      }
+      if (d.kind === "crystal") {
+        const sprite = this.add
+          .sprite(d.tx * TILE + 8, d.ty * TILE + 8, frameKey(DESERT_TILE_KEYS.crystal, 0))
+          .setDepth(1);
+        sprite.play(animKey(DESERT_TILE_KEYS.crystal, CAVE_CRYSTAL_ANIM));
         continue;
       }
       const key =
@@ -1317,7 +1399,9 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
         // Shaking: jitter + advance the crack frames, then fall.
         br.sprite.x = br.cx + Math.sin(now / 18) * 1.2;
         const prog = 1 - (br.fallAt - now) / BRIDGE_SHAKE_MS; // 0..1
-        br.sprite.setTexture(frameKey(CASTLE_TILE_KEYS.bridge, prog > 0.6 ? 2 : 1));
+        br.sprite.setTexture(
+          frameKey(this.theme.bridgeKey ?? CASTLE_TILE_KEYS.bridge, prog > 0.6 ? 2 : 1),
+        );
         if (now >= br.fallAt) this.collapseBridge(br);
       }
     }
@@ -1345,8 +1429,85 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     br.fallAt = null;
     (br.rect.body as Phaser.Physics.Arcade.StaticBody).enable = true;
     this.tweens.killTweensOf(br.sprite);
-    br.sprite.setTexture(frameKey(CASTLE_TILE_KEYS.bridge, 0));
+    br.sprite.setTexture(frameKey(this.theme.bridgeKey ?? CASTLE_TILE_KEYS.bridge, 0));
     br.sprite.setPosition(br.cx, br.cy).setAlpha(1).setVisible(true);
+  }
+
+  // --- desert world mechanics (Task 36): vertical lifts + ceiling debris -----
+
+  /** Build the `I` lift movers and `*` ceiling-debris marks. No-op for maps
+   *  that parse none of them. */
+  private buildDesertMechanics() {
+    for (const l of this.lvl.lifts) {
+      const cx = l.tx * TILE + TILE / 2;
+      const cy = l.ty * TILE + TILE / 2;
+      const key = this.theme.liftKey ?? this.theme.oneWay;
+      const sprite = this.physics.add.image(cx, cy, frameKey(key, 0)).setDepth(2);
+      const body = sprite.body as Body;
+      body.setAllowGravity(false);
+      body.setImmovable(true);
+      body.checkCollision.down = false;
+      body.checkCollision.left = false;
+      body.checkCollision.right = false;
+      this.physics.add.collider(this.player, sprite);
+      const topY = cy - 6 * TILE; // rides six rows up
+      body.setVelocityY(-LIFT_SPEED);
+      this.lifts.push({ sprite, topY, bottomY: cy, prevY: cy });
+    }
+    for (const m of this.lvl.debrisMarks) {
+      const cx = m.tx * TILE + TILE / 2;
+      const cy = m.ty * TILE + TILE / 2;
+      const glint = this.add.rectangle(cx, cy, 6, 6, 0xbff2ff, 0.9).setAngle(45).setDepth(2);
+      this.tweens.add({ targets: glint, alpha: 0.35, yoyo: true, repeat: -1, duration: 420 });
+      this.debrisTraps.push({ x: cx, y: cy, glint, rock: null, rearmAt: 0 });
+    }
+  }
+
+  private updateDesertMechanics(dtMs: number) {
+    const now = this.time.now;
+    const pb = this.player.body as Body;
+    for (const lift of this.lifts) {
+      const body = lift.sprite.body as Body;
+      if (lift.sprite.y <= lift.topY) body.setVelocityY(LIFT_SPEED);
+      else if (lift.sprite.y >= lift.bottomY) body.setVelocityY(-LIFT_SPEED);
+      // Vertical carry: riders keep contact through the ascent.
+      const dy = lift.sprite.y - lift.prevY;
+      const onTop =
+        pb.blocked.down &&
+        Math.abs(pb.bottom - body.top) < 8 &&
+        pb.right > body.left + 2 &&
+        pb.left < body.right - 2;
+      if (dy !== 0 && onTop) this.player.y += dy;
+      lift.prevY = lift.sprite.y;
+    }
+    for (const trap of this.debrisTraps) {
+      if (trap.rock) {
+        trap.rock.y += (DEBRIS_FALL_SPEED * dtMs) / 1000;
+        const rb = trap.rock.getBounds();
+        if (
+          pb.left < rb.right &&
+          pb.right > rb.left &&
+          pb.top < rb.bottom &&
+          pb.bottom > rb.top
+        ) {
+          this.takeDamage(1);
+          trap.rock.destroy();
+          trap.rock = null;
+          continue;
+        }
+        if (trap.rock.y > this.mapHeightPx + 24) {
+          trap.rock.destroy();
+          trap.rock = null;
+        }
+        continue;
+      }
+      if (now < trap.rearmAt) continue;
+      // Trigger when the player passes underneath the mark.
+      if (Math.abs(this.player.x - trap.x) < 34 && this.player.y > trap.y) {
+        trap.rearmAt = now + 4200;
+        trap.rock = this.add.rectangle(trap.x, trap.y + 6, 12, 12, 0x4a3524).setDepth(3);
+      }
+    }
   }
 
   /** Rising-corruption shaft (castle): while the player is within the segment's
@@ -1443,6 +1604,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       else if (s.kind === "brute") enemy = new BruteForceBrute(this, x, y);
       else if (s.kind === "firewall-knight") enemy = new FirewallKnight(this, x, y);
       else if (s.kind === "rootkit-slime") enemy = new RootkitSlime(this, x, y);
+      else if (s.kind === "crown-imp") enemy = new CrownImp(this, x, y);
       if (enemy) {
         // Shadow / strong-variant rule (Task 20 archive, Task 21 castle): a
         // darker, tankier palette-swap that survives hit flashes, +1 hp. The
@@ -1510,8 +1672,40 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     if (decision === "stomp") {
       this.lastStompAt = this.time.now;
       enemy.hitByStomp();
+      // A stomp KILL (die() flips `dying` synchronously) grants a POWER stack
+      // — the level's fuel for the boss fight beyond the truth mechanic.
+      if (enemy.dying) this.gainPower(enemy.x, enemy.y);
     } else enemy.hurtPlayer();
   };
+
+  /** +1 POWER (capped): stomp-kill reward. Pops a little floating tag and
+   *  lights the HUD chip; the stacks ride through enterBoss() into the arena
+   *  as bonus swing damage. */
+  private gainPower(x: number, y: number) {
+    if (this.powerStacks >= POWER_STACK_MAX) return;
+    this.powerStacks++;
+    audio.sfx("crit");
+    this.pushHud();
+    const tag = this.add
+      .text(x, y - 10, "+POWER", {
+        fontFamily: "monospace",
+        fontSize: "8px",
+        fontStyle: "bold",
+        color: "#ffd75e",
+        stroke: "#16161c",
+        strokeThickness: 2,
+      })
+      .setOrigin(0.5)
+      .setDepth(50);
+    this.tweens.add({
+      targets: tag,
+      y: y - 28,
+      alpha: 0,
+      duration: 750,
+      ease: "Sine.easeOut",
+      onComplete: () => tag.destroy(),
+    });
+  }
 
   private onPickup: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (_p, pickupObj) => {
     const pickup = pickupObj as Phaser.Physics.Arcade.Sprite;
@@ -1643,7 +1837,10 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     const body = this.player.body as Body;
     const onGround = body.blocked.down;
 
-    if (onGround) this.lastGroundedAt = this.time.now;
+    if (onGround) {
+      this.lastGroundedAt = this.time.now;
+      this.airJumpsUsed = 0;
+    }
     if (snap.jumpPressed) this.jumpQueuedAt = this.time.now;
 
     const canCoyote = this.time.now - this.lastGroundedAt <= PHYSICS.coyoteMs;
@@ -1654,6 +1851,29 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       this.jumpQueuedAt = -Infinity;
       this.lastGroundedAt = -Infinity;
       audio.sfx("jump");
+    } else if (
+      snap.jumpPressed &&
+      !onGround &&
+      !canCoyote &&
+      !this.dashing &&
+      this.airJumpsUsed < 1
+    ) {
+      // Double jump: one air jump per airtime — the hop-over-his-attack tool.
+      // Fresh presses only (not the buffer), and the queued press is consumed
+      // so landing a moment later can't fire a second buffered jump.
+      this.airJumpsUsed += 1;
+      body.setVelocityY(PHYSICS.doubleJumpVelocity);
+      this.jumpFiredAt = this.time.now;
+      this.jumpQueuedAt = -Infinity;
+      audio.sfx("jump");
+      const puff = this.add.circle(this.player.x, body.bottom, 5, 0xffffff, 0.45).setDepth(9);
+      this.tweens.add({
+        targets: puff,
+        scale: 1.9,
+        alpha: 0,
+        duration: 240,
+        onComplete: () => puff.destroy(),
+      });
     }
     // variable jump height: releasing early clips ascent — but never during
     // knockback (would cancel the damage pop) or within the tap-jump grace.
@@ -1710,6 +1930,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
     // and pooled enemy-projectile expiry. Frozen with the rest while paused.
     this.updateFakes();
     this.updateBoats();
+    this.updateDesertMechanics(dtMs);
     this.updateProjectiles();
 
     // Task 19 factory hazard set: conveyor push (after enemy ticks so it layers
@@ -1848,7 +2069,11 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
       this.showToast("COMING SOON");
       return;
     }
-    this.scene.start("Arena", { bossId: rtBossId, fromLevel: this.def.id });
+    this.scene.start("Arena", {
+      bossId: rtBossId,
+      fromLevel: this.def.id,
+      power: this.powerStacks, // stomp-earned swing bonus rides into the fight
+    });
   }
 
   // --- damage / respawn -----------------------------------------------------
@@ -1956,6 +2181,7 @@ export class PlatformLevelScene extends Phaser.Scene implements EnemyHostScene {
         maxHealth: this.maxHealth,
         buffs: [...this.buffs],
         fragments: this.fragments,
+        power: this.powerStacks,
         levelId: this.def.id,
       },
     });

@@ -77,31 +77,33 @@ export const TRAINING_ARENA: LevelDefinition = {
   fragmentDialogueId: null,
 };
 
-// The Broken King's temple hall (Task 35): a 60×17 enclosed stone box. Side
-// walls are the charge-stagger surface; the ceiling light-shaft (cols 27–31)
-// pours onto the central throne dais (cols 26–33) the King stands before; two
-// broken pillar stumps give low cover; one-way beams offer high routes. The
-// required `D` is parked in the air at the King's spawn cell (30,12), inert
-// under enterBoss()'s no-op. Rendered through the tiles-city kit's temple
-// biome (theme "temple").
+// The Broken King's temple hall (Task 35, tightened on owner feedback): a
+// 44×17 enclosed stone box with a completely FLAT floor — no dais, no pillar
+// stumps (nothing to bump into approaching him, and floor-riding attacks
+// never pass "through" raised ground). Side walls are the charge-stagger
+// surface; the ceiling light-shaft (cols 25–29) pours onto the King's spot;
+// two low side beams + one high center beam give double-jump routes and a
+// stomp perch. The required `D` is parked at the King's spawn cell (28,13),
+// inert under enterBoss()'s no-op. Rendered through the tiles-city kit's
+// temple biome (theme "temple").
 const TEMPLE_ROWS = [
-  "###########################.....############################",
-  "#..........................................................#",
-  "#..........................................................#",
-  "#..........................................................#",
-  "#..........................................................#",
-  "#..........................................................#",
-  "#..........................................................#",
-  "#..........................................................#",
-  "#..........................................................#",
-  "#..........................======..........................#",
-  "#..........................................................#",
-  "#..............##...=====..........=====...................#",
-  "#..............##.............D............##..............#",
-  "#...P..........##.........########.........##..............#",
-  "############################################################",
-  "############################################################",
-  "############################################################",
+  "#########################.....##############",
+  "#..........................................#",
+  "#..........................................#",
+  "#..........................................#",
+  "#..........................................#",
+  "#..........................................#",
+  "#..........................................#",
+  "#..........................................#",
+  "#..........................................#",
+  "#..............============................#",
+  "#..........................................#",
+  "#....=====....................=====........#",
+  "#..........................................#",
+  "#....P......................D..............#",
+  "############################################",
+  "############################################",
+  "############################################",
 ];
 
 export const TEMPLE_ARENA: LevelDefinition = {
@@ -114,14 +116,59 @@ export const TEMPLE_ARENA: LevelDefinition = {
   introDialogueId: null,
   fragmentDialogueId: null,
   decor: [
-    { kind: "lantern", tx: 8, ty: 6 },
-    { kind: "lantern", tx: 51, ty: 6 },
+    { kind: "lantern", tx: 6, ty: 5 },
+    { kind: "lantern", tx: 37, ty: 5 },
+  ],
+};
+
+// The Hollow Giant's chamber (Task 37): 60×16 vault. The colossus torso is the
+// background-anchored boss sprite (spawn 29,11 — embedded, feet sunk into the
+// floor); three-tier one-way stacks flank it, two anchor nubs (# at 20/39)
+// brace the player against the Inhale, and the `*` marks are the passive
+// ceiling-debris traps. `D` is parked in the air over the player start (inert).
+// Tier spacing: floor top is row 14 (y224); jump rise ≈46px < 3 tiles, so the
+// flanking tiers step 2 tiles apiece (rows 12/10/8 — the forge draft's
+// 11/8/5 stack was unreachable from the floor; playtest-driven fix).
+const GIANT_ROWS = [
+  "############################################################",
+  "############################################################",
+  "#...........*...........*...........*...........*..........#",
+  "#..........................................................#",
+  "#..........................................................#",
+  "#..........................................................#",
+  "#..........................................................#",
+  "#..........................................................#",
+  "#...====............................................====...#",
+  "#...........................D..............................#",
+  "#...======........................................======...#",
+  "#..........................................................#",
+  "#...========....................................========...#",
+  "#...................#........P.........#...................#",
+  "############################################################",
+  "############################################################",
+];
+
+export const GIANT_ARENA: LevelDefinition = {
+  id: "giant-arena" as LevelId, // synthetic — never persisted (see TRAINING_ARENA)
+  name: "CHAMBER OF THE BURIED HEART",
+  theme: "desert",
+  bossId: "hollow-giant",
+  music: "hollow-giant",
+  map: GIANT_ROWS.join("\n"),
+  introDialogueId: null,
+  fragmentDialogueId: null,
+  decor: [
+    { kind: "anchor", tx: 20, ty: 13 },
+    { kind: "anchor", tx: 39, ty: 13 },
+    { kind: "crystal", tx: 6, ty: 3 },
+    { kind: "crystal", tx: 53, ty: 3 },
   ],
 };
 
 export const ARENAS: Record<string, LevelDefinition> = {
   training: TRAINING_ARENA,
   "temple-throne": TEMPLE_ARENA,
+  "hollow-giant": GIANT_ARENA,
 };
 
 export function getArena(key: string): LevelDefinition | undefined {

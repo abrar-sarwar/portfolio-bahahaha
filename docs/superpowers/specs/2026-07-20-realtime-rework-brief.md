@@ -452,6 +452,43 @@ Use visual symbols and animation only.
 
 The boss can technically be damaged through attacks, but using Truth must be dramatically faster and clearly be the intended solution.
 
+> **AMENDMENT (2026-07-22, owner-directed — supersedes steps 4–5 above; do
+> not restore the hold-E interaction):** The Truth interaction is now a
+> DOWNED-WINDOW MASH, and 1-1 feeds a POWER system:
+>
+> 1. The big openings (parried sweep, charge wall-hit, overhead recovery)
+>    put the King DOWN on one knee for 5 seconds (`DOWNED_MS`), highlighted
+>    with a gold ring + floor glow, a bobbing `E` keycap + `MASH!` tag over
+>    his head, and a draining timer bar. The ActionBar context slot shows
+>    `[ E MASH E! ]` with a fill that tracks mash progress.
+> 2. The player must get within `TRUTH_RANGE_PX` and TAP E repeatedly
+>    (`MASH_TARGET` taps) before the timer empties — otherwise he stands
+>    back up. A completed mash tears out one Truth (same three visual beats).
+> 3. World 1-1 now has stompable enemies; each stomp-KILL grants a POWER
+>    stack (capped at `POWER_STACK_MAX`, shown as a HUD chip) that adds +1
+>    swing damage in the arena, so chip damage between downs is a real
+>    second axis instead of the fight being interaction-only. The enemies
+>    are player-sized Crown Imp demons (`d`, 16×24, hp 2 — TWO stomps).
+> 4. While the King is staggered/DOWNED his body deals NO contact damage —
+>    the mash demands standing against him.
+> 5. The temple arena is a 44×17 box with a completely FLAT floor: no dais,
+>    no pillar stumps. Double-jump-reachable beams give the vertical routes.
+> 6. The player has a base DOUBLE JUMP (one air jump per airtime,
+>    `PHYSICS.doubleJumpVelocity`) — the dodge tool for hopping sweeps and
+>    charges. Level design may assume it.
+> 7. Non-bouncing boss projectiles shatter on arena walls/floor (they used
+>    to fall through the ground until TTL). The `victory` fanfare track
+>    plays on every boss defeat.
+>
+> Implemented in `bossDefinitions/brokenKing.ts` (downed/mash mechanics),
+> `PlatformLevelScene.ts` + `BossArenaScene.ts` + `PlayerCombatController.ts`
+> (POWER plumbing + double jump + safe-touch stagger), `ProjectileManager.ts`
+> (wall shatter), `enemies/CrownImp.ts` + `art/sprites/enemies1.ts` (demon),
+> `levels/level-1-1.ts` (imp spawns), `realtime/arenas.ts` (flat 44×17 hall).
+> The King also spawns on the main floor with `spriteFeetY` grounding (he
+> floated a tile above the floor after charges off the old dais-height
+> spawn).
+
 ---
 
 # World 1-2: The Buried Heart

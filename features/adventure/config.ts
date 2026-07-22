@@ -7,6 +7,7 @@ export const PHYSICS = {
   gravity: 1400,
   moveSpeed: 150,
   jumpVelocity: -360,
+  doubleJumpVelocity: -330, // one air jump per airtime (dodge tool vs boss sweeps)
   coyoteMs: 100,
   jumpBufferMs: 120,
   dashSpeed: 320,

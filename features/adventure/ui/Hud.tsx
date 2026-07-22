@@ -66,9 +66,15 @@ export default function Hud() {
         ))}
       </div>
 
-      {/* buff chips (stacked buffs collapse to one chip with an xN count) + fragment icon */}
-      {(hud.buffs.length > 0 || hud.fragments > 0) && (
+      {/* buff chips (stacked buffs collapse to one chip with an xN count) +
+          POWER stacks (stomp kills -> boss swing bonus) + fragment icon */}
+      {(hud.buffs.length > 0 || hud.fragments > 0 || hud.power > 0) && (
         <div className="flex items-center gap-1">
+          {hud.power > 0 && (
+            <span className="rounded-sm border border-amber-300/70 bg-amber-400/10 px-1 text-[8px] font-bold uppercase leading-tight tracking-widest text-amber-200">
+              ⚡ PWR x{hud.power}
+            </span>
+          )}
           {buffCounts.map(({ buff, n }) => (
             <span
               key={buff}

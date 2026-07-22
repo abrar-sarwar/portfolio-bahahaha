@@ -26,4 +26,13 @@ export const PALETTE: Record<string, string> = {
   e: "#cf4b2a", // lacquer red / cinnabar — temple beams, lanterns, door frame
   w: "#6f4326", // timber — door planks, beam platforms, scaffolds
   E: "#ff5db0", // city neon magenta — signage tube
+  // World 1-2 desert→underground additions (Task 36; kit char E remapped → x)
+  A: "#e6d0a3", // lit dune-crest sand highlight
+  x: "#9c6b3f", // weathered sandstone / ruin-block & tunnel-brick mid
+  u: "#4a3524", // umber cave-rock body
+  n: "#10203a", // deep-blue underground gloom
+  Q: "#bff2ff", // icy crystal sparkle highlight
+  // Hollow Giant flesh ramp (Task 37; kit chars E/e remapped → f/i)
+  f: "#a3838c", // dead-flesh light (pallid mauve)
+  i: "#6d5259", // dead-flesh shadow (deep mauve-brown)
 };

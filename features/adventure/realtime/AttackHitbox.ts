@@ -14,7 +14,6 @@ type Body = Phaser.Physics.Arcade.Body;
 export class AttackHitbox {
   private zone: Phaser.GameObjects.Zone;
   private swingId = 0;
-  private lastHitSwing = -1;
   private facing: 1 | -1 = 1;
   private reachPx = 0;
 
@@ -30,11 +29,14 @@ export class AttackHitbox {
     body.enable = false;
   }
 
-  /** Register a target the swing damages; `onHit` fires at most once per swing. */
+  /** Register a target the swing damages; `onHit` fires at most once per swing
+   *  PER TARGET (each registration keeps its own dedupe — a swing overlapping
+   *  both the boss body and a weak point must deliver both callbacks). */
   overlapWith(target: Phaser.GameObjects.GameObject, onHit: () => void): void {
+    let lastHitSwing = -1;
     this.scene.physics.add.overlap(this.zone, target, () => {
-      if (this.lastHitSwing === this.swingId) return; // one hit per swing
-      this.lastHitSwing = this.swingId;
+      if (lastHitSwing === this.swingId) return; // one hit per swing (this target)
+      lastHitSwing = this.swingId;
       onHit();
     });
   }

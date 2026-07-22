@@ -50,6 +50,15 @@ export interface RtBossDef {
   /** Physics body size (default 18×30). Also anchors floor placement: the
    *  sprite is positioned so its feet sit on the bottom of the spawn tile. */
   body?: { w: number; h: number };
+  /** Row index (sprite px, from the top) of the BOTTOM edge of the visible
+   *  feet. When set, floor placement aligns THIS line to the spawn tile's
+   *  bottom instead of assuming the body rect ends at the drawn feet — art
+   *  with bottom padding (the Broken King's 1-row margin) otherwise sinks or
+   *  floats by the mismatch between sprite height and body height. */
+  spriteFeetY?: number;
+  /** Disable body-contact interactions entirely (background-anchored bosses —
+   *  the Hollow Giant: threats and weak points are all mechanics-spawned). */
+  noContact?: boolean;
   /** Map the machine's generic anim vocabulary (RT_ANIM names) onto this
    *  boss's sprite rows — e.g. telegraph+overhead → "overhead-prep". Falls
    *  back to the BossController's generic chain when absent/returning null. */

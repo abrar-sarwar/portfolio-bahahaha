@@ -3,6 +3,7 @@ import type { LevelDefinition, ParsedLevel, Pt, EnemyKind, Conveyor } from "./ty
 const ENEMY_CHARS: Record<string, EnemyKind> = {
   b: "bugling", p: "phishling", m: "malware-bat",
   B: "brute", k: "firewall-knight", s: "rootkit-slime",
+  d: "crown-imp", // demon soldier of the false crown (World 1-1, two stomps)
 };
 
 export function parseLevel(def: LevelDefinition): ParsedLevel {
@@ -13,6 +14,8 @@ export function parseLevel(def: LevelDefinition): ParsedLevel {
   let playerStart: Pt | null = null, bossDoor: Pt | null = null, fragment: Pt | null = null;
   const checkpoints: Pt[] = [];
   const seals: Pt[] = []; // Truth Seal pickups (Task 34)
+  const debrisMarks: Pt[] = []; // ceiling-debris markers (Task 36)
+  const lifts: Pt[] = []; // vertical lift movers (Task 36)
   const spawns: { kind: EnemyKind; at: Pt }[] = [];
   const fakes: Pt[] = [];
   const boats: Pt[] = [];
@@ -35,6 +38,8 @@ export function parseLevel(def: LevelDefinition): ParsedLevel {
       else if (ch === "M") fragment = at;
       else if (ch === "C") checkpoints.push(at);
       else if (ch === "T") seals.push(at); // Truth Seal pickup (Task 34)
+      else if (ch === "*") debrisMarks.push(at); // ceiling debris marker (Task 36)
+      else if (ch === "I") lifts.push(at); // vertical lift (Task 36)
       else if (ch === "F") fakes.push(at); // fake platform (Task 18)
       else if (ch === "o") boats.push(at); // boat / moving platform (Task 18)
       // Conveyors (Task 19): the cell is ALSO a solid the entity rides on, so
@@ -62,5 +67,6 @@ export function parseLevel(def: LevelDefinition): ParsedLevel {
     solids, oneWays, hazards,
     playerStart, checkpoints, fragment, bossDoor, spawns,
     fakes, boats, conveyors, gates, lasers, rotators, fountains, bridges, seals,
+    debrisMarks, lifts,
   };
 }

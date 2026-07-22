@@ -121,10 +121,14 @@ describe("level content requirements", () => {
     // Realtime rework (Task 34): the city→temple ascent. No enemies, no
     // fragment — three Truth Seals on the forced path instead (asserted in
     // the dedicated seal block below).
+    // POWER rework: the city stretch carries player-sized Crown Imp demons
+    // (two stomps each) whose kills grant swing-damage stacks for the King.
     "1-1": { rowLen: 220, checkpointsMin: 2, fragments: 0,
-             spawnMins: {}, hazards: true, oneWays: true },
-    "1-2": { rowLen: 170, checkpointsMin: 2, fragments: 1,
-             spawnMins: { bugling: 3, phishling: 2, "malware-bat": 3 }, hazards: true, oneWays: true },
+             spawnMins: { "crown-imp": 5 }, hazards: true, oneWays: true },
+    // Realtime rework (Task 36): the desert→underground run. Re-skinned sparse
+    // enemies (sand crawler + cave bats); no fragment; lift + debris marks.
+    "1-2": { rowLen: 220, checkpointsMin: 2, fragments: 0,
+             spawnMins: { "malware-bat": 2, "rootkit-slime": 1 }, hazards: true, oneWays: true },
     "1-3": { rowLen: 180, checkpointsMin: 2, fragments: 1,
              spawnMins: { brute: 2, "firewall-knight": 2, "rootkit-slime": 2 }, hazards: true, oneWays: true },
     "1-4": { rowLen: 160, checkpointsMin: 2, fragments: 1,

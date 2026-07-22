@@ -45,6 +45,7 @@ interface Zone {
 
 interface TempPlatform {
   go: Phaser.GameObjects.Rectangle;
+  sprite?: Phaser.GameObjects.Sprite;
   collider: Phaser.Physics.Arcade.Collider;
   dieAt: number;
   done: boolean;
@@ -131,14 +132,33 @@ export class ArenaHazardSystem {
     });
   }
 
-  /** A temporary solid platform (lingering hand / embedded arrow). */
-  spawnPlatform(opts: { x: number; y: number; w: number; h?: number; ttlMs: number; color?: number }): void {
+  /** A temporary solid platform (lingering hand / embedded arrow). With
+   *  `texture`, the boss's bespoke sprite is drawn over the (invisible)
+   *  platform body — e.g. the Hollow Giant's splayed palm. */
+  spawnPlatform(opts: {
+    x: number;
+    y: number;
+    w: number;
+    h?: number;
+    ttlMs: number;
+    color?: number;
+    texture?: { key: string; anim?: string; offsetY?: number; flipX?: boolean };
+  }): void {
     const go = this.scene.add
       .rectangle(opts.x, opts.y, opts.w, opts.h ?? 8, opts.color ?? 0xcfd6e0)
       .setDepth(15);
+    let sprite: Phaser.GameObjects.Sprite | undefined;
+    if (opts.texture) {
+      go.setVisible(false);
+      sprite = this.scene.add
+        .sprite(opts.x, opts.y + (opts.texture.offsetY ?? 0), frameKey(opts.texture.key, 0))
+        .setDepth(15);
+      if (opts.texture.anim) sprite.play(animKey(opts.texture.key, opts.texture.anim));
+      if (opts.texture.flipX) sprite.setFlipX(true);
+    }
     this.scene.physics.add.existing(go, true); // static body
     const collider = this.scene.physics.add.collider(this.deps.player, go);
-    this.platforms.push({ go, collider, dieAt: this.scene.time.now + opts.ttlMs, done: false });
+    this.platforms.push({ go, sprite, collider, dieAt: this.scene.time.now + opts.ttlMs, done: false });
   }
 
   update(_dtMs: number): void {
@@ -196,6 +216,7 @@ export class ArenaHazardSystem {
         p.done = true;
         p.collider.destroy();
         p.go.destroy();
+        p.sprite?.destroy();
       }
     }
 
@@ -215,6 +236,7 @@ export class ArenaHazardSystem {
     for (const p of this.platforms) {
       p.collider.destroy();
       p.go.destroy();
+      p.sprite?.destroy();
     }
     this.shockwaves = [];
     this.debris = [];
