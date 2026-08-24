@@ -20,9 +20,12 @@ type Props = {
   onNavigate: (view: SubView) => void;
 };
 
+// Feed order: Projects -> Organizations -> Gallery -> Fun. Both the desktop and
+// mobile navs map over this list, so adding a section here updates both.
 const NAV_LINKS: { id: SubView; label: string }[] = [
   { id: "projects", label: "Projects" },
   { id: "organizations", label: "Organizations" },
+  { id: "gallery", label: "Gallery" },
 ];
 
 const SOCIALS = [

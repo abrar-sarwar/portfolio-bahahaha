@@ -18,5 +18,8 @@ node_modules/
 *.log
 npm-debug.log*
 
+# Generated local inspection output
+.artifacts/
+
 # Environment
 .env*.local
