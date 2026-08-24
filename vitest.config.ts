@@ -3,7 +3,7 @@ import path from "node:path";
 
 export default defineConfig({
   test: {
-    include: ["features/**/*.test.ts", "components/**/*.test.ts", "lib/**/*.test.ts"],
+    include: ["components/**/*.test.ts", "lib/**/*.test.ts"],
     environment: "node",
   },
   resolve: {

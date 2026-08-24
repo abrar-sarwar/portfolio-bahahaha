@@ -20,12 +20,13 @@ type Props = {
   onNavigate: (view: SubView) => void;
 };
 
+// Feed order: Projects -> Organizations -> Gallery -> Fun. Both the desktop and
+// mobile navs map over this list, so adding a section here updates both.
 const NAV_LINKS: { id: SubView; label: string }[] = [
   { id: "projects", label: "Projects" },
   { id: "organizations", label: "Organizations" },
+  { id: "gallery", label: "Gallery" },
 ];
-
-const ADVENTURE_LINK = { href: "/adventure", label: "Adventure" };
 
 const SOCIALS = [
   { label: "Email", href: "mailto:abrartsarwar@gmail.com", text: "abrartsarwar@gmail.com" },
@@ -557,18 +558,6 @@ export default function HomePage({ onNavigate }: Props) {
         <motion.div variants={navPopVariants}>
           <motion.button
             type="button"
-            onClick={() => router.push(ADVENTURE_LINK.href)}
-            whileHover={{ scale: 1.06, x: -2 }}
-            transition={{ type: "spring", stiffness: 480, damping: 22 }}
-            className="px-2 py-1 text-cyan-200/80 transition-colors duration-150 hover:text-cyan-100 focus:outline-none focus-visible:text-cyan-100 focus-visible:underline"
-          >
-            {ADVENTURE_LINK.label}
-          </motion.button>
-        </motion.div>
-
-        <motion.div variants={navPopVariants}>
-          <motion.button
-            type="button"
             onClick={() => onNavigate("fun")}
             aria-label="Fun"
             inherit={false}
@@ -951,13 +940,6 @@ export default function HomePage({ onNavigate }: Props) {
             {link.label}
           </button>
         ))}
-        <button
-          type="button"
-          onClick={() => router.push(ADVENTURE_LINK.href)}
-          className="py-1 text-cyan-200/80 transition-colors hover:text-cyan-100"
-        >
-          {ADVENTURE_LINK.label}
-        </button>
         <button
           type="button"
           onClick={() => onNavigate("fun")}

@@ -7,24 +7,31 @@ import { motion } from "framer-motion";
 import HomePage from "./HomePage";
 import ProjectsPage from "./ProjectsPage";
 import OrganizationsPage from "./OrganizationsPage";
+import GallerySection from "./gallery/GallerySection";
 import FunPage from "./FunPage";
-import AdventureDoor from "./AdventureDoor";
 import type { SubView } from "@/lib/sections";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
 }
 
-export type Panel = "home" | "projects" | "organizations" | "fun";
+export type Panel =
+  | "home"
+  | "projects"
+  | "organizations"
+  | "gallery"
+  | "fun";
 
-// Order of the feed: Main -> Projects -> Organizations -> Fun. My World lives
-// on its own /myworld route, not in this feed. To slot a new section in later,
-// add it here and drop a matching panel <section> in the same position below.
+// Order of the feed: Main -> Projects -> Organizations -> Gallery -> Fun. My
+// World lives on its own /myworld route, not in this feed. To slot a new
+// section in later, add it here and drop a matching panel <section> in the same
+// position below.
 const PANEL_INDEX: Record<Panel, number> = {
   home: 0,
   projects: 1,
   organizations: 2,
-  fun: 3,
+  gallery: 3,
+  fun: 4,
 };
 
 type Props = {
@@ -86,6 +93,11 @@ export default function ScrollFeed({ initial = "home" }: Props) {
         const inner = panel.querySelector<HTMLElement>(".scroll-feed-inner");
         if (!inner) return;
 
+        // Gallery opts out of the shared fade + parallax: its collage is sized
+        // to fill the screen exactly, so a yPercent shift would push the bottom
+        // row out of view, and it runs its own entrance once it is on screen.
+        if (panel.dataset.feedParallax === "off") return;
+
         // Panels other than the initial one start hidden — they fade in as
         // scroll brings them into view.
         if (i !== PANEL_INDEX[initial]) gsap.set(inner, { autoAlpha: 0, y: 60 });
@@ -133,6 +145,10 @@ export default function ScrollFeed({ initial = "home" }: Props) {
     >
       <div
         ref={scrollerRef}
+        // data-scroll-root lets nested sections (Gallery) find the real
+        // scrolling element for their own ScrollTriggers and scroll locking,
+        // without threading a ref down through the tree.
+        data-scroll-root
         className="relative h-full w-full overflow-y-auto overflow-x-hidden"
         style={{ scrollBehavior: "smooth" }}
       >
@@ -154,14 +170,22 @@ export default function ScrollFeed({ initial = "home" }: Props) {
           </div>
         </section>
 
+        {/* Gallery — one viewport like the others, but opted out of the shared
+            fade/parallax: its collage is sized to fill the screen exactly, so a
+            panel-level yPercent shift would push photos off the bottom, and it
+            runs its own timed intro once the panel is actually on screen. */}
+        <section
+          data-feed-parallax="off"
+          className="scroll-feed-panel relative h-full w-full overflow-hidden"
+        >
+          <div className="scroll-feed-inner relative h-full w-full">
+            <GallerySection />
+          </div>
+        </section>
+
         <section className="scroll-feed-panel relative h-full w-full overflow-hidden max-sm:h-auto max-sm:min-h-svh max-sm:overflow-visible">
           <div className="scroll-feed-inner relative h-full w-full will-change-transform max-sm:h-auto max-sm:min-h-svh max-sm:will-change-auto">
             <FunPage />
-
-            {/* Secret door to the hidden adventure — sits just above the back-to-top CTA. */}
-            <div className="pointer-events-none absolute bottom-24 left-1/2 z-40 -translate-x-1/2 sm:bottom-28">
-              <AdventureDoor />
-            </div>
 
             {/* End-of-feed CTA — sits inside the Fun panel's wrapper so it
                 fades in with the panel. Click smooth-scrolls back to home.

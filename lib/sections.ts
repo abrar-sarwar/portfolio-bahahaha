@@ -4,6 +4,7 @@ export type View =
   | "myworld"
   | "projects"
   | "organizations"
+  | "gallery"
   | "fun";
 
 export type SubView = Exclude<View, "intro" | "home">;

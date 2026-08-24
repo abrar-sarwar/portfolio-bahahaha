@@ -14,14 +14,6 @@ export default defineConfig([
       "react-hooks/purity": "off",
     },
   },
-  {
-    files: ["features/adventure/combat/engine.ts"],
-    rules: {
-      // Domain functions named useItem/useRootAccessAttack are pure combat
-      // reducers, not React hooks.
-      "react-hooks/rules-of-hooks": "off",
-    },
-  },
   globalIgnores([
     ".next/**",
     "node_modules/**",
