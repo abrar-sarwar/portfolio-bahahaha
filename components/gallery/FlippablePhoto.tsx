@@ -84,11 +84,6 @@ export default function FlippablePhoto({
                   </p>
                 )}
 
-                {(photo.date || photo.location) && (
-                  <p className="mt-5 text-[11px] uppercase tracking-[0.28em] text-white/45">
-                    {[photo.date, photo.location].filter(Boolean).join("  ·  ")}
-                  </p>
-                )}
               </div>
             ) : (
               <p
@@ -98,8 +93,6 @@ export default function FlippablePhoto({
                 This one has no note on it yet.
               </p>
             )}
-
-            <p className="journal-card-filename">{photo.src.split("/").pop()}</p>
           </div>
         </div>
       </div>

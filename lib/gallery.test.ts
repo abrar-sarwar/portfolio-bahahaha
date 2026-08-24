@@ -220,21 +220,16 @@ describe("aspect ratios", () => {
 describe("hasDetails", () => {
   const base = GALLERY_PHOTOS[0];
 
-  it("is false while every caption field is blank", () => {
-    expect(
-      hasDetails({
-        ...base,
-        title: "",
-        description: "",
-        date: "",
-        location: "",
-      }),
-    ).toBe(false);
+  it("is false while both caption fields are blank", () => {
+    expect(hasDetails({ ...base, title: "", description: "" })).toBe(false);
   });
 
-  it("is true as soon as any single field is filled in", () => {
-    for (const field of ["title", "description", "date", "location"] as const) {
-      expect(hasDetails({ ...base, [field]: "something" }), field).toBe(true);
+  it("is true as soon as either field is filled in", () => {
+    for (const field of ["title", "description"] as const) {
+      expect(
+        hasDetails({ ...base, title: "", description: "", [field]: "something" }),
+        field,
+      ).toBe(true);
     }
   });
 });

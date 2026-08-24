@@ -591,16 +591,6 @@ body {
   text-align: center;
   overflow-y: auto;
 }
-.journal-card-filename {
-  position: absolute;
-  bottom: 1.1rem;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 10px;
-  letter-spacing: 0.22em;
-  color: rgba(255, 255, 255, 0.24);
-}
-
 /* Reduced motion: no 3D at all — the two faces simply cross-fade. */
 .journal-card--fade .journal-card-inner,
 .journal-card--fade .journal-card-inner.is-flipped {

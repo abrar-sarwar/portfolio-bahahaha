@@ -6,9 +6,9 @@
 //
 // WRITING CAPTIONS LATER
 // ----------------------
-// `title`, `description`, `date`, and `location` are intentionally empty. The
-// viewer's flip side hides any field left blank, so you can fill in as much or
-// as little as you like, one photo at a time, without touching a component.
+// `title` and `description` are what the viewer shows on a photo's flipped
+// side. Either can be left blank and the UI hides it, so you can fill in as
+// much or as little as you like without touching a component.
 //
 // `alt` is already filled in with a neutral description of what is visibly in
 // the frame. It deliberately does not name anyone. Replace it whenever you want
@@ -33,11 +33,9 @@ export type GalleryPhoto = {
    * Replace with your own wording whenever you like.
    */
   alt: string;
-  /** Shown on the flipped side. Empty fields are hidden by the UI. */
+  /** Shown on the flipped side. Either may be left blank; the UI hides it. */
   title: string;
   description: string;
-  date: string;
-  location: string;
   /** Featured photos get a double-width cell in the collage. */
   featured: boolean;
   layout: GalleryPhotoLayout;
@@ -86,10 +84,8 @@ export const GALLERY_PHOTOS: GalleryPhoto[] = [
     width: 3240,
     height: 2160,
     alt: "A line of people outdoors at golden hour holding ice cream cones out toward the camera.",
-    title: "",
-    description: "",
-    date: "",
-    location: "",
+    title: "free ice cream",
+    description: "ben and jerry had free ice cream day and we was like fuck it lets get some, there was a photographer there and wanted to get a pic of our group lol",
     featured: true,
     layout: { rotate: -1.2, from: "left" },
   },
@@ -99,10 +95,8 @@ export const GALLERY_PHOTOS: GalleryPhoto[] = [
     width: 2048,
     height: 1536,
     alt: "A group crowded together for a close-up photo wearing novelty hats and oversized glasses against a pink wall.",
-    title: "",
-    description: "",
-    date: "",
-    location: "",
+    title: "prog day pic 3",
+    description: "this was prob the best pic we took that day",
     featured: false,
     layout: { rotate: 1.6, from: "top" },
   },
@@ -112,10 +106,8 @@ export const GALLERY_PHOTOS: GalleryPhoto[] = [
     width: 860,
     height: 1079,
     alt: "Three people walking down a campus path, the one in the middle wearing a top hat and long overcoat.",
-    title: "",
-    description: "",
-    date: "",
-    location: "",
+    title: "counterstack",
+    description: "we aura farm hacklanta w this",
     featured: false,
     layout: { rotate: -2, from: "top" },
   },
@@ -125,10 +117,8 @@ export const GALLERY_PHOTOS: GalleryPhoto[] = [
     width: 1536,
     height: 2048,
     alt: "People lying spread out across a giant inflatable airbag beneath large wall signage.",
-    title: "",
-    description: "",
-    date: "",
-    location: "",
+    title: "prog day pic 1",
+    description: "sky zone was lit",
     featured: false,
     layout: { rotate: 1.8, from: "top" },
   },
@@ -138,10 +128,8 @@ export const GALLERY_PHOTOS: GalleryPhoto[] = [
     width: 1242,
     height: 2208,
     alt: "Someone lying back on a large bean bag with a golden retriever in a living room.",
-    title: "",
-    description: "",
-    date: "",
-    location: "",
+    title: "rosie",
+    description: "this is my best friend dog and she loves me so much everytime i come over to my friends house",
     featured: false,
     layout: { rotate: 2.2, from: "right" },
   },
@@ -153,10 +141,8 @@ export const GALLERY_PHOTOS: GalleryPhoto[] = [
     width: 1290,
     height: 1018,
     alt: "People messing around in a backyard pool at night, one of them balanced above the water among inner tubes.",
-    title: "",
-    description: "",
-    date: "",
-    location: "",
+    title: "swimside",
+    description: "bro ngl idk how we pulled this pic off",
     featured: false,
     layout: { rotate: 1.4, from: "left" },
   },
@@ -166,10 +152,8 @@ export const GALLERY_PHOTOS: GalleryPhoto[] = [
     width: 2880,
     height: 2160,
     alt: "A group posing together outside a brightly lit storefront at night.",
-    title: "",
-    description: "",
-    date: "",
-    location: "",
+    title: "topgolf",
+    description: "we got some ihop after topgolf and ate like a chud",
     featured: true,
     layout: { rotate: -1, from: "right" },
   },
@@ -179,10 +163,8 @@ export const GALLERY_PHOTOS: GalleryPhoto[] = [
     width: 2160,
     height: 2880,
     alt: "A mirror selfie of someone photographed from behind wearing a white football jersey.",
-    title: "",
-    description: "",
-    date: "",
-    location: "",
+    title: "fifa 26 wc",
+    description: "i always wanted spain to win, fuck argentina",
     featured: false,
     layout: { rotate: 1.5, from: "right" },
   },
@@ -192,10 +174,8 @@ export const GALLERY_PHOTOS: GalleryPhoto[] = [
     width: 1200,
     height: 1800,
     alt: "A printed photo-booth strip with four frames of a group posing, decorated with cartoon stickers.",
-    title: "",
-    description: "",
-    date: "",
-    location: "",
+    title: "prog day 2",
+    description: "we was so kawaii taking these pics",
     featured: false,
     layout: { rotate: 2, from: "right" },
   },
@@ -207,10 +187,8 @@ export const GALLERY_PHOTOS: GalleryPhoto[] = [
     width: 1080,
     height: 1350,
     alt: "A Hacklanta promotional poster showing someone in a red suit, top hat and sunglasses holding out a playing card.",
-    title: "",
-    description: "",
-    date: "",
-    location: "",
+    title: "hacklanta",
+    description: "dawg it was hot asf outside wearing this but i had max aura ",
     featured: false,
     layout: { rotate: -1.6, from: "left" },
   },
@@ -220,10 +198,8 @@ export const GALLERY_PHOTOS: GalleryPhoto[] = [
     width: 1235,
     height: 945,
     alt: "Two people play-fighting in an above-ground pool at night.",
-    title: "",
-    description: "",
-    date: "",
-    location: "",
+    title: "kevin sanchez",
+    description: "my best friend i known for a long time, tried to touch me while i was trying to pose",
     featured: true,
     layout: { rotate: -1.5, from: "bottom" },
   },
@@ -233,10 +209,8 @@ export const GALLERY_PHOTOS: GalleryPhoto[] = [
     width: 1083,
     height: 683,
     alt: "Five people floating in an above-ground pool at night with a pink inflatable raft.",
-    title: "",
-    description: "",
-    date: "",
-    location: "",
+    title: "bachelor trip",
+    description: "had to celebrate w my best friend before he got married",
     featured: true,
     layout: { rotate: -1.3, from: "bottom" },
   },
@@ -246,10 +220,8 @@ export const GALLERY_PHOTOS: GalleryPhoto[] = [
     width: 1536,
     height: 2048,
     alt: "Someone in a straw hat covering their face with one hand while another person leans on their shoulder.",
-    title: "",
-    description: "",
-    date: "",
-    location: "",
+    title: "jared being a cutie",
+    description: "i couldn't resist myself",
     featured: false,
     layout: { rotate: 1.7, from: "bottom" },
   },
@@ -259,10 +231,8 @@ export const GALLERY_PHOTOS: GalleryPhoto[] = [
     width: 2160,
     height: 2880,
     alt: "A hand holding a compact digital camera whose screen shows a group photo taken on a street at night.",
-    title: "",
-    description: "",
-    date: "",
-    location: "",
+    title: "cybersec club",
+    description: "celebrated last meeting of the semester",
     featured: false,
     layout: { rotate: 1.2, from: "right" },
   },
@@ -280,9 +250,7 @@ export function aspectRatio(photo: GalleryPhoto): number {
 
 /** True when a photo has anything worth showing on its flipped side. */
 export function hasDetails(photo: GalleryPhoto): boolean {
-  return Boolean(
-    photo.title || photo.description || photo.date || photo.location,
-  );
+  return Boolean(photo.title || photo.description);
 }
 
 /** Total columns the collage spans on desktop. */
