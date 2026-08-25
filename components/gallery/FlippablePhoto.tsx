@@ -15,10 +15,11 @@ type Props = {
  * The photograph as a physical card. The front is the print; the back is the
  * note written on it.
  *
- * Only the card rotates — never the page. The wrapper owns the perspective, the
- * inner element owns `transform-style: preserve-3d`, and each face hides its
- * own backface. The card shrink-wraps the image so the back is exactly the size
- * of the print, which is what makes the flip read as physical.
+ * Only the card rotates — never the page. The inner element owns the
+ * perspective and each face rotates itself, so the effect never depends on a
+ * shared 3D context that Safari can flatten. The card shrink-wraps the image so
+ * the back is exactly the size of the print, which is what makes the flip read
+ * as physical.
  *
  * When the visitor prefers reduced motion the rotation is dropped entirely and
  * the faces cross-fade instead; the same content stays reachable.
