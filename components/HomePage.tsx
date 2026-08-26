@@ -839,9 +839,9 @@ export default function HomePage({ onNavigate }: Props) {
             }}
           />
           <SpriteSlot
-            src="/assets/sprites/abrarmainscreen.png"
+            src="/assets/sprites/mainscreenreplace.png"
             alt="Abrar"
-            fallbackLabel="abrarmainscreen.png"
+            fallbackLabel="mainscreenreplace.png"
             className="block h-56 w-auto select-none object-contain sm:h-96 md:h-[26rem] [filter:drop-shadow(0_0_5px_rgba(253,230,138,0.55))_drop-shadow(0_0_18px_rgba(251,191,36,0.35))]"
           />
           {/* BAM popping off Abrar's right side — Gojo lives on the left now. */}
@@ -1059,9 +1059,9 @@ export default function HomePage({ onNavigate }: Props) {
             }}
           />
           <SpriteSlot
-            src="/assets/sprites/abrarmainscreen.png"
+            src="/assets/sprites/mainscreenreplace.png"
             alt="Abrar"
-            fallbackLabel="abrarmainscreen.png"
+            fallbackLabel="mainscreenreplace.png"
             className="block h-52 w-auto select-none object-contain [filter:drop-shadow(0_0_5px_rgba(253,230,138,0.5))]"
           />
           <div className="pointer-events-none absolute -right-2 top-4">

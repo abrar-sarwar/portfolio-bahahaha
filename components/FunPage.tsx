@@ -4,7 +4,15 @@ import { useCallback, useEffect, useState, type ReactElement } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import VideoModal from "./VideoModal";
 
-type Weapon = "gun" | "fist" | "heart" | "sword";
+type Weapon =
+  | "gun"
+  | "fist"
+  | "realfist"
+  | "heart"
+  | "sword"
+  | "shuriken"
+  | "football"
+  | "soccer";
 type ZoneId = "body" | "face" | "heart";
 
 const PHOTO_SRC = "/assets/sprites/abrarshoot.png";
@@ -14,15 +22,27 @@ const PHOTO_SRC = "/assets/sprites/abrarshoot.png";
 const CURSOR_FOR: Record<Weapon, string> = {
   gun: "/fun/cursors/gun.png",
   fist: "/fun/cursors/fist.png",
+  realfist: "/fun/cursors/fist.png",
   heart: "/fun/cursors/heart.png",
   sword: "/fun/cursors/sword.png",
+  shuriken: "/fun/cursors/shuriken.png",
+  football: "/fun/cursors/football.png",
+  soccer: "/fun/cursors/soccer.png",
 };
 
+// Every clip is H.264 in an .mp4. The four newest arrived as .mov (served as
+// video/quicktime, which Chrome and Firefox refuse to play) and, in the
+// shuriken's case, as HEVC — which desktop Chrome cannot decode either. They
+// were remuxed and re-encoded rather than shipped Safari-only.
 const VIDEO_FOR: Record<Weapon, string> = {
   gun: "/assets/videos/abrarshoot.mp4",
   fist: "/assets/videos/abrarpunch.mp4",
+  realfist: "/assets/videos/ultrapunchvideo.mp4",
   heart: "/assets/videos/abrarheart.mp4",
   sword: "/assets/videos/abrarsword.mp4",
+  shuriken: "/assets/videos/shirukenvideo.mp4",
+  football: "/assets/videos/footballvideo.mp4",
+  soccer: "/assets/videos/soccervideo.mp4",
 };
 
 // Credit shown beneath the video once playback starts. Sword has no credit
@@ -50,8 +70,13 @@ const DEBUG_ZONES = false;
 const ICON_FOR: Record<Weapon, string> = {
   gun: "/assets/sprites/shoot.png",
   fist: "/assets/sprites/punch.png",
+  realfist: "/assets/sprites/realfist.png",
   heart: "/assets/sprites/heart.png",
   sword: "/assets/sprites/sword.png",
+  // The shuriken artwork happens to be filed under spiderman.png.
+  shuriken: "/assets/sprites/spiderman.png",
+  football: "/assets/sprites/football.png",
+  soccer: "/assets/sprites/soccer.png",
 };
 
 // Headline shown above the photo. Italic sans gives the lines a spoken,
@@ -60,13 +85,20 @@ const HEADLINE_FOR: Record<Weapon | "none", string> = {
   none: "Pick an item to do against me",
   gun: "Take your shot",
   fist: "Try hitting my face",
+  realfist: "Hit me for real",
   heart: "Try aiming here",
   sword: "Have at me",
+  shuriken: "Let it fly",
+  football: "Throw it at me",
+  soccer: "Kick it my way",
 };
 
-// Which zone an aiming aura paints over, if any. Gun/sword don't need one.
-const AURA_ZONE_FOR: Partial<Record<Weapon, ZoneId>> = {
+// Weapons that need a specific target. Anything absent connects anywhere on
+// the silhouette. This drives both the hit test and the red aiming aura, so
+// the aura can never point somewhere a hit does not actually register.
+const ZONE_FOR: Partial<Record<Weapon, ZoneId>> = {
   fist: "face",
+  realfist: "face",
   heart: "heart",
 };
 
@@ -74,18 +106,24 @@ function WeaponIcon({
   src,
   alt,
   extraClass = "",
+  compact = false,
 }: {
   src: string;
   alt: string;
   extraClass?: string;
+  /** The group under the photo runs smaller so the panel still fits a screen. */
+  compact?: boolean;
 }) {
+  const dims = compact
+    ? "h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16"
+    : "h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24";
   // eslint-disable-next-line @next/next/no-img-element
   return (
     <img
       src={src}
       alt={alt}
       draggable={false}
-      className={`h-16 w-16 select-none object-contain sm:h-20 sm:w-20 md:h-24 md:w-24 ${extraClass}`}
+      className={`${dims} select-none object-contain ${extraClass}`}
     />
   );
 }
@@ -104,11 +142,36 @@ const LEFT_WEAPONS: WeaponButton[] = [
     label: "Fist",
     icon: <WeaponIcon src={ICON_FOR.fist} alt="Fist" extraClass={FIST_OUTLINE} />,
   },
+  {
+    id: "realfist",
+    label: "Real Fist",
+    icon: <WeaponIcon src={ICON_FOR.realfist} alt="Real fist" />,
+  },
 ];
 
 const RIGHT_WEAPONS: WeaponButton[] = [
   { id: "heart", label: "John", icon: <WeaponIcon src={ICON_FOR.heart} alt="John" /> },
   { id: "sword", label: "Sword", icon: <WeaponIcon src={ICON_FOR.sword} alt="Sword" /> },
+  {
+    id: "shuriken",
+    label: "Shuriken",
+    icon: <WeaponIcon src={ICON_FOR.shuriken} alt="Shuriken" />,
+  },
+];
+
+// Under the photo rather than beside it — these two are kicked and thrown at
+// the whole figure, so they read better below him than in either column.
+const BOTTOM_WEAPONS: WeaponButton[] = [
+  {
+    id: "football",
+    label: "Football",
+    icon: <WeaponIcon src={ICON_FOR.football} alt="Football" compact />,
+  },
+  {
+    id: "soccer",
+    label: "Soccer",
+    icon: <WeaponIcon src={ICON_FOR.soccer} alt="Soccer" compact />,
+  },
 ];
 
 function cursorStyle(w: Weapon | null): React.CSSProperties {
@@ -120,13 +183,26 @@ function WeaponColumn({
   weapons,
   equipped,
   onToggle,
+  /** Side columns stack on desktop; the group under the photo stays a row. */
+  orientation = "column",
 }: {
   weapons: WeaponButton[];
   equipped: Weapon | null;
   onToggle: (w: Weapon) => void;
+  orientation?: "column" | "row";
 }) {
+  const compact = orientation === "row";
+  const buttonSize = compact
+    ? "h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24"
+    : "h-20 w-20 sm:h-28 sm:w-28 md:h-32 md:w-32";
   return (
-    <div className="flex flex-row items-center justify-center gap-3 sm:flex-col sm:gap-4 md:gap-5">
+    <div
+      className={
+        orientation === "row"
+          ? "flex flex-row items-start justify-center gap-3 sm:gap-4 md:gap-5"
+          : "flex flex-row items-center justify-center gap-3 sm:flex-col sm:gap-4 md:gap-5"
+      }
+    >
       {weapons.map((w) => {
         const isEquipped = equipped === w.id;
         return (
@@ -142,7 +218,7 @@ function WeaponColumn({
               }}
               whileTap={{ scale: 0.94 }}
               transition={{ type: "spring", stiffness: 480, damping: 22 }}
-              className="flex h-20 w-20 items-center justify-center rounded-xl border transition-colors duration-150 sm:h-28 sm:w-28 md:h-32 md:w-32"
+              className={`flex items-center justify-center rounded-xl border transition-colors duration-150 ${buttonSize}`}
               style={{
                 borderColor: isEquipped
                   ? "rgba(168, 139, 250, 0.85)"
@@ -185,12 +261,11 @@ export default function FunPage() {
       if (!equipped) return;
       // Gun and sword fire from any zone (body, face, heart all part of the
       // silhouette). Fist only fires on face. Heart only on chest.
-      if (equipped === "gun" || equipped === "sword") {
+      // Anything without an entry in ZONE_FOR connects anywhere on the
+      // silhouette; the rest only fire on their own zone.
+      const required = ZONE_FOR[equipped];
+      if (!required || required === zone) {
         setPlaying(equipped);
-      } else if (equipped === "fist" && zone === "face") {
-        setPlaying("fist");
-      } else if (equipped === "heart" && zone === "heart") {
-        setPlaying("heart");
       }
       // Otherwise: invalid hit zone, do nothing.
     },
@@ -225,7 +300,7 @@ export default function FunPage() {
         }}
       />
 
-      <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-4 px-6 py-6 sm:gap-5 sm:py-8 max-sm:min-h-svh max-sm:py-16">
+      <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-4 px-6 py-6 sm:gap-5 sm:pb-16 sm:pt-8 max-sm:min-h-svh max-sm:py-16">
         {/* Headline above the photo — swaps with the equipped weapon. */}
         <div className="flex h-10 items-center justify-center sm:h-12">
           <AnimatePresence mode="wait" initial={false}>
@@ -256,7 +331,9 @@ export default function FunPage() {
             onToggle={equipOrToggle}
           />
 
-          <div className="relative w-[min(60vw,_200px)] sm:w-[min(40vw,_240px)] md:w-[min(40vw,_300px)]">
+          {/* The photo and the two items that belong under it. */}
+          <div className="flex flex-col items-center gap-4 sm:gap-5">
+          <div className="relative w-[min(60vw,_200px)] sm:w-[min(40vw,_240px,_27svh)] md:w-[min(40vw,_300px,_27svh)]">
           {/* Subtle frame + glow */}
           <div
             aria-hidden
@@ -288,12 +365,12 @@ export default function FunPage() {
                 target. Position uses the matching hit-zone bounds; tune those
                 in ZONES above. */}
             <AnimatePresence>
-              {equipped && AURA_ZONE_FOR[equipped] && (
+              {equipped && ZONE_FOR[equipped] && (
                 <motion.div
                   aria-hidden
                   className="pointer-events-none absolute"
                   style={{
-                    ...ZONES[AURA_ZONE_FOR[equipped]!], // TODO: tune to photo
+                    ...ZONES[ZONE_FOR[equipped]!], // TODO: tune to photo
                     zIndex: 5,
                     background:
                       "radial-gradient(circle, rgba(239, 68, 68, 0.45) 0%, rgba(239, 68, 68, 0.22) 38%, transparent 75%)",
@@ -337,6 +414,14 @@ export default function FunPage() {
               />
             ))}
           </div>
+          </div>
+
+          <WeaponColumn
+            weapons={BOTTOM_WEAPONS}
+            equipped={equipped}
+            onToggle={equipOrToggle}
+            orientation="row"
+          />
           </div>
 
           <WeaponColumn
