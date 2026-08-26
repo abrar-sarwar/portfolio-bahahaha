@@ -17,6 +17,9 @@ const DIO_ACTIVE_SRC = "/assets/sprites/diocrap.png";
 const DIO_AUDIO_SRC = "/assets/videos/worldmp3.mp3";
 const DIO_VIDEO_SRC = "/assets/videos/worldmp4.mp4";
 const GAROU_VIDEO_SRC = "/assets/videos/garouuu.mp4";
+const SUPERMAN_VIDEO_SRC = "/assets/videos/supermanvideo.mp4";
+// Audio only — the file arrived as a .mov carrying a video track nobody sees.
+const WORLD_MUSIC_SRC = "/assets/videos/myworldmusic.m4a";
 
 export default function MyWorldPage() {
   const router = useRouter();
@@ -32,8 +35,20 @@ export default function MyWorldPage() {
   const [dioPhase, setDioPhase] = useState<"idle" | "audio">("idle");
   const [dioVideoOpen, setDioVideoOpen] = useState(false);
   const [garouVideoOpen, setGarouVideoOpen] = useState(false);
+  const [supermanVideoOpen, setSupermanVideoOpen] = useState(false);
+
+  // ----- background music ----------------------------------------------
+  // Off until asked for: browsers block autoplay with sound anyway, and
+  // music that starts on its own is worse than music you chose. Once on it
+  // loops forever (the `loop` attribute) until switched off.
+  const [musicOn, setMusicOn] = useState(false);
+  const musicRef = useRef<HTMLAudioElement | null>(null);
   const dioAudioRef = useRef<HTMLAudioElement | null>(null);
   const dioActive = dioPhase === "audio" || dioVideoOpen;
+  // Anything with its own soundtrack ducks the music rather than talking over
+  // it; it picks back up afterwards if it was on.
+  const otherAudioPlaying =
+    dioActive || garouVideoOpen || supermanVideoOpen;
 
   // Bumped each time the locked globe is poked, to replay the glitch flash.
   const [glitchKey, setGlitchKey] = useState(0);
@@ -58,6 +73,21 @@ export default function MyWorldPage() {
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
   }, []);
+
+  // Drive the element off state rather than calling play/pause at the click
+  // site, so ducking for a video and resuming after are the same code path.
+  useEffect(() => {
+    const el = musicRef.current;
+    if (!el) return;
+    if (musicOn && !otherAudioPlaying) {
+      el.volume = 0.4;
+      // Rejects only if the browser blocks it; the toggle stays truthful
+      // because a blocked play leaves the button on and simply silent.
+      el.play().catch(() => {});
+    } else {
+      el.pause();
+    }
+  }, [musicOn, otherAudioPlaying]);
 
   // When the mp3 ends, roll straight into the video.
   useEffect(() => {
@@ -156,6 +186,61 @@ export default function MyWorldPage() {
           ← back
         </span>
       </motion.button>
+
+      {/* Music toggle — sits beside the back disc. Off by default; once on it
+          loops until switched off, ducking under anything that has its own
+          sound and resuming when that finishes. */}
+      <motion.button
+        type="button"
+        onClick={() => setMusicOn((v) => !v)}
+        disabled={dioActive}
+        aria-label={musicOn ? "Turn music off" : "Turn music on"}
+        aria-pressed={musicOn}
+        initial={{ opacity: 0, scale: 0.7 }}
+        animate={{ opacity: dioActive ? 0.35 : 1, scale: 1 }}
+        transition={{ duration: 0.4, ease: EASE }}
+        whileHover={dioActive ? undefined : { scale: 1.08 }}
+        whileTap={dioActive ? undefined : { scale: 0.94 }}
+        className={`absolute left-24 top-7 z-50 flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 sm:left-28 sm:top-8 ${
+          dioActive ? "pointer-events-none cursor-not-allowed" : "cursor-pointer"
+        }`}
+        style={{
+          borderColor: musicOn ? "rgba(196,181,253,0.75)" : "rgba(255,255,255,0.18)",
+          background: musicOn ? "rgba(167,139,250,0.18)" : "rgba(0,0,0,0.55)",
+          color: musicOn ? "#ddd6fe" : "rgba(255,255,255,0.75)",
+          boxShadow: musicOn ? "0 0 18px rgba(167,139,250,0.45)" : undefined,
+        }}
+      >
+        {/* The icon shows the current state, not the next action: a plain
+            note while it is playing, a struck-through one while it is not.
+            A slash shown *during* playback reads as "muted". */}
+        <svg
+          aria-hidden
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M9 18V5l10-2v13" />
+          <circle cx="6" cy="18" r="3" />
+          <circle cx="16" cy="16" r="3" />
+          {!musicOn && <path d="M3 3l18 18" />}
+        </svg>
+      </motion.button>
+
+      {/* Looping background music. `loop` keeps it going on its own; the
+          effect above owns when it plays. */}
+      <audio
+        ref={musicRef}
+        src={WORLD_MUSIC_SRC}
+        loop
+        preload="none"
+        aria-hidden
+      />
 
       {/* Title + step hint, top center. */}
       <div className="pointer-events-none absolute left-1/2 top-5 z-30 flex w-full max-w-[88%] -translate-x-1/2 flex-col items-center text-center sm:top-7">
@@ -282,6 +367,77 @@ export default function MyWorldPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Superman — mid-left, above garou and clear of the back disc. He is
+          already drawn mid-flight, so the job here is to keep him moving:
+          a slow rise and fall with a little roll, over a red glow that
+          breathes underneath him. Clicking plays his video. */}
+      <motion.button
+        type="button"
+        onClick={() => !dioActive && setSupermanVideoOpen(true)}
+        disabled={dioActive}
+        aria-label="Play superman"
+        initial={{ opacity: 0, x: -40 }}
+        // Slides off to the left with garou when a place is opened, then the
+        // flight loop picks up again where it left off.
+        animate={{
+          opacity: 1,
+          x: panelOpen ? "-160%" : 0,
+          y: [0, -16, 0],
+          rotate: [-3, 2, -3],
+        }}
+        transition={{
+          opacity: { delay: panelOpen ? 0 : 0.5, duration: 0.7, ease: EASE },
+          x: { delay: panelOpen ? 0 : 0.5, duration: 0.7, ease: EASE },
+          y: { duration: 4.2, repeat: Infinity, ease: "easeInOut" },
+          rotate: { duration: 5.6, repeat: Infinity, ease: "easeInOut" },
+        }}
+        whileHover={dioActive ? undefined : { scale: 1.06 }}
+        whileTap={dioActive ? undefined : { scale: 0.97 }}
+        className={`absolute left-[1%] top-[20%] z-20 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300/60 ${
+          dioActive ? "pointer-events-none" : "cursor-pointer"
+        }`}
+      >
+        {/* The red layer — a glow that pulses behind him, plus a streak
+            trailing off to the left so he reads as moving, not hovering. */}
+        <motion.span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10"
+          animate={{ opacity: [0.45, 0.85, 0.45], scale: [0.92, 1.12, 0.92] }}
+          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          style={{
+            background:
+              "radial-gradient(closest-side, rgba(239,68,68,0.62) 0%, rgba(220,38,38,0.28) 45%, transparent 72%)",
+            filter: "blur(24px)",
+          }}
+        />
+        <motion.span
+          aria-hidden
+          className="pointer-events-none absolute -z-10"
+          animate={{ opacity: [0.25, 0.6, 0.25], scaleX: [0.85, 1.15, 0.85] }}
+          transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+          style={{
+            left: "-45%",
+            top: "38%",
+            width: "85%",
+            height: "22%",
+            transformOrigin: "right center",
+            background:
+              "linear-gradient(90deg, transparent, rgba(239,68,68,0.55) 70%, rgba(252,165,165,0.75))",
+            filter: "blur(14px)",
+          }}
+        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/assets/sprites/superman.png"
+          alt=""
+          draggable={false}
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).style.display = "none";
+          }}
+          className="relative block h-40 w-auto select-none object-contain sm:h-52 md:h-64 [filter:drop-shadow(0_0_10px_rgba(239,68,68,0.7))_drop-shadow(0_0_28px_rgba(239,68,68,0.4))]"
+        />
+      </motion.button>
 
       {/* Garou — bottom-left, clickable → plays his video. */}
       <motion.button
@@ -456,7 +612,14 @@ export default function MyWorldPage() {
 
       {/* Garou's video. Small square source, so size it up like dio's. */}
       <AnimatePresence>
-        {garouVideoOpen && (
+        {supermanVideoOpen && (
+        <VideoModal
+          src={SUPERMAN_VIDEO_SRC}
+          onClose={() => setSupermanVideoOpen(false)}
+          volume={0.6}
+        />
+      )}
+      {garouVideoOpen && (
           <VideoModal
             src={GAROU_VIDEO_SRC}
             onClose={() => setGarouVideoOpen(false)}

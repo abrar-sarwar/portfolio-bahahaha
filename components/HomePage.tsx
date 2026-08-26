@@ -14,6 +14,7 @@ import type { SubView } from "@/lib/sections";
 const GOJO_VIDEO_SRC = "/assets/videos/idwin.mp4";
 const ABRAR_VIDEO_SRC = "/assets/videos/abrarmainscreenvideo.mp4";
 const GRIFFITH_AUDIO_SRC = "/assets/videos/griffith.mp3";
+const MAHORAGA_VIDEO_SRC = "/assets/videos/mahoragavideo.mp4";
 const CALENDLY_URL = "https://calendly.com/abrartsarwar/30min";
 
 type Props = {
@@ -238,6 +239,7 @@ export default function HomePage({ onNavigate }: Props) {
   // AnimatePresence can't intercept, so variants actually run.
   const [stage, setStage] = useState<"hidden" | "visible">("hidden");
   const [gojoVideoOpen, setGojoVideoOpen] = useState(false);
+  const [mahoragaVideoOpen, setMahoragaVideoOpen] = useState(false);
   const [abrarVideoOpen, setAbrarVideoOpen] = useState(false);
   const [songPlaying, setSongPlaying] = useState(false);
   const griffithRef = useRef<HTMLAudioElement | null>(null);
@@ -863,20 +865,38 @@ export default function HomePage({ onNavigate }: Props) {
       {/* Mahoraga — no blend mode (screen made his dark robe invisible on the
           black page, so only the light top half showed). A faint white edge
           glow keeps the dark half readable instead. */}
-      <motion.img
-        src="/assets/sprites/mahoraga.png"
-        alt=""
-        aria-hidden
-        draggable={false}
+      <motion.button
+        type="button"
+        onClick={() => setMahoragaVideoOpen(true)}
+        aria-label="Play mahoraga's video"
         initial={{ opacity: 0, scale: 0.85 }}
         animate={{ opacity: 0.9, scale: 1 }}
         transition={{ delay: 1.4, duration: 0.6, ease: "easeOut" }}
-        className="pointer-events-none absolute z-[1] hidden h-44 w-auto select-none object-contain sm:block sm:h-56 md:h-64 [filter:drop-shadow(0_0_1.5px_rgba(255,255,255,0.9))_drop-shadow(0_0_10px_rgba(196,181,253,0.35))]"
-        style={{
-          top: "18%",
-          left: "52%",
-        }}
-      />
+        whileHover={{ scale: 1.04, opacity: 1 }}
+        whileTap={{ scale: 0.98 }}
+        className="absolute z-[2] hidden cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 sm:block"
+        style={{ top: "18%", left: "52%" }}
+      >
+        {/* Pulsing halo — the same "click me" cue Gojo and Abrar use. */}
+        <motion.span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10"
+          animate={{ opacity: [0.3, 0.65, 0.3], scale: [0.92, 1.08, 0.92] }}
+          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          style={{
+            background:
+              "radial-gradient(closest-side, rgba(167,139,250,0.5) 0%, rgba(124,58,237,0.22) 48%, transparent 74%)",
+            filter: "blur(20px)",
+          }}
+        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/assets/sprites/mahoraga.png"
+          alt=""
+          draggable={false}
+          className="relative block h-44 w-auto select-none object-contain sm:h-56 md:h-64 [filter:drop-shadow(0_0_1.5px_rgba(255,255,255,0.9))_drop-shadow(0_0_10px_rgba(196,181,253,0.35))]"
+        />
+      </motion.button>
       {/* gyro.gif — sits in the right column between the Fun nav and Abrar. */}
       <motion.img
         src="/assets/sprites/gyro.gif"
@@ -1240,6 +1260,13 @@ export default function HomePage({ onNavigate }: Props) {
           onClose={() => setGojoVideoOpen(false)}
           volume={0.6}
           credit="goaten"
+        />
+      )}
+      {mahoragaVideoOpen && (
+        <VideoModal
+          src={MAHORAGA_VIDEO_SRC}
+          onClose={() => setMahoragaVideoOpen(false)}
+          volume={0.6}
         />
       )}
       {abrarVideoOpen && (
