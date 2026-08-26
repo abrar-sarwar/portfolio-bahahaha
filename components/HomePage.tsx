@@ -15,17 +15,25 @@ const GOJO_VIDEO_SRC = "/assets/videos/idwin.mp4";
 const ABRAR_VIDEO_SRC = "/assets/videos/abrarmainscreenvideo.mp4";
 const GRIFFITH_AUDIO_SRC = "/assets/videos/griffith.mp3";
 const MAHORAGA_VIDEO_SRC = "/assets/videos/mahoragavideo.mp4";
+const PROGSU_VIDEO_SRC = "/assets/videos/progsuvideo.mp4";
+
+// Mahoraga's hover dissolve, finest blocks first. Each frame fades in after
+// the one before it, which is what makes the pixelation read as progressive.
+const MAHORAGA_PIXEL_FRAMES = [
+  { src: "/assets/sprites/mahoraga-px5.png", ms: 260, inDelay: 0 },
+  { src: "/assets/sprites/mahoraga-px11.png", ms: 260, inDelay: 110 },
+  { src: "/assets/sprites/mahoraga-px22.png", ms: 260, inDelay: 220 },
+];
 const CALENDLY_URL = "https://calendly.com/abrartsarwar/30min";
 
 type Props = {
   onNavigate: (view: SubView) => void;
 };
 
-// Feed order: Projects -> Organizations -> Gallery -> Fun. Both the desktop and
+// Feed order: Projects -> Gallery -> Fun. Both the desktop and
 // mobile navs map over this list, so adding a section here updates both.
 const NAV_LINKS: { id: SubView; label: string }[] = [
   { id: "projects", label: "Projects" },
-  { id: "organizations", label: "Organizations" },
   { id: "gallery", label: "Gallery" },
 ];
 
@@ -240,6 +248,7 @@ export default function HomePage({ onNavigate }: Props) {
   const [stage, setStage] = useState<"hidden" | "visible">("hidden");
   const [gojoVideoOpen, setGojoVideoOpen] = useState(false);
   const [mahoragaVideoOpen, setMahoragaVideoOpen] = useState(false);
+  const [progsuVideoOpen, setProgsuVideoOpen] = useState(false);
   const [abrarVideoOpen, setAbrarVideoOpen] = useState(false);
   const [songPlaying, setSongPlaying] = useState(false);
   const griffithRef = useRef<HTMLAudioElement | null>(null);
@@ -515,6 +524,52 @@ export default function HomePage({ onNavigate }: Props) {
             />
           </motion.div>
         ))}
+      </motion.div>
+
+      {/* progsu — the one thing kept from the retired Organizations section.
+          The badge plays their video, the caption links out to progsu.com,
+          which is the split the old section used. Hovering anywhere in the
+          group lights the whole thing violet, and the padding is what makes
+          "around it" count rather than the badge alone. */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1.2, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+        className="group absolute z-[2] hidden flex-col items-center gap-2 p-4 sm:flex"
+        style={{ top: "46%", left: "6%" }}
+      >
+        <button
+          type="button"
+          onClick={() => setProgsuVideoOpen(true)}
+          aria-label="Play progsu video"
+          className="relative cursor-pointer rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+        >
+          {/* The violet lift. Sits behind the badge and only appears on
+              hover, so the resting state stays quiet. */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -inset-4 -z-10 rounded-full opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100"
+            style={{
+              background:
+                "radial-gradient(closest-side, rgba(167,139,250,0.75), rgba(124,58,237,0.3) 55%, transparent 75%)",
+            }}
+          />
+          <SpriteSlot
+            src="/assets/sprites/progsu.png"
+            alt="progsu logo"
+            fallbackLabel="progsu"
+            className="block h-14 w-14 select-none rounded-lg object-contain brightness-[0.85] saturate-[0.9] transition duration-300 group-hover:scale-110 group-hover:brightness-125 group-hover:saturate-150 group-hover:[filter:drop-shadow(0_0_10px_rgba(167,139,250,0.95))_drop-shadow(0_0_22px_rgba(139,92,246,0.7))] md:h-16 md:w-16"
+          />
+        </button>
+
+        <a
+          href="https://www.progsu.com"
+          target="_blank"
+          rel="noreferrer noopener"
+          className="max-w-[9rem] text-center text-[10px] font-medium uppercase leading-relaxed tracking-[0.22em] text-white/55 transition-colors duration-300 group-hover:text-violet-300 hover:text-violet-200 focus:outline-none focus-visible:text-violet-200 focus-visible:underline"
+        >
+          super duper awesome club
+        </a>
       </motion.div>
 
       {/* Sonic — smaller buddy hanging next to Ichigo. Standalone so adding
@@ -874,7 +929,7 @@ export default function HomePage({ onNavigate }: Props) {
         transition={{ delay: 1.4, duration: 0.6, ease: "easeOut" }}
         whileHover={{ scale: 1.04, opacity: 1 }}
         whileTap={{ scale: 0.98 }}
-        className="absolute z-[2] hidden cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 sm:block"
+        className="group/maho absolute z-[2] hidden cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 sm:block"
         style={{ top: "18%", left: "52%" }}
       >
         {/* Pulsing halo — the same "click me" cue Gojo and Abrar use. */}
@@ -889,13 +944,42 @@ export default function HomePage({ onNavigate }: Props) {
             filter: "blur(20px)",
           }}
         />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/assets/sprites/mahoraga.png"
-          alt=""
-          draggable={false}
-          className="relative block h-44 w-auto select-none object-contain sm:h-56 md:h-64 [filter:drop-shadow(0_0_1.5px_rgba(255,255,255,0.9))_drop-shadow(0_0_10px_rgba(196,181,253,0.35))]"
-        />
+        {/* Pixelating on hover.
+
+            The blocky frames are real nearest-neighbour downsamples committed
+            alongside the sprite, not a CSS trick: `image-rendering: pixelated`
+            only governs how an upscale is filtered, and browsers disagree
+            about whether a transformed image is re-rasterised at the final
+            scale, so the CSS-only version renders smooth about half the time.
+
+            Three frames stack over the sharp one and fade in on a stagger —
+            coarser blocks arriving later — so he dissolves into pixels
+            progressively instead of snapping between two states. Leaving
+            reverses it, coarsest first. */}
+        <span className="relative block">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/assets/sprites/mahoraga.png"
+            alt=""
+            draggable={false}
+            className="relative block h-44 w-auto select-none object-contain sm:h-56 md:h-64 [filter:drop-shadow(0_0_1.5px_rgba(255,255,255,0.9))_drop-shadow(0_0_10px_rgba(196,181,253,0.35))]"
+          />
+          {MAHORAGA_PIXEL_FRAMES.map((frame) => (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              key={frame.src}
+              src={frame.src}
+              alt=""
+              aria-hidden
+              draggable={false}
+              className="pointer-events-none absolute inset-0 block h-full w-full select-none object-contain opacity-0 transition-opacity ease-out group-hover/maho:opacity-100 [filter:drop-shadow(0_0_1.5px_rgba(255,255,255,0.9))_drop-shadow(0_0_12px_rgba(167,139,250,0.55))]"
+              style={{
+                transitionDuration: `${frame.ms}ms`,
+                transitionDelay: `${frame.inDelay}ms`,
+              }}
+            />
+          ))}
+        </span>
       </motion.button>
       {/* gyro.gif — sits in the right column between the Fun nav and Abrar. */}
       <motion.img
@@ -1161,6 +1245,41 @@ export default function HomePage({ onNavigate }: Props) {
       </button>
       </div>
 
+      {/* progsu — the desktop layout places it absolutely, which does not
+          translate to this stacked one, so it gets its own slot in the flow.
+          Same split: badge plays the video, caption links out. */}
+      <div className="group relative z-10 mt-8 flex flex-col items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setProgsuVideoOpen(true)}
+          aria-label="Play progsu video"
+          className="relative cursor-pointer rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+        >
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -inset-4 -z-10 rounded-full opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100"
+            style={{
+              background:
+                "radial-gradient(closest-side, rgba(167,139,250,0.75), rgba(124,58,237,0.3) 55%, transparent 75%)",
+            }}
+          />
+          <SpriteSlot
+            src="/assets/sprites/progsu.png"
+            alt="progsu logo"
+            fallbackLabel="progsu"
+            className="block h-14 w-14 select-none rounded-lg object-contain transition duration-300 group-hover:scale-110 group-hover:brightness-125"
+          />
+        </button>
+        <a
+          href="https://www.progsu.com"
+          target="_blank"
+          rel="noreferrer noopener"
+          className="text-center text-[10px] font-medium uppercase tracking-[0.22em] text-white/55 transition-colors duration-300 group-hover:text-violet-300 hover:text-violet-200 focus:outline-none focus-visible:text-violet-200 focus-visible:underline"
+        >
+          super duper awesome club
+        </a>
+      </div>
+
       {/* Contact links */}
       <ul className="relative z-10 mt-8 w-full max-w-md space-y-2">
         {SOCIALS.map((s) => (
@@ -1260,6 +1379,13 @@ export default function HomePage({ onNavigate }: Props) {
           onClose={() => setGojoVideoOpen(false)}
           volume={0.6}
           credit="goaten"
+        />
+      )}
+      {progsuVideoOpen && (
+        <VideoModal
+          src={PROGSU_VIDEO_SRC}
+          onClose={() => setProgsuVideoOpen(false)}
+          volume={0.5}
         />
       )}
       {mahoragaVideoOpen && (

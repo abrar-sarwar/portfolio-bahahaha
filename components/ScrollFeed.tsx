@@ -6,7 +6,6 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { motion } from "framer-motion";
 import HomePage from "./HomePage";
 import ProjectsPage from "./ProjectsPage";
-import OrganizationsPage from "./OrganizationsPage";
 import GallerySection from "./gallery/GallerySection";
 import FunPage from "./FunPage";
 import type { SubView } from "@/lib/sections";
@@ -18,20 +17,18 @@ if (typeof window !== "undefined") {
 export type Panel =
   | "home"
   | "projects"
-  | "organizations"
   | "gallery"
   | "fun";
 
-// Order of the feed: Main -> Projects -> Organizations -> Gallery -> Fun. My
+// Order of the feed: Main -> Projects -> Gallery -> Fun. My
 // World lives on its own /myworld route, not in this feed. To slot a new
 // section in later, add it here and drop a matching panel <section> in the same
 // position below.
 const PANEL_INDEX: Record<Panel, number> = {
   home: 0,
   projects: 1,
-  organizations: 2,
-  gallery: 3,
-  fun: 4,
+  gallery: 2,
+  fun: 3,
 };
 
 type Props = {
@@ -161,12 +158,6 @@ export default function ScrollFeed({ initial = "home" }: Props) {
         <section className="scroll-feed-panel relative h-full w-full overflow-hidden max-sm:h-auto max-sm:min-h-svh max-sm:overflow-visible">
           <div className="scroll-feed-inner relative h-full w-full will-change-transform max-sm:h-auto max-sm:min-h-svh max-sm:will-change-auto">
             <ProjectsPage />
-          </div>
-        </section>
-
-        <section className="scroll-feed-panel relative h-full w-full overflow-hidden max-sm:h-auto max-sm:min-h-svh max-sm:overflow-visible">
-          <div className="scroll-feed-inner relative h-full w-full will-change-transform max-sm:h-auto max-sm:min-h-svh max-sm:will-change-auto">
-            <OrganizationsPage />
           </div>
         </section>
 

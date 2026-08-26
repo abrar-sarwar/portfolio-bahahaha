@@ -187,50 +187,119 @@ export default function MyWorldPage() {
         </span>
       </motion.button>
 
-      {/* Music toggle — sits beside the back disc. Off by default; once on it
-          loops until switched off, ducking under anything that has its own
-          sound and resuming when that finishes. */}
-      <motion.button
-        type="button"
-        onClick={() => setMusicOn((v) => !v)}
-        disabled={dioActive}
-        aria-label={musicOn ? "Turn music off" : "Turn music on"}
-        aria-pressed={musicOn}
+      {/* Music control — same size as the back disc so the two read as a
+          pair. Off: a slow violet breath inviting a press. On: the ring
+          sweeps round and the note becomes three bars keeping time. */}
+      <motion.div
         initial={{ opacity: 0, scale: 0.7 }}
         animate={{ opacity: dioActive ? 0.35 : 1, scale: 1 }}
         transition={{ duration: 0.4, ease: EASE }}
-        whileHover={dioActive ? undefined : { scale: 1.08 }}
-        whileTap={dioActive ? undefined : { scale: 0.94 }}
-        className={`absolute left-24 top-7 z-50 flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 sm:left-28 sm:top-8 ${
-          dioActive ? "pointer-events-none cursor-not-allowed" : "cursor-pointer"
+        className={`absolute left-24 top-5 z-50 flex flex-col items-center gap-1 sm:left-28 sm:top-6 ${
+          dioActive ? "pointer-events-none" : ""
         }`}
-        style={{
-          borderColor: musicOn ? "rgba(196,181,253,0.75)" : "rgba(255,255,255,0.18)",
-          background: musicOn ? "rgba(167,139,250,0.18)" : "rgba(0,0,0,0.55)",
-          color: musicOn ? "#ddd6fe" : "rgba(255,255,255,0.75)",
-          boxShadow: musicOn ? "0 0 18px rgba(167,139,250,0.45)" : undefined,
-        }}
       >
-        {/* The icon shows the current state, not the next action: a plain
-            note while it is playing, a struck-through one while it is not.
-            A slash shown *during* playback reads as "muted". */}
-        <svg
-          aria-hidden
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+        <motion.button
+          type="button"
+          onClick={() => setMusicOn((v) => !v)}
+          disabled={dioActive}
+          aria-label={musicOn ? "Turn music off" : "Turn music on"}
+          aria-pressed={musicOn}
+          whileHover={dioActive ? undefined : { scale: 1.08 }}
+          whileTap={dioActive ? undefined : { scale: 0.94 }}
+          className={`relative flex h-14 w-14 items-center justify-center rounded-full border backdrop-blur-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 sm:h-16 sm:w-16 ${
+            dioActive ? "cursor-not-allowed" : "cursor-pointer"
+          }`}
+          style={{
+            borderColor: musicOn ? "rgba(196,181,253,0.8)" : "rgba(255,255,255,0.2)",
+            background: musicOn ? "rgba(167,139,250,0.16)" : "rgba(0,0,0,0.55)",
+            color: musicOn ? "#ede9fe" : "rgba(255,255,255,0.8)",
+          }}
         >
-          <path d="M9 18V5l10-2v13" />
-          <circle cx="6" cy="18" r="3" />
-          <circle cx="16" cy="16" r="3" />
-          {!musicOn && <path d="M3 3l18 18" />}
-        </svg>
-      </motion.button>
+          {/* Halo. Breathes gently when idle, burns brighter when playing. */}
+          <motion.span
+            aria-hidden
+            className="pointer-events-none absolute -inset-2 -z-10 rounded-full"
+            animate={
+              musicOn
+                ? { opacity: [0.5, 0.95, 0.5], scale: [0.95, 1.14, 0.95] }
+                : { opacity: [0.18, 0.4, 0.18], scale: [0.95, 1.05, 0.95] }
+            }
+            transition={{
+              duration: musicOn ? 1.9 : 3.4,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            style={{
+              background:
+                "radial-gradient(closest-side, rgba(167,139,250,0.7), rgba(124,58,237,0.25) 55%, transparent 76%)",
+              filter: "blur(10px)",
+            }}
+          />
+
+          {/* Sweeping ring — only while playing, so motion means sound. */}
+          {musicOn && (
+            <motion.span
+              aria-hidden
+              className="pointer-events-none absolute -inset-[3px] rounded-full"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 4.5, repeat: Infinity, ease: "linear" }}
+              style={{
+                background:
+                  "conic-gradient(from 0deg, transparent 0deg, rgba(196,181,253,0.9) 60deg, transparent 140deg)",
+                WebkitMask:
+                  "radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px))",
+                mask: "radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px))",
+              }}
+            />
+          )}
+
+          {musicOn ? (
+            // Three bars keeping time — a still icon would not say "playing".
+            <span aria-hidden className="flex items-end gap-[3px]">
+              {[0, 0.18, 0.36].map((delay, i) => (
+                <motion.span
+                  key={i}
+                  className="w-[3px] rounded-full bg-current"
+                  animate={{ height: [6, 17, 9, 20, 6] }}
+                  transition={{
+                    duration: 1.15,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay,
+                  }}
+                  style={{ height: 6 }}
+                />
+              ))}
+            </span>
+          ) : (
+            <svg
+              aria-hidden
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M9 18V5l10-2v13" />
+              <circle cx="6" cy="18" r="3" />
+              <circle cx="16" cy="16" r="3" />
+            </svg>
+          )}
+        </motion.button>
+
+        <span
+          className="max-w-[7.5rem] text-center text-[10px] font-medium uppercase leading-relaxed tracking-[0.2em] transition-colors duration-300"
+          style={{
+            color: musicOn ? "#ddd6fe" : "rgba(255,255,255,0.6)",
+            textShadow: musicOn ? "0 0 12px rgba(167,139,250,0.65)" : undefined,
+          }}
+        >
+          {musicOn ? "playing the world" : "click to listen to the world"}
+        </span>
+      </motion.div>
 
       {/* Looping background music. `loop` keeps it going on its own; the
           effect above owns when it plays. */}

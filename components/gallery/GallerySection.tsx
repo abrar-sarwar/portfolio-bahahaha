@@ -8,7 +8,7 @@ import { DoodleUnderline } from "./GalleryDoodles";
 import { GALLERY_PHOTOS } from "@/lib/gallery";
 
 /**
- * Gallery — the photo collage that sits between Organizations and Fun.
+ * Gallery — the photo collage that sits between Projects and Fun.
  *
  * One screen, the same height as every other panel in the feed. Reaching it
  * plays a short timed intro and then reveals the collage; there is nothing

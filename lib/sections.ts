@@ -3,7 +3,6 @@ export type View =
   | "home"
   | "myworld"
   | "projects"
-  | "organizations"
   | "gallery"
   | "fun";
 
