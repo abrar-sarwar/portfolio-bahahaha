@@ -13,7 +13,7 @@ type Weapon =
   | "shuriken"
   | "football"
   | "soccer";
-type ZoneId = "body" | "face" | "heart";
+type ZoneId = "body" | "face" | "chest" | "heart" | "shoes";
 
 const PHOTO_SRC = "/assets/sprites/abrarshoot.png";
 
@@ -53,15 +53,21 @@ const CREDIT_FOR: Partial<Record<Weapon, string>> = {
   heart: "pengui",
 };
 
-// Hit zones in percentages of the photo container.
-// TODO: adjust to match photo — current values target abrarmainscreen.png.
+// Hit zones as percentages of the photo container, measured off the alpha
+// channel of abrarshoot.png rather than guessed: the silhouette runs y 5-95%,
+// the head y 5-18% (x 41-63%), the chest y 21-35% between the arms, and the
+// shoes y 83-95%. Re-measure if PHOTO_SRC ever changes.
 const ZONES: Record<ZoneId, { left: string; top: string; width: string; height: string }> = {
-  // Full silhouette — generous so gun/sword fire anywhere on the figure.
-  body: { left: "10%", top: "5%", width: "80%", height: "90%" }, // TODO: adjust to match photo
-  // Face only — head & jawline.
-  face: { left: "34%", top: "8%", width: "32%", height: "22%" }, // TODO: adjust to match photo
-  // Heart — small target on the upper-left of his chest (viewer's right).
-  heart: { left: "44%", top: "24%", width: "18%", height: "12%" }, // TODO: adjust to match photo
+  // Full silhouette — the catch-all for anything that connects anywhere.
+  body: { left: "7%", top: "4%", width: "83%", height: "92%" },
+  // Head — hair down to the chin.
+  face: { left: "39%", top: "4%", width: "26%", height: "15%" },
+  // Chest — the torso between the arms.
+  chest: { left: "30%", top: "21%", width: "38%", height: "14%" },
+  // Heart — a smaller, more precise target inside the chest.
+  heart: { left: "44%", top: "24%", width: "18%", height: "11%" },
+  // Shoes — both feet, including the one that steps further forward.
+  shoes: { left: "18%", top: "83%", width: "52%", height: "12%" },
 };
 
 // Set to true to temporarily show the zones as colored overlays while tuning.
@@ -99,7 +105,10 @@ const HEADLINE_FOR: Record<Weapon | "none", string> = {
 const ZONE_FOR: Partial<Record<Weapon, ZoneId>> = {
   fist: "face",
   realfist: "face",
+  shuriken: "face",
   heart: "heart",
+  football: "chest",
+  soccer: "shoes",
 };
 
 function WeaponIcon({
@@ -387,8 +396,19 @@ export default function FunPage() {
               )}
             </AnimatePresence>
 
-            {/* Hit zones — invisible by default. Toggle DEBUG_ZONES to tune. */}
-            {(Object.keys(ZONES) as ZoneId[]).map((id) => (
+            {/* Hit zones — invisible by default. Toggle DEBUG_ZONES to tune.
+
+                Only two are ever live: the whole silhouette, and — when the
+                equipped item needs a specific target — that one target on top
+                of it. Rendering all five at once would let overlapping zones
+                (chest sits over heart, both sit over body) swallow each
+                other's clicks depending on stacking order. */}
+            {(DEBUG_ZONES
+              ? (Object.keys(ZONES) as ZoneId[])
+              : (["body", equipped ? ZONE_FOR[equipped] : undefined].filter(
+                  Boolean,
+                ) as ZoneId[])
+            ).map((id) => (
               <button
                 key={id}
                 type="button"
@@ -398,13 +418,18 @@ export default function FunPage() {
                 style={{
                   ...ZONES[id],
                   ...cursorStyle(equipped),
-                  zIndex: id === "body" ? 10 : id === "face" ? 20 : 30,
+                  // The specific target always sits above the silhouette.
+                  zIndex: id === "body" ? 10 : 30,
                   background: DEBUG_ZONES
                     ? id === "body"
                       ? "rgba(0,255,0,0.18)"
                       : id === "face"
                         ? "rgba(255,0,0,0.22)"
-                        : "rgba(255,200,0,0.28)"
+                        : id === "chest"
+                          ? "rgba(255,120,0,0.28)"
+                          : id === "shoes"
+                            ? "rgba(0,160,255,0.28)"
+                            : "rgba(255,200,0,0.28)"
                     : "transparent",
                   border: DEBUG_ZONES ? "1px dashed white" : undefined,
                   // No cursor: pointer — equipped weapon cursor takes over.
