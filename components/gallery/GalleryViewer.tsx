@@ -92,6 +92,13 @@ export default function GalleryViewer({
         step(-1);
         return;
       }
+      // A third way to turn the card over, alongside the button and the card
+      // itself — if one of those is not working for someone, this still is.
+      if (e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        setFlipped((v) => !v);
+        return;
+      }
       if (e.key !== "Tab") return;
 
       const root = dialogRef.current;

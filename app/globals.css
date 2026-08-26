@@ -607,6 +607,10 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
+  /* Safari renders <button> with the default arrow cursor, and Tailwind's
+     preflight does not override it — without this the control reads as
+     decoration rather than something you can press. */
+  cursor: pointer;
   padding: 0.6rem 1rem;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 999px;
@@ -632,11 +636,21 @@ body {
   box-shadow: 0 0 0 2px rgba(196, 181, 253, 0.55);
 }
 .journal-control--primary {
-  color: #ddd6fe;
-  border-color: rgba(196, 181, 253, 0.4);
+  color: #f5f3ff;
+  padding: 0.8rem 1.6rem;
+  font-size: 12px;
+  border-color: rgba(196, 181, 253, 0.75);
+  background: rgba(167, 139, 250, 0.18);
+  box-shadow: 0 0 20px -6px rgba(167, 139, 250, 0.55);
+}
+.journal-control--primary:hover {
+  color: #fff;
+  border-color: #c4b5fd;
+  background: rgba(167, 139, 250, 0.3);
 }
 
 .journal-close {
+  cursor: pointer;
   position: fixed;
   top: max(1rem, env(safe-area-inset-top));
   right: max(1rem, env(safe-area-inset-right));
