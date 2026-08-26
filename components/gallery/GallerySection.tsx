@@ -37,7 +37,7 @@ export default function GallerySection() {
       {/* Tighter tracking on phones so this stays on one line and does not eat
           a row of the collage. */}
       <p className="mt-3 text-[9px] uppercase tracking-[0.16em] text-white/40 sm:mt-4 sm:text-[10px] sm:tracking-[0.3em]">
-        {GALLERY_PHOTOS.length} photographs · click one to open it
+        {GALLERY_PHOTOS.length} photographs · open one, then flip it over
       </p>
     </header>
   );

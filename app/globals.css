@@ -479,21 +479,35 @@ body {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  /* Straighten and lift a touch. GSAP owns `transform` on the tile itself once
-     the collage has assembled, so the hover lift lives on the image instead —
-     otherwise the two would overwrite each other. */
+  /* The hovered print rises above its neighbours rather than being clipped by
+     the ones laid over it. */
+  .journal-tile:hover {
+    z-index: 20;
+  }
+
+  /* Spotlight. Hovering anywhere in the collage sends every other photograph
+     back into the dark, so the one under the cursor is the only thing lit. */
+  .journal-collage:hover .journal-tile:not(:hover) .journal-tile-img {
+    opacity: 0.38;
+    filter: saturate(0.45) brightness(0.72) contrast(0.98);
+  }
+
+  /* The lift and straighten live on the tile via framer-motion's whileHover —
+     it owns `transform` here. Everything that is not a transform lives on the
+     image, where the two cannot fight. */
   .journal-tile:hover .journal-tile-img {
     box-shadow:
-      0 0 0 1px rgba(196, 181, 253, 0.5),
-      0 18px 42px -14px rgba(0, 0, 0, 0.95);
-    filter: saturate(1) contrast(1.05);
-    transform: scale(1.03);
+      0 0 0 1px rgba(196, 181, 253, 0.75),
+      0 0 28px -2px rgba(167, 139, 250, 0.45),
+      0 30px 62px -18px rgba(0, 0, 0, 0.98);
+    filter: saturate(1.12) contrast(1.06) brightness(1.08);
   }
+
   .journal-tile-img {
     transition:
-      box-shadow 200ms ease,
-      filter 200ms ease,
-      transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+      box-shadow 260ms ease,
+      filter 260ms ease,
+      opacity 260ms ease;
   }
 }
 
@@ -541,18 +555,11 @@ body {
 
 /* ----- viewer card + flip ----- */
 /*
- * The flip deliberately does NOT use `transform-style: preserve-3d` on a
- * shared parent. Safari flattens a preserved 3D context when an ancestor is
- * composited — and the viewer's backdrop (`backdrop-filter: blur`) is exactly
- * such an ancestor — which left the card sitting there doing nothing.
- *
- * Instead each face carries its own rotation, with the perspective on their
- * direct parent. That needs no preserved context to survive, so it cannot be
- * flattened out from under us.
- *
- * Belt and braces: the faces also swap opacity at the halfway point. If a
- * browser renders the 3D wrongly anyway, the note still becomes visible and
- * the print still hides — the flip degrades to a hard cut instead of failing.
+ * Only the static look of the card lives here. Which face is showing, the
+ * rotation and the timing are all inline styles driven by React state in
+ * FlippablePhoto — see the note in that file for why. Do not reintroduce
+ * `transform-style: preserve-3d` or `backface-visibility` here: the flip was
+ * dead in Safari precisely because it depended on them.
  */
 .journal-card {
   width: min(92vw, 1200px, calc(74svh * var(--ar)));
@@ -567,29 +574,7 @@ body {
   /* On the faces' direct parent: perspective only reaches its own children. */
   perspective: 1600px;
 }
-.journal-card-face {
-  position: absolute;
-  inset: 0;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  /* The opacity swap is instant, fired at the midpoint of the rotation. */
-  transition:
-    transform 620ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0s linear 310ms;
-}
-.journal-card-front {
-  transform: rotateY(0deg);
-  opacity: 1;
-}
-.journal-card-inner.is-flipped .journal-card-front {
-  transform: rotateY(180deg);
-  opacity: 0;
-  pointer-events: none;
-}
 .journal-card-back {
-  transform: rotateY(-180deg);
-  opacity: 0;
-  pointer-events: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -605,11 +590,6 @@ body {
     0 0 0 1px rgba(255, 255, 255, 0.11),
     0 22px 55px -20px rgba(0, 0, 0, 0.95);
 }
-.journal-card-inner.is-flipped .journal-card-back {
-  transform: rotateY(0deg);
-  opacity: 1;
-  pointer-events: auto;
-}
 .journal-card-back-inner {
   display: flex;
   flex-direction: column;
@@ -620,19 +600,6 @@ body {
   padding: 2rem 1.75rem 3.25rem;
   text-align: center;
   overflow-y: auto;
-}
-/* Reduced motion: no 3D at all — the two faces simply cross-fade. */
-.journal-card--fade .journal-card-face {
-  backface-visibility: visible;
-  -webkit-backface-visibility: visible;
-  transform: none;
-  transition: opacity 160ms ease;
-}
-.journal-card--fade .journal-card-front,
-.journal-card--fade .journal-card-inner.is-flipped .journal-card-front,
-.journal-card--fade .journal-card-back,
-.journal-card--fade .journal-card-inner.is-flipped .journal-card-back {
-  transform: none;
 }
 
 /* ----- viewer controls ----- */

@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import type { GalleryPhoto as Photo } from "@/lib/gallery";
 import { hasDetails } from "@/lib/gallery";
 
@@ -15,14 +16,21 @@ type Props = {
  * The photograph as a physical card. The front is the print; the back is the
  * note written on it.
  *
- * Only the card rotates — never the page. The inner element owns the
- * perspective and each face rotates itself, so the effect never depends on a
- * shared 3D context that Safari can flatten. The card shrink-wraps the image so
- * the back is exactly the size of the print, which is what makes the flip read
- * as physical.
+ * WHICH FACE YOU SEE IS DECIDED BY OPACITY, NOTHING ELSE.
  *
- * When the visitor prefers reduced motion the rotation is dropped entirely and
- * the faces cross-fade instead; the same content stays reachable.
+ * This used to be the textbook flip — one `preserve-3d` parent turning two
+ * `backface-visibility: hidden` faces — and it did nothing at all in Safari.
+ * Both of those properties are compositing hints a browser is free to get
+ * wrong, and when they go wrong the card just sits there.
+ *
+ * So the rotation is now decoration and the opacity swap is the mechanism: the
+ * two faces trade `opacity` at the halfway point, driven straight off React
+ * state as inline styles. Nothing here depends on a preserved 3D context, on
+ * backface culling, or even on the stylesheet loading — the worst a browser can
+ * do to this is turn a flip into a hard cut, and the note is still readable.
+ *
+ * The card shrink-wraps the image so the back is exactly the size of the print,
+ * which is what makes it read as one physical object.
  */
 export default function FlippablePhoto({
   photo,
@@ -32,20 +40,44 @@ export default function FlippablePhoto({
 }: Props) {
   const detailed = hasDetails(photo);
 
+  // Reduced motion drops the rotation entirely and leaves the cross-fade.
+  const face: CSSProperties = {
+    position: "absolute",
+    inset: 0,
+    transition: reduceMotion
+      ? "opacity 160ms ease"
+      : "transform 620ms cubic-bezier(0.22, 1, 0.36, 1), opacity 0s linear 310ms",
+  };
+  const turn = (deg: string) => (reduceMotion ? undefined : `rotateY(${deg})`);
+
+  const frontStyle: CSSProperties = {
+    ...face,
+    transform: turn(flipped ? "180deg" : "0deg"),
+    opacity: flipped ? 0 : 1,
+    pointerEvents: flipped ? "none" : "auto",
+  };
+
+  const backStyle: CSSProperties = {
+    ...face,
+    transform: turn(flipped ? "0deg" : "-180deg"),
+    opacity: flipped ? 1 : 0,
+    pointerEvents: flipped ? "auto" : "none",
+  };
+
   return (
     <div
-      className={`journal-card ${reduceMotion ? "journal-card--fade" : ""}`}
+      className="journal-card"
       // --ar drives both the width formula and the aspect box in CSS, so the
       // card is exactly as large as the viewport allows without ever cropping.
       style={{ ["--ar" as string]: photo.width / photo.height }}
     >
-      <div
-        className={`journal-card-inner ${flipped ? "is-flipped" : ""}`}
-        onClick={onToggle}
-        role="presentation"
-      >
+      <div className="journal-card-inner" onClick={onToggle} role="presentation">
         {/* ---------------- front: the print ---------------- */}
-        <div className="journal-card-face journal-card-front" aria-hidden={flipped}>
+        <div
+          className="journal-card-face journal-card-front"
+          style={frontStyle}
+          aria-hidden={flipped}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={photo.src}
@@ -61,6 +93,7 @@ export default function FlippablePhoto({
         {/* ---------------- back: the note ---------------- */}
         <div
           className="journal-card-face journal-card-back"
+          style={backStyle}
           aria-hidden={!flipped}
         >
           <div className="journal-card-back-inner">

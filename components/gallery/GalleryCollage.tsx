@@ -124,6 +124,22 @@ export default function GalleryCollage({
             type="button"
             custom={photo}
             variants={tileVariants}
+            // Picking a print up off the wall: it straightens, lifts and grows.
+            // This has to be framer's `whileHover` rather than a CSS :hover —
+            // the variants above own `transform` on this element, so a CSS
+            // transform would simply be overwritten. The glow and the dimming
+            // of every other photo are CSS, on the <img> underneath.
+            whileHover={
+              reduceMotion
+                ? undefined
+                : {
+                    scale: 1.07,
+                    y: -10,
+                    rotate: 0,
+                    transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] },
+                  }
+            }
+            whileTap={reduceMotion ? undefined : { scale: 0.98 }}
             onClick={() => onOpen(photo.id)}
             aria-label={`Open photo: ${photo.alt}`}
             className="journal-tile group relative flex min-h-0 min-w-0 items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
