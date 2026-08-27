@@ -488,13 +488,13 @@ export default function HomePage({ onNavigate }: Props) {
 
       <motion.div
         variants={charRowVariants}
-        aria-hidden
         className="pointer-events-none absolute bottom-0 left-0 z-0 hidden items-end gap-1 pl-2 sm:flex sm:gap-2 sm:pl-4"
       >
         {SIDE_CHARS.map((c) => (
           <motion.div
             key={c.alt}
             variants={charVariants}
+            aria-hidden
             className="flex flex-col items-center"
           >
             {c.alt === "Mori" && (
@@ -524,52 +524,51 @@ export default function HomePage({ onNavigate }: Props) {
             />
           </motion.div>
         ))}
-      </motion.div>
 
-      {/* progsu — the one thing kept from the retired Organizations section.
-          The badge plays their video, the caption links out to progsu.com,
-          which is the split the old section used. Hovering anywhere in the
-          group lights the whole thing violet, and the padding is what makes
-          "around it" count rather than the badge alone. */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.2, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-        className="group absolute z-[2] hidden flex-col items-center gap-2 p-4 sm:flex"
-        style={{ top: "46%", left: "6%" }}
-      >
-        <button
-          type="button"
-          onClick={() => setProgsuVideoOpen(true)}
-          aria-label="Play progsu video"
-          className="relative cursor-pointer rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-        >
-          {/* The violet lift. Sits behind the badge and only appears on
-              hover, so the resting state stays quiet. */}
-          <span
-            aria-hidden
-            className="pointer-events-none absolute -inset-4 -z-10 rounded-full opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100"
-            style={{
-              background:
-                "radial-gradient(closest-side, rgba(167,139,250,0.75), rgba(124,58,237,0.3) 55%, transparent 75%)",
-            }}
-          />
-          <SpriteSlot
-            src="/assets/sprites/progsu.png"
-            alt="progsu logo"
-            fallbackLabel="progsu"
-            className="block h-14 w-14 select-none rounded-lg object-contain brightness-[0.85] saturate-[0.9] transition duration-300 group-hover:scale-110 group-hover:brightness-125 group-hover:saturate-150 group-hover:[filter:drop-shadow(0_0_10px_rgba(167,139,250,0.95))_drop-shadow(0_0_22px_rgba(139,92,246,0.7))] md:h-16 md:w-16"
-          />
-        </button>
+        {/* progsu, standing next to Mori at the end of the row. The badge
+            plays their video and the caption links to progsu.com, which is
+            how the retired Organizations section split it.
 
-        <a
-          href="https://www.progsu.com"
-          target="_blank"
-          rel="noreferrer noopener"
-          className="max-w-[9rem] text-center text-[10px] font-medium uppercase leading-relaxed tracking-[0.22em] text-white/55 transition-colors duration-300 group-hover:text-violet-300 hover:text-violet-200 focus:outline-none focus-visible:text-violet-200 focus-visible:underline"
+            The artwork is a near-black square, so on this page it needs help
+            to be seen at all: a ring to give it an edge and a resting violet
+            glow. Hover deepens both rather than being the only time it is
+            legible. `pointer-events-auto` because the row itself is inert. */}
+        <motion.div
+          variants={charVariants}
+          className="group pointer-events-auto mb-24 flex flex-col items-center gap-2 p-2"
         >
-          super duper awesome club
-        </a>
+          <button
+            type="button"
+            onClick={() => setProgsuVideoOpen(true)}
+            aria-label="Play progsu video"
+            className="relative cursor-pointer rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+          >
+            <span
+              aria-hidden
+              className="pointer-events-none absolute -inset-3 -z-10 rounded-full opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100"
+              style={{
+                background:
+                  "radial-gradient(closest-side, rgba(167,139,250,0.8), rgba(124,58,237,0.35) 55%, transparent 75%)",
+              }}
+            />
+            <SpriteSlot
+              src="/assets/sprites/progsu.png"
+              alt="progsu logo"
+              fallbackLabel="progsu"
+              className="block h-20 w-20 select-none rounded-lg object-contain ring-1 ring-white/25 transition duration-300 group-hover:scale-110 group-hover:ring-violet-300/70 md:h-24 md:w-24 [filter:drop-shadow(0_0_6px_rgba(167,139,250,0.5))] group-hover:[filter:brightness(1.25)_drop-shadow(0_0_12px_rgba(167,139,250,0.95))_drop-shadow(0_0_26px_rgba(139,92,246,0.7))]"
+            />
+          </button>
+
+          <a
+            href="https://www.progsu.com"
+            target="_blank"
+            rel="noreferrer noopener"
+            className="max-w-[8rem] text-center text-[10px] font-medium uppercase leading-relaxed tracking-[0.2em] text-white/70 transition-colors duration-300 group-hover:text-violet-300 hover:text-violet-200 focus:outline-none focus-visible:text-violet-200 focus-visible:underline"
+            style={{ textShadow: "0 1px 6px rgba(0,0,0,0.85)" }}
+          >
+            click proggy to check us out
+          </a>
+        </motion.div>
       </motion.div>
 
       {/* Sonic — smaller buddy hanging next to Ichigo. Standalone so adding
@@ -1245,9 +1244,9 @@ export default function HomePage({ onNavigate }: Props) {
       </button>
       </div>
 
-      {/* progsu — the desktop layout places it absolutely, which does not
-          translate to this stacked one, so it gets its own slot in the flow.
-          Same split: badge plays the video, caption links out. */}
+      {/* progsu — the desktop layout places it beside Mori in the character
+          row; this stacked layout gets its own in-flow slot instead. Same
+          split: badge plays the video, caption links out. */}
       <div className="group relative z-10 mt-8 flex flex-col items-center gap-2">
         <button
           type="button"
@@ -1267,16 +1266,16 @@ export default function HomePage({ onNavigate }: Props) {
             src="/assets/sprites/progsu.png"
             alt="progsu logo"
             fallbackLabel="progsu"
-            className="block h-14 w-14 select-none rounded-lg object-contain transition duration-300 group-hover:scale-110 group-hover:brightness-125"
+            className="block h-20 w-20 select-none rounded-lg object-contain ring-1 ring-white/25 transition duration-300 group-hover:scale-110 group-hover:brightness-125 [filter:drop-shadow(0_0_6px_rgba(167,139,250,0.5))]"
           />
         </button>
         <a
           href="https://www.progsu.com"
           target="_blank"
           rel="noreferrer noopener"
-          className="text-center text-[10px] font-medium uppercase tracking-[0.22em] text-white/55 transition-colors duration-300 group-hover:text-violet-300 hover:text-violet-200 focus:outline-none focus-visible:text-violet-200 focus-visible:underline"
+          className="text-center text-[10px] font-medium uppercase tracking-[0.22em] text-white/70 transition-colors duration-300 group-hover:text-violet-300 hover:text-violet-200 focus:outline-none focus-visible:text-violet-200 focus-visible:underline"
         >
-          super duper awesome club
+          click proggy to check us out
         </a>
       </div>
 
