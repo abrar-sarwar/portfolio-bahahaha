@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import ProjectVideo from "./ProjectVideo";
 import VideoModal from "./VideoModal";
 import {
   PROJECTS,
   PROJECTS_MAIN_BACKGROUND,
   PROJECT_CHARACTERS,
+  PROJECT_CHARACTER_LIST,
   PROJECT_ACCENTS,
   type Project,
   type ProjectSlug,
@@ -25,7 +27,8 @@ export default function ProjectsPage() {
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
 
   const viewKey: ViewKey = selected ?? "main";
-  const character = PROJECT_CHARACTERS[viewKey];
+  // Projects without their own character art borrow main's.
+  const character = PROJECT_CHARACTERS[viewKey] ?? PROJECT_CHARACTERS.main;
   const accent = PROJECT_ACCENTS[viewKey];
   const selectedProject =
     selected != null ? PROJECTS.find((p) => p.slug === selected) ?? null : null;
@@ -53,16 +56,17 @@ export default function ProjectsPage() {
   // Preload list — every background + every character video, hidden in DOM.
   const preloadVideos = useMemo(
     () =>
-      Array.from(new Set(Object.values(PROJECT_CHARACTERS).map((c) => c.video))),
+      Array.from(new Set(PROJECT_CHARACTER_LIST.map((c) => c.video))),
     [],
   );
   const preloadBackgrounds = useMemo(
-    () => [PROJECTS_MAIN_BACKGROUND, ...PROJECTS.map((p) => p.backgroundSrc)],
+    // Deduped — a project may borrow the main backdrop as a placeholder.
+    () => Array.from(new Set([PROJECTS_MAIN_BACKGROUND, ...PROJECTS.map((p) => p.backgroundSrc)])),
     [],
   );
   const preloadCharacters = useMemo(
     () =>
-      Array.from(new Set(Object.values(PROJECT_CHARACTERS).map((c) => c.img))),
+      Array.from(new Set(PROJECT_CHARACTER_LIST.map((c) => c.img))),
     [],
   );
 
@@ -157,12 +161,17 @@ export default function ProjectsPage() {
                       >
                         {p.tag}
                       </p>
-                      <p
-                        className="mt-2 whitespace-pre-line text-[14px] text-white/85"
-                        style={{ lineHeight: 1.7 }}
-                      >
-                        {p.description}
-                      </p>
+                      {p.video && (
+                        <ProjectVideo video={p.video} title={p.title} className="mt-3" />
+                      )}
+                      {p.description && (
+                        <p
+                          className="mt-3 whitespace-pre-line text-[14px] text-white/85"
+                          style={{ lineHeight: 1.7 }}
+                        >
+                          {p.description}
+                        </p>
+                      )}
                     </div>
                   </motion.div>
                 )}
@@ -652,8 +661,9 @@ function ProjectCard({
 
 /**
  * DetailPanel — project info shown when a project is selected. Lighter
- * treatment than a hard card: just title + tag + description over a soft
- * scrim so text stays legible against any project background.
+ * treatment than a hard card: title + tag, then the demo clip and the
+ * write-up when the project has them, over a soft scrim so text stays
+ * legible against any project background.
  */
 function DetailPanel({
   project,
@@ -739,16 +749,22 @@ function DetailPanel({
           }}
         />
 
-        <p
-          className="mt-4 whitespace-pre-line text-[14.5px] sm:text-[15px]"
-          style={{
-            color: "rgba(255,255,255,0.9)",
-            lineHeight: 1.7,
-            textShadow: "0 1px 6px rgba(0,0,0,0.6)",
-          }}
-        >
-          {project.description}
-        </p>
+        {/* Demo clip above the write-up; either can be absent. */}
+        {project.video && (
+          <ProjectVideo video={project.video} title={project.title} className="mt-5" />
+        )}
+        {project.description && (
+          <p
+            className="mt-4 whitespace-pre-line text-[14.5px] sm:text-[15px]"
+            style={{
+              color: "rgba(255,255,255,0.9)",
+              lineHeight: 1.7,
+              textShadow: "0 1px 6px rgba(0,0,0,0.6)",
+            }}
+          >
+            {project.description}
+          </p>
+        )}
       </motion.div>
     </div>
   );
@@ -849,8 +865,8 @@ function ProjectDecorations({ slug }: { slug: ProjectSlug }) {
           /* TODO: tune position */
         />
       );
-    case "glint":
-      // GLINT now uses tripwirebot as its mascot (static).
+    case "leek":
+      // Leek now uses tripwirebot as its mascot (static).
       return (
         // eslint-disable-next-line @next/next/no-img-element
         <img

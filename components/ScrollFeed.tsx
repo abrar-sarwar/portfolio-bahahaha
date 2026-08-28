@@ -3,11 +3,12 @@
 import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { motion } from "framer-motion";
 import HomePage from "./HomePage";
 import ProjectsPage from "./ProjectsPage";
 import GallerySection from "./gallery/GallerySection";
 import FunPage from "./FunPage";
+import { ChatProvider } from "./chat/ChatContext";
+import ChatSection from "./chat/ChatSection";
 import type { SubView } from "@/lib/sections";
 
 if (typeof window !== "undefined") {
@@ -18,9 +19,10 @@ export type Panel =
   | "home"
   | "projects"
   | "gallery"
-  | "fun";
+  | "fun"
+  | "chat";
 
-// Order of the feed: Main -> Projects -> Gallery -> Fun. My
+// Order of the feed: Main -> Projects -> Gallery -> Fun -> Chat. My
 // World lives on its own /myworld route, not in this feed. To slot a new
 // section in later, add it here and drop a matching panel <section> in the same
 // position below.
@@ -29,7 +31,12 @@ const PANEL_INDEX: Record<Panel, number> = {
   projects: 1,
   gallery: 2,
   fun: 3,
+  chat: 4,
 };
+
+function isPanel(value: string): value is Panel {
+  return value in PANEL_INDEX;
+}
 
 type Props = {
   initial?: Panel;
@@ -61,8 +68,12 @@ export default function ScrollFeed({ initial = "home" }: Props) {
     if (view === "myworld") return;
     scrollToPanel(view);
   };
-  // Used only by the single end-of-feed CTA at the very bottom of the Fun panel.
+  // Used only by the single end-of-feed CTA at the very bottom of the Chat panel.
   const handleBackToTop = () => scrollToPanel("home");
+  // Links inside the chat ("#projects") scroll the feed too.
+  const handleChatNavigate = (panel: string) => {
+    if (isPanel(panel)) scrollToPanel(panel);
+  };
 
   useEffect(() => {
     const scroller = scrollerRef.current;
@@ -136,6 +147,7 @@ export default function ScrollFeed({ initial = "home" }: Props) {
   }, [initial]);
 
   return (
+    <ChatProvider onNavigate={handleChatNavigate}>
     <div
       ref={rootRef}
       className="relative h-svh w-screen overflow-hidden bg-black"
@@ -177,66 +189,19 @@ export default function ScrollFeed({ initial = "home" }: Props) {
         <section className="scroll-feed-panel relative h-full w-full overflow-hidden max-sm:h-auto max-sm:min-h-svh max-sm:overflow-visible">
           <div className="scroll-feed-inner relative h-full w-full will-change-transform max-sm:h-auto max-sm:min-h-svh max-sm:will-change-auto">
             <FunPage />
+          </div>
+        </section>
 
-            {/* End-of-feed CTA — sits inside the Fun panel's wrapper so it
-                fades in with the panel. Click smooth-scrolls back to home.
-                The wrapper handles the horizontal centering (left:50% +
-                translateX(-50%)) because framer-motion controls `transform`
-                on motion.button directly and would clobber a Tailwind
-                translate utility. */}
-            <div className="pointer-events-none absolute bottom-6 left-1/2 z-40 -translate-x-1/2 sm:bottom-8">
-              <motion.button
-                type="button"
-                onClick={handleBackToTop}
-                aria-label="Back to main page"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: 0.4,
-                  duration: 0.5,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-                whileHover={{ scale: 1.08 }}
-                whileTap={{ scale: 0.94 }}
-                className="pointer-events-auto flex cursor-pointer flex-col items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-              >
-                <motion.svg
-                  aria-hidden
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  animate={{ y: [0, -6, 0] }}
-                  transition={{
-                    duration: 1.4,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                  style={{
-                    color: "#c4b5fd",
-                    filter: "drop-shadow(0 0 8px rgba(167,139,250,0.7))",
-                  }}
-                >
-                  <path d="M6 15l6-6 6 6" />
-                </motion.svg>
-                <span
-                  className="text-[10px] font-medium uppercase tracking-[0.32em]"
-                  style={{
-                    color: "rgba(255,255,255,0.78)",
-                    textShadow: "0 0 10px rgba(167,139,250,0.55)",
-                  }}
-                >
-                  Back to top
-                </span>
-              </motion.button>
-            </div>
+        {/* Chat — the last panel, and the only place the chat lives: portrait
+            bottom-left, the latest reply staged in the middle, the input box at
+            the bottom. The end-of-feed "Back to top" CTA sits in its header. */}
+        <section className="scroll-feed-panel relative h-full w-full overflow-hidden max-sm:h-auto max-sm:min-h-svh max-sm:overflow-visible">
+          <div className="scroll-feed-inner relative h-full w-full will-change-transform max-sm:h-auto max-sm:min-h-svh max-sm:will-change-auto">
+            <ChatSection onBackToTop={handleBackToTop} />
           </div>
         </section>
       </div>
     </div>
+    </ChatProvider>
   );
 }

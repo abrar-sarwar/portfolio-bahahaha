@@ -49,6 +49,13 @@ export interface ProProject {
 
 export const PROJECTS: ProProject[] = [
   {
+    title: "Arkham",
+    description:
+      "My open source cyber threat intelligence briefing system. It gathers what is moving in the threat landscape and turns it into a briefing I would actually read.",
+    tags: ["Threat Intel", "Open Source", "Automation"],
+    href: "https://github.com/abrar-sarwar/arkham",
+  },
+  {
     title: "NetWraith",
     description:
       "A C++ network intrusion detection engine with per source kill chain correlation. It scores every source as traffic moves, so a coordinated attacker surfaces as one rising threat instead of a pile of flat alerts.",
@@ -63,11 +70,11 @@ export const PROJECTS: ProProject[] = [
     href: "https://github.com/abrar-sarwar/tripwire",
   },
   {
-    title: "GLINT",
+    title: "Leek",
     description:
       "OSINT research on the ShinyHunters threat collective, turned into a single cluster dossier that defenders can actually put to use.",
     tags: ["OSINT", "Threat Intel", "Research"],
-    href: "https://github.com/abrar-sarwar/glint",
+    href: "https://github.com/abrar-sarwar/leek",
   },
   {
     title: "CounterStack",

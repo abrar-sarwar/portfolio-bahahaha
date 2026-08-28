@@ -78,6 +78,30 @@ const PROGSU_ENTRIES: OrgEntry[] = [
 2. Convert to all three formats with the commands in `public/assets/videos/README-VIDEOS.md`.
 3. Reference in JSX with three `<source>` tags so every browser picks the format it supports.
 
+## Portfolio chat ("talk to my portfolio")
+
+A deterministic, client-only chat that answers from a config file. No model, no
+API, nothing a visitor types leaves the browser.
+
+- **Content:** `lib/chat/chatResponses.ts` — add an entry to `CHAT_ENTRIES` and it
+  works everywhere (matching, `/help`, `/random`, the found-counter). Fallbacks,
+  suggestion chips, placeholders and `/lore` lines live in the same file.
+- **Engine:** `lib/chat/engine.ts` (commands → follow-ups → most-specific trigger →
+  fallback), `matcher.ts` / `normalize.ts` (whole-token matching, punctuation and
+  case insensitive), `commands.ts` (slash commands), `projectCards.ts` (cards built
+  from `lib/projects.ts` + `lib/professional.ts`).
+- **UI:** `components/chat/` — `ChatProvider` holds the one conversation;
+  `ChatSection` is the last feed panel and the only place the chat lives:
+  `ChatPortrait` bottom-left (`chatidle.png` while nothing's been asked,
+  `chatanswer.png` once a reply lands), `ChatStage` in the middle (the latest
+  exchange, staged big, outside any box), `ChatConsole` at the bottom (the input
+  box + slash commands).
+- **Media:** drop files in `public/chat/` (see `public/chat/README.md`) or point at
+  existing `/assets/...` files. A missing file never breaks a reply.
+- **Tests:** `npm test` — `lib/chat/engine.test.ts` (matching, commands, follow-ups)
+  and `lib/chat/chatResponses.test.ts` (config sanity: unique ids, no trigger
+  collisions, every project has a card, every chip lands).
+
 ## Architecture
 
 All five views live in `app/page.tsx` as states (`intro | home | projects | organizations | fun`). Cube rotation is a single `<SectionTransition>` wrapper using Framer Motion's `<AnimatePresence>` with `rotateY` exit/enter. Forward (home → subpage) and back (subpage → home) flip the rotation direction so the cube feels coherent.

@@ -7,7 +7,7 @@ import VideoModal from "./VideoModal";
 type Weapon =
   | "gun"
   | "fist"
-  | "realfist"
+  | "food"
   | "heart"
   | "sword"
   | "shuriken"
@@ -22,7 +22,7 @@ const PHOTO_SRC = "/assets/sprites/abrarshoot.png";
 const CURSOR_FOR: Record<Weapon, string> = {
   gun: "/fun/cursors/gun.png",
   fist: "/fun/cursors/fist.png",
-  realfist: "/fun/cursors/fist.png",
+  food: "/fun/cursors/food.png",
   heart: "/fun/cursors/heart.png",
   sword: "/fun/cursors/sword.png",
   shuriken: "/fun/cursors/shuriken.png",
@@ -30,14 +30,15 @@ const CURSOR_FOR: Record<Weapon, string> = {
   soccer: "/fun/cursors/soccer.png",
 };
 
-// Every clip is H.264 in an .mp4. The four newest arrived as .mov (served as
-// video/quicktime, which Chrome and Firefox refuse to play) and, in the
-// shuriken's case, as HEVC — which desktop Chrome cannot decode either. They
-// were remuxed and re-encoded rather than shipped Safari-only.
+// Every clip is H.264 in an .mp4. Anything that arrives as .mov (served as
+// video/quicktime, which Chrome and Firefox refuse to play) gets remuxed —
+// `ffmpeg -i x.mov -c copy -movflags +faststart x.mp4` — rather than shipped
+// Safari-only. The shuriken clip also arrived as HEVC, which desktop Chrome
+// cannot decode, so that one was re-encoded.
 const VIDEO_FOR: Record<Weapon, string> = {
   gun: "/assets/videos/abrarshoot.mp4",
   fist: "/assets/videos/abrarpunch.mp4",
-  realfist: "/assets/videos/ultrapunchvideo.mp4",
+  food: "/assets/videos/freefood.mp4",
   heart: "/assets/videos/abrarheart.mp4",
   sword: "/assets/videos/abrarsword.mp4",
   shuriken: "/assets/videos/shirukenvideo.mp4",
@@ -51,6 +52,12 @@ const CREDIT_FOR: Partial<Record<Weapon, string>> = {
   gun: "unknown",
   fist: "reylox",
   heart: "pengui",
+};
+
+// Modal volume per item; anything absent plays at 0.6. The food clip goes
+// all the way up — it has to land.
+const VOLUME_FOR: Partial<Record<Weapon, number>> = {
+  food: 1,
 };
 
 // Hit zones as percentages of the photo container, measured off the alpha
@@ -76,7 +83,7 @@ const DEBUG_ZONES = false;
 const ICON_FOR: Record<Weapon, string> = {
   gun: "/assets/sprites/shoot.png",
   fist: "/assets/sprites/punch.png",
-  realfist: "/assets/sprites/realfist.png",
+  food: "/assets/sprites/food.png",
   heart: "/assets/sprites/heart.png",
   sword: "/assets/sprites/sword.png",
   // The shuriken artwork happens to be filed under spiderman.png.
@@ -91,7 +98,7 @@ const HEADLINE_FOR: Record<Weapon | "none", string> = {
   none: "Pick an item to do against me",
   gun: "Take your shot",
   fist: "Try hitting my face",
-  realfist: "Hit me for real",
+  food: "Tell him there's free food",
   heart: "Try aiming here",
   sword: "Have at me",
   shuriken: "Let it fly",
@@ -104,7 +111,7 @@ const HEADLINE_FOR: Record<Weapon | "none", string> = {
 // the aura can never point somewhere a hit does not actually register.
 const ZONE_FOR: Partial<Record<Weapon, ZoneId>> = {
   fist: "face",
-  realfist: "face",
+  food: "face",
   shuriken: "face",
   heart: "heart",
   football: "chest",
@@ -124,8 +131,8 @@ function WeaponIcon({
   compact?: boolean;
 }) {
   const dims = compact
-    ? "h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16"
-    : "h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24";
+    ? "size-12 sm:size-[70%] md:size-2/3"
+    : "size-16 sm:size-[71%] md:size-3/4";
   // eslint-disable-next-line @next/next/no-img-element
   return (
     <img
@@ -152,9 +159,9 @@ const LEFT_WEAPONS: WeaponButton[] = [
     icon: <WeaponIcon src={ICON_FOR.fist} alt="Fist" extraClass={FIST_OUTLINE} />,
   },
   {
-    id: "realfist",
-    label: "Real Fist",
-    icon: <WeaponIcon src={ICON_FOR.realfist} alt="Real fist" />,
+    id: "food",
+    label: "Free Food",
+    icon: <WeaponIcon src={ICON_FOR.food} alt="Free food" />,
   },
 ];
 
@@ -188,6 +195,24 @@ function cursorStyle(w: Weapon | null): React.CSSProperties {
   return { cursor: `url('${CURSOR_FOR[w]}') 16 16, crosshair` };
 }
 
+// On desktop this panel is a fixed-height stack centered inside a box that
+// clips overflow, so on a short viewport (browser chrome + dock on a laptop,
+// DevTools open) the headline was the first thing pushed out of view, and
+// equipping made it worse. The photo already scales with the viewport height;
+// these make the item buttons do the same. Solved for a side column: three
+// buttons + three labels (32px each) + two gaps (40px) have to fit in 100svh
+// minus the fixed rows (headline 48, gaps 40, esc slot 16, padding 96), so
+// button <= (100svh - 336px) / 3. The compact group under the photo keeps its
+// 3:4 ratio to the side buttons. Both are capped at full size with min()
+// where they are used, so nothing changes on a tall screen. The photo column
+// gets the same treatment where its width is set: the photo is ~1.92x taller
+// than wide, so with the compact row under it, width <= 39svh - 88px. Below
+// ~730px that term takes over from the 27svh one; above it nothing changes.
+const FIT_VARS = {
+  "--fun-btn": "calc(33svh - 112px)",
+  "--fun-btn-compact": "calc(25svh - 84px)",
+} as React.CSSProperties;
+
 function WeaponColumn({
   weapons,
   equipped,
@@ -202,8 +227,8 @@ function WeaponColumn({
 }) {
   const compact = orientation === "row";
   const buttonSize = compact
-    ? "h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24"
-    : "h-20 w-20 sm:h-28 sm:w-28 md:h-32 md:w-32";
+    ? "size-16 sm:size-[min(5rem,var(--fun-btn-compact))] md:size-[min(6rem,var(--fun-btn-compact))]"
+    : "size-20 sm:size-[min(7rem,var(--fun-btn))] md:size-[min(8rem,var(--fun-btn))]";
   return (
     <div
       className={
@@ -244,7 +269,7 @@ function WeaponColumn({
               {w.icon}
             </motion.button>
             <span
-              className="text-xs font-medium uppercase tracking-[0.32em] transition-colors duration-200 sm:text-base"
+              className="whitespace-nowrap text-xs font-medium uppercase tracking-[0.32em] transition-colors duration-200 sm:text-base"
               style={{
                 color: isEquipped ? "#c4b5fd" : "rgba(255,255,255,0.92)",
                 textShadow: isEquipped
@@ -297,7 +322,7 @@ export default function FunPage() {
   return (
     <main
       className="relative h-full w-full overflow-hidden bg-black text-white max-sm:h-auto max-sm:min-h-svh max-sm:overflow-visible"
-      style={cursorStyle(equipped)}
+      style={{ ...FIT_VARS, ...cursorStyle(equipped) }}
     >
       {/* Ambient purple glow to match the rest of the site. */}
       <div
@@ -342,7 +367,7 @@ export default function FunPage() {
 
           {/* The photo and the two items that belong under it. */}
           <div className="flex flex-col items-center gap-4 sm:gap-5">
-          <div className="relative w-[min(60vw,_200px)] sm:w-[min(40vw,_240px,_27svh)] md:w-[min(40vw,_300px,_27svh)]">
+          <div className="relative w-[min(60vw,_200px)] sm:w-[min(40vw,_240px,_27svh,_39svh_-_88px)] md:w-[min(40vw,_300px,_27svh,_39svh_-_88px)]">
           {/* Subtle frame + glow */}
           <div
             aria-hidden
@@ -456,20 +481,23 @@ export default function FunPage() {
           />
         </div>
 
-        {/* Tiny escape hint, only when something's equipped. */}
-        <AnimatePresence>
-          {equipped && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="text-[10px] uppercase tracking-[0.32em] text-white/35"
-            >
-              Esc to unequip
-            </motion.p>
-          )}
-        </AnimatePresence>
+        {/* Tiny escape hint, only when something's equipped. The slot is
+            always there so the whole column doesn't jump when you equip. */}
+        <div className="flex h-4 shrink-0 items-center">
+          <AnimatePresence>
+            {equipped && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="text-[10px] uppercase tracking-[0.32em] text-white/35"
+              >
+                Esc to unequip
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Preload videos so playback is instant. */}
@@ -485,7 +513,7 @@ export default function FunPage() {
             key={playing}
             src={VIDEO_FOR[playing]}
             onClose={() => setPlaying(null)}
-            volume={0.6}
+            volume={VOLUME_FOR[playing] ?? 0.6}
             credit={CREDIT_FOR[playing]}
           />
         )}

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { PROJECT_ACCENTS, type Project } from "@/lib/projects";
+import ProjectVideo from "./ProjectVideo";
 import SpriteSlot from "./SpriteSlot";
 
 type Props = {
@@ -61,15 +62,22 @@ export default function ProjectDetail({ project }: Props) {
           </p>
         </header>
 
-        <section className="mb-12">
-          <p
-            className="whitespace-pre-line text-sm text-white/80"
-            style={{ lineHeight: 1.7 }}
-          >
-            {project.description}
-          </p>
-          {/* TODO: extended writeup */}
-        </section>
+        {(project.video || project.description) && (
+          <section className="mb-12">
+            {project.video && (
+              <ProjectVideo video={project.video} title={project.title} className="mb-6" />
+            )}
+            {project.description && (
+              <p
+                className="whitespace-pre-line text-sm text-white/80"
+                style={{ lineHeight: 1.7 }}
+              >
+                {project.description}
+              </p>
+            )}
+            {/* TODO: extended writeup */}
+          </section>
+        )}
 
         <section className="mb-12">
           <h2 className="mb-4 text-xs uppercase tracking-[0.3em] text-white/40">
