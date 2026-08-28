@@ -154,9 +154,9 @@ export const PROJECT_CHARACTERS: Record<"main", ProjectCharacter> &
   },
   leek: {
     img: "/assets/sprites/glintpic.png",
-    video: "/assets/videos/leek.mp4",
+    video: "/assets/videos/abrarglint.mp4",
     alt: "Abrar (Leek)",
-    credit: "heheedit1",
+    credit: "_sarah.aep",
     creditLabel: "edit by",
   },
   counterstack: {

@@ -62,11 +62,18 @@ describe("projects config", () => {
     expect(batman?.video).toBe("/assets/videos/arkham.mp4");
   });
 
-  it("leek embeds its clip in the panel, like counterstack, and its character plays it too", () => {
+  it("leek embeds its clip in the panel while chrollo keeps his own, like counterstack", () => {
     const leek = PROJECTS.find((p) => p.slug === "leek");
     expect(leek?.video?.src).toBe("/assets/videos/leek.mp4");
     expect(leek?.video?.poster).toBe("/assets/videos/leek-poster.jpg");
-    expect(PROJECT_CHARACTERS.leek?.video).toBe("/assets/videos/leek.mp4");
+    // The character clip is the Chrollo edit, not the embedded one — the same
+    // split counterstack has (counterstack.mp4 embedded, magicianvideo.mp4 on
+    // the character). Its `credit` belongs to the Chrollo edit.
+    expect(PROJECT_CHARACTERS.leek?.video).toBe("/assets/videos/abrarglint.mp4");
+    expect(PROJECT_CHARACTERS.leek?.credit).toBe("_sarah.aep");
+    expect(PROJECT_CHARACTERS.counterstack?.video).not.toBe(
+      PROJECTS.find((p) => p.slug === "counterstack")?.video?.src,
+    );
   });
 
   it("an embedded clip's `original` source, when present, exists on disk", () => {
