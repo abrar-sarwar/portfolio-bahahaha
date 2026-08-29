@@ -162,6 +162,27 @@ describe("commands", () => {
     expect(r.context.discovered).toContain(r.replies[1].entryId);
     expect(r.context.lastEntryId).toBe(r.replies[1].entryId);
   });
+  it("/random can never land on a letter", () => {
+    // Sweep the whole rng range rather than spot-checking: a letter takes the
+    // screen and cannot be dismissed, so "rarely" is not good enough.
+    const letters = CHAT_ENTRIES.filter((e) => e.letter).map((e) => e.id);
+    expect(letters, "expected at least one letter to guard").not.toHaveLength(0);
+    expect(letters).toContain("carolina");
+
+    const rolled = new Set<string>();
+    for (let i = 0; i <= 2000; i++) {
+      const r = respond("/random", createChatContext(), { random: () => i / 2000 });
+      const id = r.replies[1]?.entryId;
+      if (id) rolled.add(id);
+      for (const banned of letters) {
+        expect(r.replies[0].text, `rolled ${banned}`).not.toContain(banned);
+        expect(id, `rolled ${banned}`).not.toBe(banned);
+      }
+    }
+    // The sweep really did cover the list, so the check above means something.
+    expect(rolled.size).toBeGreaterThan(CHAT_ENTRIES.length / 2);
+  });
+
   it("unknown commands point at /help", () => {
     expect(respond("/nope").replies[0].text).toContain("/help");
   });

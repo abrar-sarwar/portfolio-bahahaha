@@ -45,9 +45,14 @@ export const CHAT_COMMANDS: ChatCommand[] = [
     aliases: ["roll", "dice"],
     description: "a random easter egg",
     run: (_args, { entries, context, random }) => {
-      if (entries.length === 0) return { replies: [say("nothing to roll.")] };
+      // A letter takes over the whole screen and cannot be dismissed. Nobody
+      // should land in one from a dice roll, and the roll announces the
+      // trigger it picked, which would give it away besides. Found by typing
+      // the name, never by rolling.
+      const rollable = entries.filter((e) => !e.letter);
+      if (rollable.length === 0) return { replies: [say("nothing to roll.")] };
       const last = context.lastResponse["/random"];
-      const pool = entries.length > 1 ? entries.filter((e) => e.id !== last) : entries;
+      const pool = rollable.length > 1 ? rollable.filter((e) => e.id !== last) : rollable;
       const entry = pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))];
       const trigger = entry.triggers[0];
       return {
