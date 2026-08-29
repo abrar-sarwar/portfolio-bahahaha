@@ -30,6 +30,8 @@ const REQUIRED = [
   "aurapic1",
   "aurapic2",
   "aurapic3",
+  "liambday",
+  "cuddles",
 ];
 
 function fileFor(photo: GalleryPhoto): string {
@@ -145,6 +147,14 @@ describe("collage layout", () => {
     }
   });
 
+  it("fits every tile in the mobile grid, which is a fixed 3 x 6", () => {
+    // Phones force every tile to a single column, so the row count has to
+    // cover the photo count outright. Adding photos past it drops tiles.
+    const MOBILE_COLUMNS = 3;
+    const MOBILE_ROWS = 6;
+    expect(GALLERY_PHOTOS.length).toBeLessThanOrEqual(MOBILE_COLUMNS * MOBILE_ROWS);
+  });
+
   it("keeps resting tilts small", () => {
     for (const photo of GALLERY_PHOTOS) {
       expect(Math.abs(photo.layout.rotate), photo.id).toBeLessThanOrEqual(3);
@@ -164,7 +174,7 @@ describe("collage layout", () => {
     const second = GALLERY_PHOTOS.map((p) => `${p.id}:${columnSpan(p)}`);
     expect(first).toEqual(second);
     expect(first[0]).toBe("grouppic3:2");
-    expect(first).toHaveLength(14);
+    expect(first).toHaveLength(16);
   });
 });
 
@@ -198,12 +208,12 @@ describe("intro photo", () => {
 });
 
 describe("every supplied asset is still used", () => {
-  it("covers all fifteen files across the collage and the intro", () => {
+  it("covers all seventeen files across the collage and the intro", () => {
     const used = [
       ...GALLERY_PHOTOS.map((p) => p.src),
       INTRO_PHOTO.src,
     ].map((src) => src.split("/").pop()!.replace(/\.\w+$/, ""));
-    expect(new Set(used).size).toBe(15);
+    expect(new Set(used).size).toBe(17);
     expect([...used].sort()).toEqual([...REQUIRED, "ohhellnaw"].sort());
   });
 });

@@ -640,11 +640,12 @@ body {
   box-shadow: 0 0 0 2px rgba(196, 181, 253, 0.65);
 }
 
-/* ----- mobile: three columns, five rows, still one screen ----- */
+/* ----- mobile: three columns, six rows, still one screen ----- */
 @media (max-width: 639px) {
   .journal-collage {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-rows: repeat(5, minmax(0, 1fr));
+    /* Six rows holds all sixteen tiles; five only held fifteen. */
+    grid-template-rows: repeat(6, minmax(0, 1fr));
   }
   /* Every tile is a single column on a phone: the double-width cells would
      leave holes in a three-column grid. */

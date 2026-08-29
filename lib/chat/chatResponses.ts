@@ -225,7 +225,12 @@ export const CHAT_ENTRIES: ChatEntry[] = [
     hidden: true,
     triggers: ["liam"],
     responses: ["liam. yeah. that guy.", "liam has been summoned.", "oh you know liam? we should talk."],
-    media: { type: "video", src: "/assets/videos/liam.mp4", alt: "Liam" },
+    // The picture stays on the stage; the clip pops the video popup over it and
+    // closes itself when it ends, leaving the picture behind.
+    media: [
+      { type: "image", src: "/assets/sprites/liam.png", alt: "Liam", aspect: "942 / 1670" },
+      { type: "video", src: "/assets/videos/liam.mp4", alt: "Liam" },
+    ],
   },
   {
     id: "john",
