@@ -173,7 +173,10 @@ export function ChatProvider({ children, onNavigate }: Props) {
         cancelTimers();
         lettersPlayed.current.add(opening.entryId);
         setTyping(false);
-        setPortrait(opening.letter.portrait);
+        // The overlay draws its own ren. Putting him on the panel portrait too
+        // showed him twice: once through the backdrop while it faded in, then
+        // again on top of it. He belongs to the letter, and to the ask after.
+        setPortrait(null);
         setLetter({ id: ++seq.current, letter: opening.letter });
         return;
       }
