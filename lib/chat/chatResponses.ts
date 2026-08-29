@@ -265,7 +265,7 @@ export const CHAT_ENTRIES: ChatEntry[] = [
         { at: 16.2, text: "just know that as all of these new experiences occur to me" },
         { at: 21.2, text: "i still think about you to this day" },
         { at: 26.1, text: "i always want you to be happy" },
-        { at: 31.0, text: "i will forget what you are to me ever carolina." },
+        { at: 31.0, text: "I will never forget what you are to me ever carolina" },
       ],
     },
   },
