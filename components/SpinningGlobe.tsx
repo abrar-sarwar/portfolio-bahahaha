@@ -2,21 +2,39 @@
 
 import { useId } from "react";
 import { useReducedMotion } from "framer-motion";
+import { WORLD_HEIGHT, WORLD_PATH, WORLD_WIDTH } from "@/lib/worldPath";
 
 type Props = {
   // Sizing/positioning utilities for the globe (e.g. "h-16 w-16").
   className?: string;
   // Seconds for one full rotation. Lower = faster spin.
   spin?: number;
-  // Line + atmosphere tint.
+  // Land + rim tint.
   glow?: string;
 };
 
-// A small, self-contained globe icon drawn as an SVG sphere — no 3D library,
-// no asset. Latitude rings are static curved ellipses; meridian (longitude)
-// lines all pass through the poles, so on a spinning globe they only change
-// WIDTH as they rotate toward/away from the edge. Sweeping each meridian's
-// width 0 -> full -> 0 on staggered phases reads as a real rotation.
+// The window is exactly one map-height across, which is what makes the visible
+// slice a hemisphere. Deriving it keeps that true if the data ever changes.
+const R = WORLD_HEIGHT / 2;
+const LEFT = 50 - R; // 3 — the circle's left edge, in viewBox units
+const TOP = 50 - R; // 3 — and its top edge
+
+// Africa and Europe sit under the centre when the globe is held still.
+const STILL_OFFSET = -57;
+
+/**
+ * The little globe icon: real coastlines and country borders scrolling behind
+ * a round window, rather than a wireframe of latitude and longitude.
+ *
+ * The map is WORLD_WIDTH across and the window is WORLD_HEIGHT (one diameter),
+ * so exactly half the world — a hemisphere — is in view at any moment, and one
+ * loop of the scroll is one full rotation. Two copies sit end to end and the
+ * pair slides by exactly one map width, so the seam never shows.
+ *
+ * It is a cylinder, not a sphere: the limb shading and the highlight are what
+ * sell the curve. At 56–80px nothing larger is worth the cost, and this needs
+ * no 3D library, no texture, and no per-frame work.
+ */
 export default function SpinningGlobe({
   className = "",
   spin = 8,
@@ -24,22 +42,10 @@ export default function SpinningGlobe({
 }: Props) {
   const reduce = useReducedMotion();
   const uid = useId().replace(/:/g, "");
-  const sphereId = `globe-sphere-${uid}`;
+  const oceanId = `globe-ocean-${uid}`;
+  const limbId = `globe-limb-${uid}`;
   const clipId = `globe-clip-${uid}`;
-
-  const R = 47;
-  // Latitude rings, offset from the equator. ry is small so they read as
-  // rings seen at a slight tilt rather than flat lines.
-  const lats = [-30, -16, 0, 16, 30].map((dy) => {
-    const rx = Math.sqrt(R * R - dy * dy);
-    return { dy, rx, ry: rx * 0.2 };
-  });
-
-  // Meridian widths sampled across a half-turn (|sin|), used both for the
-  // animation values and for the static reduced-motion fallback.
-  const widths = [0, 24, 41.6, 47, 41.6, 24, 0];
-  const meridianCount = 6;
-  const halfTurn = spin / 2; // a meridian completes its 0->full->0 in a half-turn
+  const glossId = `globe-gloss-${uid}`;
 
   return (
     <span
@@ -49,68 +55,67 @@ export default function SpinningGlobe({
     >
       <svg viewBox="0 0 100 100" className="block h-full w-full">
         <defs>
-          <radialGradient id={sphereId} cx="36%" cy="30%" r="75%">
-            <stop offset="0%" stopColor="#2a3450" />
-            <stop offset="55%" stopColor="#0d1224" />
+          <radialGradient id={oceanId} cx="36%" cy="30%" r="78%">
+            <stop offset="0%" stopColor="#16203c" />
+            <stop offset="60%" stopColor="#0b1024" />
             <stop offset="100%" stopColor="#05070f" />
+          </radialGradient>
+          {/* Limb darkening — the edge of a sphere falls away from the light. */}
+          <radialGradient id={limbId} cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#000" stopOpacity="0" />
+            <stop offset="62%" stopColor="#000" stopOpacity="0" />
+            <stop offset="88%" stopColor="#000" stopOpacity="0.42" />
+            <stop offset="100%" stopColor="#000" stopOpacity="0.72" />
+          </radialGradient>
+          {/* The highlight has to fade out. A flat fill reads as a smudge
+              sitting on top of the map rather than light on a surface. */}
+          <radialGradient id={glossId} cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#fff" stopOpacity="0.22" />
+            <stop offset="55%" stopColor="#fff" stopOpacity="0.09" />
+            <stop offset="100%" stopColor="#fff" stopOpacity="0" />
           </radialGradient>
           <clipPath id={clipId}>
             <circle cx="50" cy="50" r={R} />
           </clipPath>
         </defs>
 
-        {/* Sphere body */}
-        <circle cx="50" cy="50" r={R} fill={`url(#${sphereId})`} />
+        {/* Ocean */}
+        <circle cx="50" cy="50" r={R} fill={`url(#${oceanId})`} />
 
-        <g
-          clipPath={`url(#${clipId})`}
-          fill="none"
-          stroke={glow}
-          strokeWidth="1"
-        >
-          {/* Latitude rings */}
-          {lats.map((l, i) => (
-            <ellipse
-              key={`lat-${i}`}
-              cx="50"
-              cy={50 + l.dy}
-              rx={l.rx}
-              ry={l.ry}
-              opacity={0.4}
-            />
-          ))}
-
-          {/* Meridian lines — width sweeps to fake rotation */}
-          {Array.from({ length: meridianCount }).map((_, i) => {
-            // Phase the start of each meridian evenly across the half-turn.
-            const begin = -(halfTurn * i) / meridianCount;
-            const startRx = reduce
-              ? // Static spread of widths so a still globe still looks round.
-                widths[(i + 1) % widths.length]
-              : 0;
-            return (
-              <ellipse
-                key={`mer-${i}`}
-                cx="50"
-                cy="50"
-                rx={startRx}
-                ry={R}
-                opacity={0.55}
-              >
-                {!reduce && (
-                  <animate
-                    attributeName="rx"
-                    values={widths.join(";")}
-                    keyTimes="0;0.1667;0.3333;0.5;0.6667;0.8333;1"
-                    dur={`${halfTurn}s`}
-                    begin={`${begin}s`}
-                    repeatCount="indefinite"
-                    calcMode="linear"
-                  />
-                )}
-              </ellipse>
-            );
-          })}
+        {/* Land, scrolling behind the round window. */}
+        <g clipPath={`url(#${clipId})`}>
+          <g transform={`translate(0 ${TOP})`}>
+            <g transform={`translate(${reduce ? STILL_OFFSET : 0} 0)`}>
+              {!reduce && (
+                <animateTransform
+                  attributeName="transform"
+                  type="translate"
+                  from="0 0"
+                  to={`${-WORLD_WIDTH} 0`}
+                  dur={`${spin}s`}
+                  repeatCount="indefinite"
+                />
+              )}
+              {/* Two copies end to end: as the first slides fully out of the
+                  window the second is exactly where it began, so the loop is
+                  seamless. */}
+              {[LEFT, LEFT + WORLD_WIDTH].map((x) => (
+                <path
+                  key={x}
+                  d={WORLD_PATH}
+                  transform={`translate(${x} 0)`}
+                  fill={glow}
+                  fillOpacity="0.62"
+                  stroke={glow}
+                  strokeWidth="0.22"
+                  strokeOpacity="0.85"
+                  strokeLinejoin="round"
+                />
+              ))}
+            </g>
+          </g>
+          {/* Shading sits inside the clip so it darkens land and ocean alike. */}
+          <circle cx="50" cy="50" r={R} fill={`url(#${limbId})`} />
         </g>
 
         {/* Rim / limb */}
@@ -123,13 +128,7 @@ export default function SpinningGlobe({
           strokeWidth="1"
         />
         {/* Specular highlight, top-left */}
-        <ellipse
-          cx="36"
-          cy="32"
-          rx="18"
-          ry="14"
-          fill="rgba(255,255,255,0.16)"
-        />
+        <ellipse cx="35" cy="31" rx="22" ry="17" fill={`url(#${glossId})`} />
       </svg>
     </span>
   );
