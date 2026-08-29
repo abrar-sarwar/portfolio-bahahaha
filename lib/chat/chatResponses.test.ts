@@ -83,7 +83,6 @@ describe("chat config", () => {
   it("the people with a clip point at the right mp4", () => {
     const clips: Record<string, string> = {
       kevin: "/assets/videos/kevin.mp4",
-      liam: "/assets/videos/liam.mp4",
       john: "/assets/videos/john.mp4",
       luigi: "/assets/videos/luigi.mp4",
     };
@@ -94,6 +93,24 @@ describe("chat config", () => {
       const video = media.find((m) => m.type === "video");
       expect(video, `${id} has no clip`).toBeTruthy();
       expect(video && "src" in video ? video.src : undefined, id).toBe(src);
+    }
+  });
+
+  it("liam is a picture, not a clip", () => {
+    const liam = CHAT_ENTRIES.find((e) => e.id === "liam");
+    const media = liam!.media ? (Array.isArray(liam!.media) ? liam!.media : [liam!.media]) : [];
+    expect(media.some((m) => m.type === "video"), "liam should have no clip").toBe(false);
+    expect(media.find((m) => m.type === "image") && "src" in media[0] ? media[0].src : undefined)
+      .toBe("/assets/sprites/liam.png");
+  });
+
+  it("a person with something to show says nothing over it", () => {
+    // The picture or clip is the whole answer. Only the people with no media
+    // (and carolina, whose letter has its own words) get lines.
+    const EXEMPT = new Set(["carolina"]);
+    for (const e of CHAT_ENTRIES) {
+      if (e.category !== "people" || !e.media || EXEMPT.has(e.id)) continue;
+      expect(e.responses, `${e.id} still has text over its media`).toHaveLength(0);
     }
   });
 

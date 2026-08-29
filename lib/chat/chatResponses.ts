@@ -184,11 +184,7 @@ export const CHAT_ENTRIES: ChatEntry[] = [
     priority: 1,
     hidden: true,
     triggers: ["kevin"],
-    responses: [
-      "oh you know kevin? interesting...",
-      "kevin. noted. 📝",
-      "kevin mentioned. the group chat has been notified.",
-    ],
+    responses: [],
     media: { type: "video", src: "/assets/videos/kevin.mp4", alt: "Kevin" },
   },
   {
@@ -206,7 +202,7 @@ export const CHAT_ENTRIES: ChatEntry[] = [
     priority: 1,
     hidden: true,
     triggers: ["luigi", "luigi fernandez"],
-    responses: ["luigi mentioned 🫡", "oh you know luigi? 😭", "luigi. the man, the myth."],
+    responses: [],
     media: { type: "video", src: "/assets/videos/luigi.mp4", alt: "Luigi" },
   },
   {
@@ -224,13 +220,8 @@ export const CHAT_ENTRIES: ChatEntry[] = [
     priority: 1,
     hidden: true,
     triggers: ["liam"],
-    responses: ["liam. yeah. that guy.", "liam has been summoned.", "oh you know liam? we should talk."],
-    // The picture stays on the stage; the clip pops the video popup over it and
-    // closes itself when it ends, leaving the picture behind.
-    media: [
-      { type: "image", src: "/assets/sprites/liam.png", alt: "Liam", aspect: "942 / 1670" },
-      { type: "video", src: "/assets/videos/liam.mp4", alt: "Liam" },
-    ],
+    responses: [],
+    media: { type: "image", src: "/assets/sprites/liam.png", alt: "Liam", aspect: "942 / 1670" },
   },
   {
     id: "john",
@@ -238,11 +229,7 @@ export const CHAT_ENTRIES: ChatEntry[] = [
     priority: 1,
     hidden: true,
     triggers: ["john"],
-    responses: [
-      "john. there's a button on the fun page with his name on it. i'm not explaining it.",
-      "john lore detected.",
-      "john? which one. actually, don't answer that.",
-    ],
+    responses: [],
     media: { type: "video", src: "/assets/videos/john.mp4", alt: "John" },
   },
   {
