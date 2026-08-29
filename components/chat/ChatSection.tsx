@@ -7,6 +7,7 @@ import VideoModal from "@/components/VideoModal";
 import { TOTAL_ENTRIES } from "@/lib/chat";
 import { useChat } from "./ChatContext";
 import ChatConsole from "./ChatConsole";
+import ChatLetter from "./ChatLetter";
 import ChatPortrait, { type ChatPose } from "./ChatPortrait";
 import ChatStage from "./ChatStage";
 
@@ -26,6 +27,9 @@ export default function ChatSection({ onBackToTop }: { onBackToTop: () => void }
     discovered,
     video,
     closeVideo,
+    letter,
+    endLetter,
+    portrait,
     sectionInView,
     setSectionInView,
     focusRequest,
@@ -107,7 +111,7 @@ export default function ChatSection({ onBackToTop }: { onBackToTop: () => void }
         </div>
 
         {/* Portrait, pinned bottom-left on desktop, in the flow on phones. */}
-        <ChatPortrait pose={pose} reduceMotion={reduceMotion} />
+        <ChatPortrait pose={pose} reduceMotion={reduceMotion} override={portrait} />
 
         {/* Console, the box. */}
         <div className="relative z-10 shrink-0 px-6 pb-6 sm:pb-8 sm:pl-[min(46vw,640px)] sm:pr-12 lg:pr-16">
@@ -119,6 +123,18 @@ export default function ChatSection({ onBackToTop }: { onBackToTop: () => void }
           itself when the clip ends, or on click / Esc. */}
       <AnimatePresence>
         {video && <VideoModal key={video.id} src={video.src} onClose={closeVideo} volume={0.8} />}
+      </AnimatePresence>
+
+      {/* The letter. Takes the whole screen and leaves when it is finished. */}
+      <AnimatePresence>
+        {letter && (
+          <ChatLetter
+            key={letter.id}
+            letter={letter.letter}
+            reduceMotion={reduceMotion}
+            onDone={endLetter}
+          />
+        )}
       </AnimatePresence>
     </section>
   );

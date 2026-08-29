@@ -12,6 +12,11 @@ const FRAMES: Record<ChatPose, string> = {
 type Props = {
   pose: ChatPose;
   reduceMotion: boolean;
+  /**
+   * A reply can ask for a different face (carolina brings ren). While one is
+   * set it covers both normal frames; clearing it fades back to the pose.
+   */
+  override?: string | null;
 };
 
 /**
@@ -20,7 +25,7 @@ type Props = {
  * you once an answer lands. Both frames stay mounted so the swap is a
  * crossfade rather than a fresh image load.
  */
-export default function ChatPortrait({ pose, reduceMotion }: Props) {
+export default function ChatPortrait({ pose, reduceMotion, override }: Props) {
   return (
     <div
       aria-hidden
@@ -40,6 +45,18 @@ export default function ChatPortrait({ pose, reduceMotion }: Props) {
           className="absolute bottom-0 left-0 h-full w-auto max-w-none object-contain"
         />
       ))}
+      {override && (
+        <motion.img
+          key={override}
+          src={override}
+          alt=""
+          draggable={false}
+          initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={reduceMotion ? { duration: 0 } : { duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+          className="absolute bottom-0 left-0 h-full w-auto max-w-none object-contain"
+        />
+      )}
     </div>
   );
 }

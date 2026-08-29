@@ -797,6 +797,38 @@ body {
 }
 
 /* blinking block cursor */
+/* ---- the letter -------------------------------------------------------- */
+/* One sequence takes the whole screen: the room goes dark, the portrait
+   changes, and the lines arrive over a track and stay. Quieter and slower
+   than the rest of the chat on purpose. */
+.chat-letter {
+  -webkit-tap-highlight-color: transparent;
+}
+.chat-letter-line {
+  font-size: clamp(17px, 1.95vw, 25px);
+  line-height: 1.45;
+  font-weight: 400;
+  letter-spacing: -0.005em;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 2px 26px rgba(0, 0, 0, 0.75);
+  text-wrap: pretty;
+}
+/* The last line is the one it was all for. */
+.chat-letter-line:last-child {
+  color: #fff;
+}
+.chat-letter-portrait {
+  /* Lifted out of the dark rather than lit by it. */
+  filter: drop-shadow(0 10px 40px rgba(0, 0, 0, 0.8))
+    drop-shadow(0 0 46px rgba(124, 58, 237, 0.22));
+}
+.chat-letter-scroll {
+  scrollbar-width: none;
+}
+.chat-letter-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 .chat-cursor {
   display: inline-block;
   width: 0.5em;

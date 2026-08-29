@@ -241,16 +241,32 @@ export const CHAT_ENTRIES: ChatEntry[] = [
     media: { type: "video", src: "/assets/videos/john.mp4", alt: "John" },
   },
   {
+    // The letter. First "carolina" of a visit takes the whole screen and runs
+    // to the end of the track; after that the entry just answers, quietly.
+    // Reloading the page arms it again.
     id: "carolina",
     category: "people",
     priority: 1,
     hidden: true,
     triggers: ["carolina"],
-    responses: [
-      "carolina mentioned. the vibes just improved.",
-      "oh you know carolina? interesting...",
-      "carolina. lore pending.",
-    ],
+    responses: ["..."],
+    portrait: "/assets/sprites/ren.png",
+    letter: {
+      audio: "/assets/videos/carolina.mp3",
+      portrait: "/assets/sprites/ren.png",
+      // The track is 34.9s. The tail is deliberate: the last line sits alone
+      // for a while before the screen comes back.
+      duration: 35.6,
+      lines: [
+        { at: 1.6, text: "hey nana" },
+        { at: 5.0, text: "I know it has been quite sometime since we last spoken and things like" },
+        { at: 9.4, text: "there has been so many things that has happened to me as you can see" },
+        { at: 13.8, text: "just know that as all of these new experiences occur to me" },
+        { at: 18.2, text: "i still think about you to this day" },
+        { at: 22.6, text: "i always want you to be happy" },
+        { at: 27.0, text: "i will forget what you are to me ever carolina." },
+      ],
+    },
   },
   {
     id: "sarah",

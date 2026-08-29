@@ -32,6 +32,8 @@ export function replyFromEntry(
     links: entry.links,
     effect: entry.effect,
     sound: entry.sound,
+    portrait: entry.portrait,
+    letter: entry.letter,
   };
 }
 

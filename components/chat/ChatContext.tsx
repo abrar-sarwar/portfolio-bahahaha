@@ -18,6 +18,7 @@ import {
   type ChatContextState,
   type ChatEffect,
   type ChatFileMedia,
+  type ChatLetter,
   type ChatReply,
 } from "@/lib/chat";
 
@@ -36,6 +37,8 @@ export type ChatMessage = {
 export type ChatEffectEvent = { id: number; kind: ChatEffect };
 /** A clip up in the video popup. A new id re-opens it even for the same src. */
 export type ChatVideoEvent = { id: number; src: string };
+/** A letter taking the whole screen. */
+export type ChatLetterEvent = { id: number; letter: ChatLetter };
 
 type ChatStore = {
   messages: ChatMessage[];
@@ -46,6 +49,11 @@ type ChatStore = {
   video: ChatVideoEvent | null;
   openVideo: (src: string) => void;
   closeVideo: () => void;
+  /** The letter, while it is running. Nothing can dismiss it but time. */
+  letter: ChatLetterEvent | null;
+  endLetter: () => void;
+  /** Portrait the current reply asks for, if it asks for one. */
+  portrait: string | null;
   send: (text: string) => void;
   clear: () => void;
   /** The chat panel is on screen, it only takes focus and plays effects then. */
@@ -91,11 +99,16 @@ export function ChatProvider({ children, onNavigate }: Props) {
   const [discovered, setDiscovered] = useState(0);
   const [effect, setEffect] = useState<ChatEffectEvent | null>(null);
   const [video, setVideo] = useState<ChatVideoEvent | null>(null);
+  const [letter, setLetter] = useState<ChatLetterEvent | null>(null);
+  const [portrait, setPortrait] = useState<string | null>(null);
   const [sectionInView, setSectionInView] = useState(false);
   const [focusRequest, setFocusRequest] = useState(0);
   const reduceMotion = useReducedMotion() ?? false;
 
   const engineContext = useRef<ChatContextState>(createChatContext());
+  // Letters already played this visit. Deliberately not persisted: a reload is
+  // supposed to play them again.
+  const lettersPlayed = useRef<Set<string>>(new Set());
   const timers = useRef<number[]>([]);
   const seq = useRef(0);
 
@@ -120,10 +133,13 @@ export function ChatProvider({ children, onNavigate }: Props) {
     setTyping(false);
     setDiscovered(0);
     setVideo(null);
+    setPortrait(null);
+    // A letter in progress is not something /clear gets to interrupt.
   }, [cancelTimers]);
 
   const openVideo = useCallback((src: string) => setVideo({ id: ++seq.current, src }), []);
   const closeVideo = useCallback(() => setVideo(null), []);
+  const endLetter = useCallback(() => setLetter(null), []);
 
   const send = useCallback(
     (raw: string) => {
@@ -142,6 +158,20 @@ export function ChatProvider({ children, onNavigate }: Props) {
       setVideo(null);
       setDiscovered(result.context.discovered.length);
       if (result.replies.length === 0) return;
+
+      // A letter takes over instead of answering. Only the first time each
+      // visit — after that the entry's ordinary response lands like any other.
+      const opening = result.replies.find(
+        (r) => r.letter && r.entryId && !lettersPlayed.current.has(r.entryId),
+      );
+      if (opening?.letter && opening.entryId) {
+        cancelTimers();
+        lettersPlayed.current.add(opening.entryId);
+        setTyping(false);
+        setPortrait(opening.letter.portrait);
+        setLetter({ id: ++seq.current, letter: opening.letter });
+        return;
+      }
 
       // Anything still queued from the previous message lands before this one.
       setTyping(true);
@@ -162,6 +192,7 @@ export function ChatProvider({ children, onNavigate }: Props) {
             { id: `b${++seq.current}`, role: "bot", text: reply.text, reply },
           ]);
           if (reply.sound) playSound(reply.sound);
+          setPortrait(reply.portrait ?? null);
           // A clip comes up in the video popup, the way every other video on
           // the site plays, nothing embedded on the stage.
           const clip = reply.media?.find((m): m is ChatFileMedia => m.type === "video");
@@ -170,7 +201,7 @@ export function ChatProvider({ children, onNavigate }: Props) {
         });
       });
     },
-    [clear, reduceMotion, schedule],
+    [cancelTimers, clear, reduceMotion, schedule],
   );
 
   const requestFocus = useCallback(() => setFocusRequest((n) => n + 1), []);
@@ -193,6 +224,9 @@ export function ChatProvider({ children, onNavigate }: Props) {
       video,
       openVideo,
       closeVideo,
+      letter,
+      endLetter,
+      portrait,
       send,
       clear,
       sectionInView,
@@ -210,6 +244,9 @@ export function ChatProvider({ children, onNavigate }: Props) {
       video,
       openVideo,
       closeVideo,
+      letter,
+      endLetter,
+      portrait,
       send,
       clear,
       sectionInView,

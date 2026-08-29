@@ -117,6 +117,64 @@ describe("chat config", () => {
     }
   });
 
+  it("carolina carries the letter, and the letter is coherent", () => {
+    const carolina = CHAT_ENTRIES.find((e) => e.id === "carolina");
+    expect(carolina, "carolina entry").toBeTruthy();
+    const letter = carolina!.letter;
+    expect(letter, "carolina has no letter").toBeTruthy();
+
+    // The portrait swap and the track both have to exist on disk.
+    expect(existsSync(path.join(PUBLIC_DIR, letter!.audio)), letter!.audio).toBe(true);
+    expect(existsSync(path.join(PUBLIC_DIR, letter!.portrait)), letter!.portrait).toBe(true);
+    expect(carolina!.portrait, "the quiet reply keeps ren").toBe(letter!.portrait);
+
+    // Lines are in order, none overlap the end, and the last one gets room to
+    // sit before the screen comes back.
+    const lines = letter!.lines;
+    expect(lines.length).toBeGreaterThan(0);
+    for (let i = 1; i < lines.length; i++) {
+      expect(lines[i].at, `line ${i} runs before line ${i - 1}`).toBeGreaterThan(lines[i - 1].at);
+    }
+    for (const line of lines) {
+      expect(line.text.trim(), "empty line").not.toBe("");
+      expect(line.at, `"${line.text}" starts after the letter ends`).toBeLessThan(letter!.duration);
+    }
+    const last = lines[lines.length - 1];
+    expect(letter!.duration - last.at, "the last line has no room to land").toBeGreaterThanOrEqual(4);
+
+    // Once the letter has played, the entry still answers.
+    expect(carolina!.responses.length).toBeGreaterThan(0);
+  });
+
+  it("a letter's timings fit the track it is written against", async () => {
+    // Guards the thing that silently rots: swap the audio for a shorter cut
+    // and the lines outlive it.
+    const { execFileSync } = await import("node:child_process");
+    for (const e of CHAT_ENTRIES) {
+      if (!e.letter) continue;
+      const file = path.join(PUBLIC_DIR, e.letter.audio);
+      let seconds: number;
+      try {
+        seconds = Number(
+          execFileSync(
+            "ffprobe",
+            ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", file],
+            { encoding: "utf8" },
+          ).trim(),
+        );
+      } catch {
+        return; // no ffprobe on this machine, skip rather than fail the suite
+      }
+      expect(Number.isFinite(seconds), `could not read ${e.letter.audio}`).toBe(true);
+      const last = e.letter.lines[e.letter.lines.length - 1].at;
+      expect(last, `${e.id}: the last line starts after the track ends`).toBeLessThan(seconds);
+      expect(
+        Math.abs(e.letter.duration - seconds),
+        `${e.id}: duration ${e.letter.duration}s is out of step with a ${seconds.toFixed(1)}s track`,
+      ).toBeLessThanOrEqual(3);
+    }
+  });
+
   it("every suggestion chip lands on a real reply", () => {
     for (const s of SUGGESTIONS) {
       const r = respond(s.send);

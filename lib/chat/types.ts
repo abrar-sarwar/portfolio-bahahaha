@@ -63,6 +63,36 @@ export type ChatProjectRef = ProjectSlug | ChatProjectCard;
 /** Short window-level effects. Skipped under prefers-reduced-motion. */
 export type ChatEffect = "glitch" | "shake" | "flash";
 
+/** One line of a letter, and when it lands. */
+export type ChatLetterLine = {
+  /** Seconds from the moment the track starts. */
+  at: number;
+  text: string;
+};
+
+/**
+ * A letter: the one sequence that takes the whole screen. The panel dims, the
+ * portrait changes, a track plays, and the lines arrive on top of it one at a
+ * time and stay. There is no close button and Escape does nothing; it ends
+ * when it ends.
+ *
+ * It runs once per visit. After that the entry answers with its ordinary
+ * `responses` (and `portrait`, if it has one). A reload starts it over.
+ *
+ * The schedule is driven by timers rather than by the audio element, so a
+ * track that never loads still ends the sequence instead of trapping someone
+ * behind it.
+ */
+export type ChatLetter = {
+  /** Audio track. Line timings are written against it. */
+  audio: string;
+  /** Portrait shown for the length of the sequence. */
+  portrait: string;
+  /** Total run time in seconds. Give the last line room to sit. */
+  duration: number;
+  lines: ChatLetterLine[];
+};
+
 export type ChatCategory =
   | "me"
   | "people"
@@ -88,6 +118,10 @@ export type ChatEntry = {
   effect?: ChatEffect;
   /** Audio file played once when the reply lands. Keep it short. */
   sound?: string;
+  /** Swaps the chat portrait for as long as this reply is on the stage. */
+  portrait?: string;
+  /** Plays a full-screen letter the first time this entry is hit each visit. */
+  letter?: ChatLetter;
   /**
    * Context-aware replies. Keys are phrases matched the same way triggers are,
    * but only while this entry was the last thing the bot answered with.
@@ -117,6 +151,8 @@ export type ChatReply = {
   links?: ChatLink[];
   effect?: ChatEffect;
   sound?: string;
+  portrait?: string;
+  letter?: ChatLetter;
 };
 
 export type ChatContextState = {
