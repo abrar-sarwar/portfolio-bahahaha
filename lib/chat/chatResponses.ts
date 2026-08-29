@@ -792,8 +792,8 @@ export const CHAT_ENTRIES: ChatEntry[] = [
     category: "cyber",
     triggers: ["threat intelligence", "threat intel", "cti", "cyber threat intelligence", "osint", "ioc", "indicators of compromise", "intel"],
     responses: [
-      "threat intel is two things here: leek (how the gta 6 leak actually happened) and arkham (my briefing system). same instinct, different flavor.",
-      "know your enemy. leek takes one incident apart; arkham briefs me on all of them.",
+      "threat intel is two things here: leek (the cyberleek case file) and arkham (my briefing system). same instinct, different flavor.",
+      "know your enemy. leek takes one campaign apart; arkham briefs me on all of them.",
     ],
     links: [
       { label: "see leek", href: "#projects" },
@@ -966,19 +966,21 @@ export const CHAT_ENTRIES: ChatEntry[] = [
     responses: [
       "leek mentioned. chrollo's notebook energy.",
       "leek. read first, then act.",
-      "leek. cyberleek, technically. the gta 6 leak, taken apart.",
+      "leek. cyberleek, technically. the gta vi leak, taken apart.",
     ],
     project: "leek",
     followUps: {
-      why: "because the biggest leak in gaming wasn't a zero day. it was a conversation.",
-      how: "osint, sources on everything, then the part everyone skips: what it cost.",
-      tech: "osint, sources on everything, then the part everyone skips: what it cost.",
+      why: "because nobody actually knows how they got the build, and most of the coverage wrote like they did.",
+      how: "osint. every claim graded, every fact sourced, every unknown left as an unknown.",
+      tech: "osint. every claim graded, every fact sourced, every unknown left as an unknown.",
       "why chrollo": "he studies the ability, writes it down, then uses it. that's the whole method.",
       "why leek": "leek. leak. it's a pun. i'm not sorry.",
       "why the name": "leek. leak. it's a pun. i'm not sorry.",
       glint: "old name. the repo still redirects.",
-      "gta 6": "rockstar's own footage, out before the game. that's the whole case study.",
-      rockstar: "rockstar's own footage, out before the game. that's the whole case study.",
+      "gta 6": "eighteen drops, four take-two subpoenas, and still no answer on how they got in.",
+      "gta vi": "eighteen drops, four take-two subpoenas, and still no answer on how they got in.",
+      rockstar: "eighteen drops, four take-two subpoenas, and still no answer on how they got in.",
+      cyberleek: "the name the actor publishes under. that's whose campaign the case file tracks.",
     },
   },
   {

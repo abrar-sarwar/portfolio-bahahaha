@@ -72,8 +72,8 @@ export const PROJECTS: ProProject[] = [
   {
     title: "Leek",
     description:
-      "Research on the GTA 6 leak, tracing how Rockstar's unreleased development footage got out through social engineering rather than a technical exploit, and what that means for studios guarding unshipped work.",
-    tags: ["OSINT", "Social Engineering", "Research"],
+      "A living, evidence-driven case file on the CyberLeek campaign leaking Grand Theft Auto VI footage. Every claim is graded by confidence and tied to a source, and the central finding is the one most coverage skipped: how the build was obtained is still unknown.",
+    tags: ["OSINT", "Threat Intel", "Research"],
     href: "https://github.com/abrar-sarwar/leek",
   },
   {

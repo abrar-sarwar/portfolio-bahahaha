@@ -51,10 +51,17 @@ describe("projects config", () => {
     }
   });
 
-  it("leek is the gta 6 leak case study, not the old shinyhunters dossier", () => {
+  it("leek is the cyberleek gta vi case file, not the old shinyhunters dossier", () => {
     const leek = PROJECTS.find((p) => p.slug === "leek");
-    expect(leek?.tag.toLowerCase()).toContain("gta 6");
-    expect(leek?.description).toContain("gta 6");
+    expect(leek?.tag.toLowerCase()).toContain("gta vi");
+    expect(leek?.tag.toLowerCase()).toContain("cyberleek");
+    expect(leek?.description).toContain("cyberleek");
+    expect(leek?.description).toContain("grand theft auto vi");
+    // The repo's central finding: initial access is UNKNOWN. Never assert a cause.
+    expect(leek?.description).toContain("unknown");
+    for (const guess of ["social engineering", "phish", "zero day", "exploit"]) {
+      expect(leek?.description ?? "", `leek must not guess at initial access: "${guess}"`).not.toContain(guess);
+    }
     // The old subject must not linger anywhere a visitor can read it.
     const surfaces = [leek?.tag, leek?.description, ...PRO_PROJECTS.map((p) => p.description)];
     for (const text of surfaces) {

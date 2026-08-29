@@ -38,7 +38,7 @@ export const PROJECTS: Project[] = [
     title: "Arkham",
     tag: "Cyber Threat Intelligence Briefings",
     description:
-      "my open source cyber threat intelligence briefing system. it pulls the feeds, advisories and vendor reports that move every day and cuts them down to the handful of things worth acting on. keeping up with the threat landscape becomes a five minute habit instead of an afternoon in twelve tabs.",
+      "my open source cyber threat intelligence agent. every morning it checks 23 authoritative sources, cuts hundreds of records down to the few correlated events that matter, and posts a skimmable brief to a private discord channel. a language model does the analyst work but never gets to be a source: every claim cites the evidence it came from.",
     spriteSrc: "/assets/sprites/arkhamcity.webp",
     backgroundSrc: "/assets/sprites/arkhamcity.webp",
     linkLabel: "github link",
@@ -49,7 +49,7 @@ export const PROJECTS: Project[] = [
     title: "NetWraith",
     tag: "Chain Correlation IDS System",
     description:
-      "a c++ network intrusion detection engine that reads live traffic off libpcap. instead of firing one flat alert per rule, it keeps a running score for every source address as the stages of an attack line up. a scan that becomes a brute force that becomes an exfil attempt shows up as one rising threat with a story attached, not fifty disconnected lines in a log.",
+      "a c++17 intrusion detection engine built on libpcap, paired with a dark mode next.js dashboard. it parses traffic from the link layer up through transport by hand, then matches it against a rule file and three stateful heuristics: sql injection and directory traversal, null, fin and xmas scans, syn floods, icmp sweeps. it ships with a replayable capture, so it needs no root and proves itself in seconds.",
     spriteSrc: "/assets/sprites/netwraitharea.jpg",
     backgroundSrc: "/assets/sprites/netwraitharea.jpg",
     linkLabel: "github link",
@@ -60,7 +60,7 @@ export const PROJECTS: Project[] = [
     title: "TripWire",
     tag: "Serverless AWS Detection and Auto Response",
     description:
-      "serverless detection and automatic response on aws, wiring cloudtrail to eventbridge to lambda. it catches five high risk control plane events across iam, s3 and ec2 in seconds and maps each one to mitre att&ck. public buckets, open security groups and unrestricted iam policies get reverted in under a minute, with no human in the loop.",
+      "serverless detection and response for the aws control plane: cloudtrail into eventbridge into lambda. five high risk event categories get caught in seconds, and every alert answers who, what, where, when and the att&ck technique. two of them, public s3 buckets and security groups opened to the internet, revert themselves in under sixty seconds, all of it inside the free tier.",
     spriteSrc: "/assets/sprites/tripwire.jpg",
     backgroundSrc: "/assets/sprites/tripwire.jpg",
     linkLabel: "github link",
@@ -69,7 +69,7 @@ export const PROJECTS: Project[] = [
   {
     slug: "leek",
     title: "Leek",
-    tag: "GTA 6 Leak Research",
+    tag: "CyberLeek GTA VI Case File",
     // No `original` here: the .mov stays untracked, so a second <source>
     // pointing at it would only 404 in production.
     video: {
@@ -77,7 +77,7 @@ export const PROJECTS: Project[] = [
       poster: "/assets/videos/leek-poster.jpg",
     },
     description:
-      "cyberleek is my research on the gta 6 leak, the one where rockstar's own development footage was online before the game was. i traced how it actually happened, social engineering rather than some exotic exploit, and what that costs a studio sitting on unreleased work. the lesson is the uncomfortable one: the perimeter held, and a conversation walked straight through it.",
+      "cyberleek is a living case file on the campaign leaking grand theft auto vi footage, kept the way an intelligence team would: every claim graded, every fact sourced, every unknown written down instead of guessed at. the record proves interactive control of a 2025 or later dev build, four take-two dmca petitions, and a token whose holders vote on the next clip. how the build was obtained is still unknown, and saying so is the finding.",
     spriteSrc: "/assets/sprites/glint.jpg",
     backgroundSrc: "/assets/sprites/glint.jpg",
     linkLabel: "github link",
