@@ -14,7 +14,9 @@ type Props = {
   reduceMotion: boolean;
   /**
    * A reply can ask for a different face (carolina brings ren). While one is
-   * set it covers both normal frames; clearing it fades back to the pose.
+   * set it *replaces* the normal frames rather than sitting on top of them —
+   * ren has transparency, and the answer pose showed through. Clearing it
+   * fades back to the pose.
    */
   override?: string | null;
 };
@@ -40,7 +42,10 @@ export default function ChatPortrait({ pose, reduceMotion, override }: Props) {
           alt=""
           draggable={false}
           initial={false}
-          animate={{ opacity: pose === p ? 1 : 0, y: pose === p ? 0 : 14 }}
+          animate={{
+            opacity: override ? 0 : pose === p ? 1 : 0,
+            y: pose === p && !override ? 0 : 14,
+          }}
           transition={reduceMotion ? { duration: 0 } : { duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
           className="absolute bottom-0 left-0 h-full w-auto max-w-none object-contain"
         />

@@ -254,17 +254,18 @@ export const CHAT_ENTRIES: ChatEntry[] = [
     letter: {
       audio: "/assets/videos/carolina.mp3",
       portrait: "/assets/sprites/ren.png",
-      // The track is 34.9s. The tail is deliberate: the last line sits alone
-      // for a while before the screen comes back.
-      duration: 35.6,
+      // The track is 34.9s and the lines are spread to use all of it: the last
+      // one starts at 31.0 and finishes typing around 32.6, so it gets a beat
+      // to land rather than leaving the music playing over an empty screen.
+      duration: 35.4,
       lines: [
-        { at: 1.6, text: "hey nana" },
-        { at: 5.0, text: "I know it has been quite sometime since we last spoken and things like" },
-        { at: 9.4, text: "there has been so many things that has happened to me as you can see" },
-        { at: 13.8, text: "just know that as all of these new experiences occur to me" },
-        { at: 18.2, text: "i still think about you to this day" },
-        { at: 22.6, text: "i always want you to be happy" },
-        { at: 27.0, text: "i will forget what you are to me ever carolina." },
+        { at: 1.5, text: "hey nana" },
+        { at: 6.2, text: "I know it has been quite sometime since we last spoken and things like that" },
+        { at: 11.2, text: "there has been so many things that has happened to me as you can see" },
+        { at: 16.2, text: "just know that as all of these new experiences occur to me" },
+        { at: 21.2, text: "i still think about you to this day" },
+        { at: 26.1, text: "i always want you to be happy" },
+        { at: 31.0, text: "i will forget what you are to me ever carolina." },
       ],
     },
   },

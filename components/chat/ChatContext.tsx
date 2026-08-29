@@ -139,7 +139,12 @@ export function ChatProvider({ children, onNavigate }: Props) {
 
   const openVideo = useCallback((src: string) => setVideo({ id: ++seq.current, src }), []);
   const closeVideo = useCallback(() => setVideo(null), []);
-  const endLetter = useCallback(() => setLetter(null), []);
+  // Ren goes when the letter goes. Asking again brings him back, because the
+  // entry's own `portrait` rides along with that reply.
+  const endLetter = useCallback(() => {
+    setLetter(null);
+    setPortrait(null);
+  }, []);
 
   const send = useCallback(
     (raw: string) => {
