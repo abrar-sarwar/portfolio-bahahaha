@@ -361,10 +361,10 @@ export default function HomePage({ onNavigate }: Props) {
 
       {/* Favorite-song disc + the My World globe sit side by side in the
           upper-right quadrant, below and to the right of the eclipse. The
-          globe ("explore me") opens the My World page; the disc toggles the
+          globe ("my world") opens the My World page; the disc toggles the
           song and spins while playing with the track name underneath. */}
       <div className="absolute right-14 top-28 z-30 flex items-start gap-5 sm:right-[18%] sm:top-32 md:right-[20%]">
-      {/* Explore me — spinning globe → /myworld. */}
+      {/* My World — spinning globe → /myworld. */}
       <motion.button
         type="button"
         onClick={goToMyWorld}
@@ -381,7 +381,7 @@ export default function HomePage({ onNavigate }: Props) {
           className="text-[8px] font-medium uppercase tracking-[0.14em] text-white/72 sm:text-[9px]"
           style={{ textShadow: "0 0 8px rgba(150,180,255,0.6)" }}
         >
-          explore me
+          my world
         </span>
       </motion.button>
 
@@ -1198,7 +1198,7 @@ export default function HomePage({ onNavigate }: Props) {
       >
         <SpinningGlobe spin={7} className="h-16 w-16" />
         <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/70">
-          explore me
+          my world
         </span>
       </button>
       <button
