@@ -72,8 +72,8 @@ export const PROJECTS: ProProject[] = [
   {
     title: "Leek",
     description:
-      "OSINT research on the ShinyHunters threat collective, turned into a single cluster dossier that defenders can actually put to use.",
-    tags: ["OSINT", "Threat Intel", "Research"],
+      "Research on the GTA 6 leak, tracing how Rockstar's unreleased development footage got out through social engineering rather than a technical exploit, and what that means for studios guarding unshipped work.",
+    tags: ["OSINT", "Social Engineering", "Research"],
     href: "https://github.com/abrar-sarwar/leek",
   },
   {

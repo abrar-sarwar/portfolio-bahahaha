@@ -11,6 +11,7 @@ import {
   PROJECT_CHARACTER_LIST,
   PROJECT_CHARACTERS,
 } from "./projects";
+import { PROJECTS as PRO_PROJECTS } from "./professional";
 
 const PUBLIC_DIR = path.resolve(__dirname, "..", "public");
 const onDisk = (p: string) => existsSync(path.join(PUBLIC_DIR, p));
@@ -38,6 +39,26 @@ describe("projects config", () => {
       expect(p.description?.trim(), `${p.slug} has no description`).toBeTruthy();
       // The write-ups are deliberately all-lowercase, matching the chat's voice.
       expect(p.description, `${p.slug} has uppercase copy`).toBe(p.description!.toLowerCase());
+    }
+  });
+
+  it("every write-up stays at a glance — 3 sentences, no scrolling", () => {
+    for (const p of PROJECTS) {
+      const copy = p.description ?? "";
+      const sentences = copy.split(/\.\s+/).filter((x) => x.trim() !== "").length;
+      expect(sentences, `${p.slug} runs ${sentences} sentences`).toBeLessThanOrEqual(3);
+      expect(copy.length, `${p.slug} is ${copy.length} chars`).toBeLessThanOrEqual(440);
+    }
+  });
+
+  it("leek is the gta 6 leak case study, not the old shinyhunters dossier", () => {
+    const leek = PROJECTS.find((p) => p.slug === "leek");
+    expect(leek?.tag.toLowerCase()).toContain("gta 6");
+    expect(leek?.description).toContain("gta 6");
+    // The old subject must not linger anywhere a visitor can read it.
+    const surfaces = [leek?.tag, leek?.description, ...PRO_PROJECTS.map((p) => p.description)];
+    for (const text of surfaces) {
+      expect(text?.toLowerCase() ?? "", "stale shinyhunters copy").not.toContain("shinyhunters");
     }
   });
 

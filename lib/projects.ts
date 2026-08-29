@@ -38,7 +38,7 @@ export const PROJECTS: Project[] = [
     title: "Arkham",
     tag: "Cyber Threat Intelligence Briefings",
     description:
-      "my open source cyber threat intelligence briefing system. it pulls from the feeds, advisories and vendor reports that move every day, cuts the noise, and turns what is left into a short briefing i would actually read before starting work. the point is to make keeping up with the threat landscape a five minute habit instead of an afternoon spent in twelve tabs.",
+      "my open source cyber threat intelligence briefing system. it pulls the feeds, advisories and vendor reports that move every day and cuts them down to the handful of things worth acting on. keeping up with the threat landscape becomes a five minute habit instead of an afternoon in twelve tabs.",
     spriteSrc: "/assets/sprites/arkhamcity.webp",
     backgroundSrc: "/assets/sprites/arkhamcity.webp",
     linkLabel: "github link",
@@ -49,7 +49,7 @@ export const PROJECTS: Project[] = [
     title: "NetWraith",
     tag: "Chain Correlation IDS System",
     description:
-      "a c++ network intrusion detection engine with per source kill chain correlation. it reads live traffic off libpcap and, instead of firing one flat alert per rule, keeps a running score for every source address as the stages of an attack line up. a scan that turns into a brute force that turns into an exfil attempt surfaces as one rising threat with a story attached, not fifty disconnected lines in a log. a next.js dashboard sits on top so you can watch a source climb in real time.",
+      "a c++ network intrusion detection engine that reads live traffic off libpcap. instead of firing one flat alert per rule, it keeps a running score for every source address as the stages of an attack line up. a scan that becomes a brute force that becomes an exfil attempt shows up as one rising threat with a story attached, not fifty disconnected lines in a log.",
     spriteSrc: "/assets/sprites/netwraitharea.jpg",
     backgroundSrc: "/assets/sprites/netwraitharea.jpg",
     linkLabel: "github link",
@@ -60,7 +60,7 @@ export const PROJECTS: Project[] = [
     title: "TripWire",
     tag: "Serverless AWS Detection and Auto Response",
     description:
-      "serverless detection and automatic response on aws. cloudtrail feeds eventbridge, eventbridge feeds lambda, and five high risk control plane events across iam, s3 and ec2 get caught in seconds and mapped to mitre att&ck. python remediation handlers then reverse the damage on their own: public buckets closed, open security group rules pulled, unrestricted iam policies rolled back. under a minute, no human in the loop, and every action it takes is logged so the response is auditable after the fact.",
+      "serverless detection and automatic response on aws, wiring cloudtrail to eventbridge to lambda. it catches five high risk control plane events across iam, s3 and ec2 in seconds and maps each one to mitre att&ck. public buckets, open security groups and unrestricted iam policies get reverted in under a minute, with no human in the loop.",
     spriteSrc: "/assets/sprites/tripwire.jpg",
     backgroundSrc: "/assets/sprites/tripwire.jpg",
     linkLabel: "github link",
@@ -69,7 +69,7 @@ export const PROJECTS: Project[] = [
   {
     slug: "leek",
     title: "Leek",
-    tag: "ShinyHunters OSINT Research",
+    tag: "GTA 6 Leak Research",
     // No `original` here: the .mov stays untracked, so a second <source>
     // pointing at it would only 404 in production.
     video: {
@@ -77,7 +77,7 @@ export const PROJECTS: Project[] = [
       poster: "/assets/videos/leek-poster.jpg",
     },
     description:
-      "osint research on shinyhunters, the extortion collective behind a long run of breaches. i pulled the scattered reporting across three major campaigns, unc5537, unc6395 and the 2026 canvas extortion, into a single cluster dossier: how they get in, how they monetize, and which overlaps actually hold up. every claim is cited to mandiant, vendor disclosures or major reporting, and it ends with detections a defender can put to use rather than another timeline. it used to be called glint.",
+      "cyberleek is my research on the gta 6 leak, the one where rockstar's own development footage was online before the game was. i traced how it actually happened, social engineering rather than some exotic exploit, and what that costs a studio sitting on unreleased work. the lesson is the uncomfortable one: the perimeter held, and a conversation walked straight through it.",
     spriteSrc: "/assets/sprites/glint.jpg",
     backgroundSrc: "/assets/sprites/glint.jpg",
     linkLabel: "github link",
@@ -88,7 +88,7 @@ export const PROJECTS: Project[] = [
     title: "CounterStack",
     tag: "Hacklanta Hackathon Winner",
     description:
-      "a nist security controls card game, built in 12 hours at hacklanta, where it won. the framework becomes a deck: spades detect, diamonds harden, and the remaining suits carry the response and recovery side, so a four card hand reads as a security posture instead of a spreadsheet. every card is a real control, which means you learn the catalog by playing it rather than by reading it. the twist is the ai boss. it watches which controls you lean on, learns the shape of your defense, and starts attacking around it, so the deck that carried the last round is the one it is ready for next. security training you actually play.",
+      "a nist security controls card game, built in 12 hours at hacklanta, where it won. every card is a real control and the suits split the framework, spades detect and diamonds harden, so a four card hand reads as a security posture instead of a spreadsheet. the ai boss learns which controls you lean on and starts attacking around them, so the deck that won the last round is the one it's ready for next.",
     video: {
       src: "/assets/videos/counterstack.mp4",
       original: "/assets/videos/counterstack.mov",
