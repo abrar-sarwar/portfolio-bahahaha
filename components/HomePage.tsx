@@ -8,6 +8,7 @@ import SpinningGlobe from "./SpinningGlobe";
 import TypingText from "./TypingText";
 import VideoModal from "./VideoModal";
 import ProfessionalEntry from "./ProfessionalEntry";
+import SocialIconLinks from "./SocialIconLinks";
 import { RETURN_TO_KEY } from "@/lib/projects";
 import type { SubView } from "@/lib/sections";
 
@@ -723,6 +724,15 @@ export default function HomePage({ onNavigate }: Props) {
               </a>
             </li>
           ))}
+          <li className="flex items-center gap-3">
+            <span aria-hidden className="text-white/25">
+              ·
+            </span>
+            <SocialIconLinks
+              linkClassName="text-white/55 hover:text-white focus-visible:text-white"
+              iconClassName="h-[15px] w-[15px]"
+            />
+          </li>
         </motion.ul>
 
         <motion.div variants={itemVariants} className="pt-3">
@@ -1299,6 +1309,12 @@ export default function HomePage({ onNavigate }: Props) {
           </li>
         ))}
       </ul>
+
+      <SocialIconLinks
+        className="relative z-10 mt-3 w-full max-w-md justify-center gap-3"
+        linkClassName="rounded-lg border border-white/10 bg-white/[0.03] px-5 py-2.5 text-white/70 hover:border-violet-300/50 hover:bg-white/[0.06] hover:text-white"
+        iconClassName="h-5 w-5"
+      />
 
       {/* Schedule CTA */}
       <a
