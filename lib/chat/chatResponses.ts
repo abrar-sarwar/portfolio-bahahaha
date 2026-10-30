@@ -171,7 +171,7 @@ export const CHAT_ENTRIES: ChatEntry[] = [
     followUps: {
       why: "because it's my website. who else would answer.",
       how: "type something and find out.",
-      "prove it": "netwraith, tripwire, leek, counterstack, arkham. type one. receipts are on the card.",
+      "prove it": "bump, arkham, netwraith, tripwire, leek, counterstack. type one. receipts are on the card.",
     },
   },
 
@@ -737,7 +737,7 @@ export const CHAT_ENTRIES: ChatEntry[] = [
       cloud: "cloud is tripwire: five aws tripwires, sub-60-second auto response.",
       "cloud auto response": "cloud is tripwire: five aws tripwires, sub-60-second auto response.",
       "threat intel": "threat intel is leek + arkham. one's a dossier, one's a briefing system.",
-      "which one": "netwraith if you like packets. tripwire if you like aws. leek if you like reading. counterstack if you like winning.",
+      "which one": "bump if you like people. netwraith if you like packets. tripwire if you like aws. leek if you like reading. counterstack if you like winning.",
     },
   },
   {
@@ -1008,13 +1008,31 @@ export const CHAT_ENTRIES: ChatEntry[] = [
     },
   },
   {
+    id: "bump",
+    category: "project",
+    priority: 1,
+    triggers: ["bump", "bump app", "hackgt", "hackgt 13"],
+    responses: [
+      "bump mentioned. tap phones, find the overlap. newest thing on the board.",
+      "bump. two strangers, one tap, and something to actually talk about.",
+    ],
+    // Card is auto-filled from lib/projects, like the others.
+    project: "bump",
+    followUps: {
+      why: "because the hard part of meeting someone isn't meeting them. it's the first sentence.",
+      how: "core motion feels the bump, ultra wideband says who it was with, grok phrases the overlap. built at hackgt 13 with three friends.",
+      tech: "swift and swiftui on the phone, a tiny node backend keeping the grok key off the device. built at hackgt 13 with three friends.",
+      "who made it": "me and three friends, one hackgt weekend. the readme has all four names.",
+    },
+  },
+  {
     id: "arkham",
     category: "project",
     priority: 1,
     triggers: ["arkham", "arkham briefing", "briefing system"],
     responses: [
       "arkham mentioned. good choice.",
-      "arkham. my open-source cyber threat intelligence briefing system. newest thing on the board.",
+      "arkham. my open-source cyber threat intelligence briefing system. it reads the feeds so i don't have to.",
     ],
     // Card is auto-filled from lib/projects + lib/professional, like the others.
     project: "arkham",
@@ -1030,7 +1048,7 @@ export const CHAT_ENTRIES: ChatEntry[] = [
     category: "project",
     triggers: ["projects", "project", "your work", "what have you built", "what have you made", "show me your projects", "your projects", "portfolio projects"],
     responses: [
-      "five on the board: arkham, netwraith, tripwire, leek, counterstack. type one, or /projects for the whole lineup.",
+      "six on the board: bump, arkham, netwraith, tripwire, leek, counterstack. type one, or /projects for the whole lineup.",
     ],
     links: [{ label: "go to projects", href: "#projects" }],
   },

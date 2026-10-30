@@ -22,9 +22,26 @@ describe("projects config", () => {
     expect(new Set(slugs).size).toBe(slugs.length);
   });
 
-  it("is ordered newest first — arkham leads, counterstack closes", () => {
-    expect(PROJECTS[0].slug).toBe("arkham");
+  it("is ordered newest first — bump leads, then arkham, counterstack closes", () => {
+    expect(PROJECTS[0].slug).toBe("bump");
+    expect(PROJECTS[1].slug).toBe("arkham");
     expect(PROJECTS[PROJECTS.length - 1].slug).toBe("counterstack");
+  });
+
+  it("bump is the hackgt bump-to-connect ios app", () => {
+    const bump = PROJECTS.find((p) => p.slug === "bump");
+    expect(bump?.title).toBe("Bump");
+    expect(bump?.tag.toLowerCase()).toContain("hackgt");
+    // Bump links out to its beta site rather than the repo.
+    expect(bump?.linkLabel).toBe("demo link");
+    expect(bump?.repoUrl).toBe("https://bump-beta.vercel.app");
+    const copy = bump?.description ?? "";
+    for (const beat of ["hackgt", "phones", "overlap", "conversation"]) {
+      expect(copy, `bump write-up is missing "${beat}"`).toContain(beat);
+    }
+    // No compatibility score and no feed is the product's own line; keep it.
+    expect(copy).toContain("no feed");
+    expect(PROJECT_ACCENTS.bump).toBeTruthy();
   });
 
   it("renamed glint to leek", () => {
@@ -88,6 +105,27 @@ describe("projects config", () => {
     const batman = PROJECT_CHARACTERS.arkham;
     expect(batman?.img).toBe("/assets/sprites/batman.png");
     expect(batman?.video).toBe("/assets/videos/arkham.mp4");
+  });
+
+  it("bump wears its own art: the street backdrop, goku and vegeta who bump on hover, and the fist-bump clip", () => {
+    const bump = PROJECTS.find((p) => p.slug === "bump");
+    expect(bump?.backgroundSrc).toBe("/assets/sprites/bumpbackground.jpg");
+    // No longer borrowing the projects page's backdrop.
+    expect(bump?.backgroundSrc).not.toBe(PROJECTS_MAIN_BACKGROUND);
+
+    const c = PROJECT_CHARACTERS.bump;
+    expect(c?.img).toBe("/assets/sprites/bumpbump1.png");
+    // Hovering lands the fist bump.
+    expect(c?.hoverImg).toBe("/assets/sprites/bumpbump2.png");
+    expect(c?.video).toBe("/assets/videos/bump.mp4");
+    // The clip carries a TikTok watermark; the credit is that handle.
+    expect(c?.credit).toBe("mariox.edits");
+  });
+
+  it("every hover frame, when present, exists on disk", () => {
+    for (const c of PROJECT_CHARACTER_LIST) {
+      if (c.hoverImg) expect(onDisk(c.hoverImg), `${c.alt}: ${c.hoverImg}`).toBe(true);
+    }
   });
 
   it("leek embeds its clip in the panel while chrollo keeps his own, like counterstack", () => {

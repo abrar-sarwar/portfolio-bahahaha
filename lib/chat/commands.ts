@@ -21,7 +21,7 @@ export const CHAT_COMMANDS: ChatCommand[] = [
       const found = context.discovered.length;
       const lines = [
         "things that work in here:",
-        "· projects: arkham, netwraith, tripwire, leek, counterstack",
+        "· projects: bump, arkham, netwraith, tripwire, leek, counterstack",
         "· cyber words: hacker, ctf, siem, threat intelligence, and more",
         "· shows: jjk, bleach, and a few i'm not listing",
         "· people: try a name. some of them are in here.",

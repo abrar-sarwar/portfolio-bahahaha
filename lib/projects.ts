@@ -1,4 +1,5 @@
 export type ProjectSlug =
+  | "bump"
   | "arkham"
   | "netwraith"
   | "tripwire"
@@ -33,6 +34,21 @@ export type Project = {
 // Order here drives the on-screen order (top → bottom in the project list).
 // Newest first.
 export const PROJECTS: Project[] = [
+  {
+    slug: "bump",
+    title: "Bump",
+    tag: "HackGT 13 Bump-to-Connect iOS App",
+    description:
+      "an ios app built with three friends at hackgt 13 for the moment two strangers stand a few feet apart and neither knows what to say. tap your phones together, both confirm, and bump reveals the specific overlap you actually share plus grounded conversation starters, no feed and no compatibility score. core motion catches the bump, ultra wideband tells it who you bumped, and grok only phrases the overlap, never invents it.",
+    // Thumbnail is the phone render from bump's landing page; the backdrop is
+    // a street full of strangers passing each other, which is the moment the
+    // app is for.
+    spriteSrc: "/assets/sprites/bump.png",
+    backgroundSrc: "/assets/sprites/bumpbackground.jpg",
+    // The title and the Link button go to the beta site, not the repo.
+    linkLabel: "demo link",
+    repoUrl: "https://bump-beta.vercel.app",
+  },
   {
     slug: "arkham",
     title: "Arkham",
@@ -89,9 +105,10 @@ export const PROJECTS: Project[] = [
     tag: "Hacklanta Hackathon Winner",
     description:
       "a nist security controls card game, built in 12 hours at hacklanta, where it won. every card is a real control and the suits split the framework, spades detect and diamonds harden, so a four card hand reads as a security posture instead of a spreadsheet. the ai boss learns which controls you lean on and starts attacking around them, so the deck that won the last round is the one it's ready for next.",
+    // No `original` here either: counterstack.mov was never tracked, so the
+    // second <source> only ever 404'd.
     video: {
       src: "/assets/videos/counterstack.mp4",
-      original: "/assets/videos/counterstack.mov",
       poster: "/assets/videos/counterstack-poster.jpg",
     },
     spriteSrc: "/assets/sprites/counterstack.jpg",
@@ -105,6 +122,10 @@ export const PROJECTS_MAIN_BACKGROUND = "/assets/sprites/projectsmainpage.jpg";
 
 export type ProjectCharacter = {
   img: string;
+  // Optional second frame shown while the pointer is over the portrait. Same
+  // framing as `img` (the two are stacked and crossfaded), so it reads as the
+  // character moving rather than a different picture.
+  hoverImg?: string;
   video: string;
   alt: string;
   credit?: string;
@@ -130,6 +151,15 @@ export const PROJECT_CHARACTERS: Record<"main", ProjectCharacter> &
     alt: "Abrar as Luffy",
     credit: "itxjoel",
     gear5: true,
+  },
+  bump: {
+    // Goku and Vegeta from behind, fists up: hovering lands the bump.
+    img: "/assets/sprites/bumpbump1.png",
+    hoverImg: "/assets/sprites/bumpbump2.png",
+    video: "/assets/videos/bump.mp4",
+    alt: "Goku and Vegeta fist bump (Bump)",
+    // Handle watermarked in the clip itself.
+    credit: "mariox.edits",
   },
   arkham: {
     img: "/assets/sprites/batman.png",
@@ -180,6 +210,7 @@ export type ProjectAccent = { text: string; glow: string };
 
 export const PROJECT_ACCENTS: Record<ProjectSlug | "main", ProjectAccent> = {
   main: { text: "#c4b5fd", glow: "167,139,250" }, // violet (default)
+  bump: { text: "#fdba74", glow: "249,115,22" }, // orange, bump's own
   arkham: { text: "#a3e635", glow: "77,124,15" }, // acid green
   netwraith: { text: "#ef4444", glow: "153,27,27" }, // dark red
   tripwire: { text: "#ffffff", glow: "229,231,235" }, // white

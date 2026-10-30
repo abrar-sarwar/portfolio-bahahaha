@@ -66,7 +66,13 @@ export default function ProjectsPage() {
   );
   const preloadCharacters = useMemo(
     () =>
-      Array.from(new Set(PROJECT_CHARACTER_LIST.map((c) => c.img))),
+      Array.from(
+        new Set(
+          PROJECT_CHARACTER_LIST.flatMap((c) =>
+            c.hoverImg ? [c.img, c.hoverImg] : [c.img],
+          ),
+        ),
+      ),
     [],
   );
 
@@ -105,23 +111,41 @@ export default function ProjectsPage() {
           type="button"
           onClick={onCharacterClick}
           aria-label={`Play ${character.alt} video`}
-          className="mt-6 flex flex-col items-center gap-2 self-center focus:outline-none focus-visible:ring-2"
+          className="group mt-6 flex flex-col items-center gap-2 self-center focus:outline-none focus-visible:ring-2"
           style={{ ["--tw-ring-color" as string]: accent.text }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={character.img}
-            alt={character.alt}
-            draggable={false}
-            className={`block w-auto select-none object-contain ${
-              character.scale ? "h-52" : "h-44"
-            } ${character.gear5 ? "gear5-bounce" : ""}`}
-            style={{
-              filter: character.gear5
-                ? "drop-shadow(1.4px 0 0 #fff) drop-shadow(-1.4px 0 0 #fff) drop-shadow(0 1.4px 0 #fff) drop-shadow(0 -1.4px 0 #fff) drop-shadow(0 0 14px rgba(255,255,255,0.6))"
-                : `drop-shadow(0 8px 24px rgba(0,0,0,0.55)) drop-shadow(0 0 24px ${accentRgba(accent.glow, 0.3)})`,
-            }}
-          />
+          {/* No hover on a phone, so the second frame shows while pressed. */}
+          <span className="relative block">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={character.img}
+              alt={character.alt}
+              draggable={false}
+              className={`block w-auto select-none object-contain ${
+                character.scale ? "h-52" : "h-44"
+              } ${character.gear5 ? "gear5-bounce" : ""} ${
+                character.hoverImg ? "group-active:opacity-0" : ""
+              }`}
+              style={{
+                filter: character.gear5
+                  ? "drop-shadow(1.4px 0 0 #fff) drop-shadow(-1.4px 0 0 #fff) drop-shadow(0 1.4px 0 #fff) drop-shadow(0 -1.4px 0 #fff) drop-shadow(0 0 14px rgba(255,255,255,0.6))"
+                  : `drop-shadow(0 8px 24px rgba(0,0,0,0.55)) drop-shadow(0 0 24px ${accentRgba(accent.glow, 0.3)})`,
+              }}
+            />
+            {character.hoverImg && (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={character.hoverImg}
+                alt=""
+                aria-hidden
+                draggable={false}
+                className="pointer-events-none absolute inset-0 block h-full w-full select-none object-contain opacity-0 group-active:opacity-100"
+                style={{
+                  filter: `drop-shadow(0 8px 24px rgba(0,0,0,0.55)) drop-shadow(0 0 24px ${accentRgba(accent.glow, 0.3)})`,
+                }}
+              />
+            )}
+          </span>
           <span
             className="text-[10px] uppercase tracking-[0.28em]"
             style={{ color: accent.text, opacity: 0.85 }}
@@ -328,6 +352,7 @@ function CharacterPortrait({
 }: {
   character: {
     img: string;
+    hoverImg?: string;
     alt: string;
     video: string;
     scale?: number;
@@ -361,7 +386,7 @@ function CharacterPortrait({
         transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
         whileHover={{ scale: 1.02, y: -2 }}
         whileTap={{ scale: 0.985 }}
-        className="absolute bottom-0 left-0 z-10 origin-bottom-left cursor-pointer focus:outline-none focus-visible:ring-2 max-sm:hidden"
+        className="group absolute bottom-0 left-0 z-10 origin-bottom-left cursor-pointer focus:outline-none focus-visible:ring-2 max-sm:hidden"
         style={{
           ["--tw-ring-color" as string]: accent.text,
           left: character.offsetX ? `${character.offsetX}px` : undefined,
@@ -388,33 +413,51 @@ function CharacterPortrait({
             }}
           />
         )}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         {/* Sized by width, but capped to the viewport height so the head is
             never clipped by the page's overflow-hidden. A per-character scale
-            widens the portrait; the max-height keeps the whole figure on screen. */}
-        <img
-          src={character.img}
-          alt={character.alt}
-          draggable={false}
-          className={`block h-auto max-h-[86svh] select-none object-contain ${widthClass} ${
-            character.gear5 ? "gear5-bounce" : ""
-          }`}
-          style={{
-            ...(character.scale
-              ? {
-                  width: `min(${Math.round(46 * character.scale)}vw, ${Math.round(
-                    640 * character.scale,
-                  )}px)`,
-                }
-              : {}),
-            ...(character.gear5
-              ? {
-                  filter:
-                    "drop-shadow(1.6px 0 0 #fff) drop-shadow(-1.6px 0 0 #fff) drop-shadow(0 1.6px 0 #fff) drop-shadow(0 -1.6px 0 #fff) drop-shadow(0 0 16px rgba(255,255,255,0.6))",
-                }
-              : {}),
-          }}
-        />
+            widens the portrait; the max-height keeps the whole figure on screen.
+            A character with a hover frame gets it stacked on top, same box,
+            crossfading in while the pointer is over the portrait. */}
+        <span className="relative block">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={character.img}
+            alt={character.alt}
+            draggable={false}
+            className={`block h-auto max-h-[86svh] select-none object-contain ${widthClass} ${
+              character.gear5 ? "gear5-bounce" : ""
+            } ${
+              character.hoverImg
+                ? "transition-opacity duration-200 group-hover:opacity-0 group-focus-visible:opacity-0"
+                : ""
+            }`}
+            style={{
+              ...(character.scale
+                ? {
+                    width: `min(${Math.round(46 * character.scale)}vw, ${Math.round(
+                      640 * character.scale,
+                    )}px)`,
+                  }
+                : {}),
+              ...(character.gear5
+                ? {
+                    filter:
+                      "drop-shadow(1.6px 0 0 #fff) drop-shadow(-1.6px 0 0 #fff) drop-shadow(0 1.6px 0 #fff) drop-shadow(0 -1.6px 0 #fff) drop-shadow(0 0 16px rgba(255,255,255,0.6))",
+                  }
+                : {}),
+            }}
+          />
+          {character.hoverImg && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={character.hoverImg}
+              alt=""
+              aria-hidden
+              draggable={false}
+              className="pointer-events-none absolute inset-0 block h-full w-full select-none object-contain opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100"
+            />
+          )}
+        </span>
       </motion.button>
     </AnimatePresence>
   );
@@ -729,7 +772,7 @@ function DetailPanel({
               target="_blank"
               rel="noopener noreferrer"
               className="pointer-events-auto inline-flex items-center gap-2 underline-offset-[6px] transition-colors hover:underline focus:outline-none focus-visible:underline"
-              title="Open the repository"
+              title={project.linkLabel === "demo link" ? "Open the live demo" : "Open the repository"}
             >
               {project.title}
               <span aria-hidden className="text-[0.7em]" style={{ color: accent.text }}>

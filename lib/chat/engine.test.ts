@@ -258,6 +258,7 @@ describe("initial content", () => {
     ["soc", "soc"],
     ["siem", "siem"],
     ["threat intelligence", "threat-intel"],
+    ["bump", "bump"],
     ["arkham", "arkham"],
     ["tripwire", "tripwire"],
     ["counterstack", "counterstack"],

@@ -99,7 +99,6 @@ body {
 
 .pro-card {
   overflow: hidden;
-  transform-style: preserve-3d;
   box-shadow: 0 24px 70px rgba(11, 11, 12, 0.08);
 }
 
@@ -134,6 +133,45 @@ body {
 .pro-card:hover .pro-card-sheen,
 .pro-card:focus-visible .pro-card-sheen {
   opacity: 1;
+}
+
+/* Ledger rows for selected work: a case study index rather than a card wall.
+   The hairline above the row redraws in ink on hover and the index picks up
+   the accent, so the whole row reads as one target without a box around it. */
+.pro-row {
+  position: relative;
+  border-top: 1px solid var(--pro-line);
+  transition: background-color 280ms ease;
+}
+.pro-row:last-child {
+  border-bottom: 1px solid var(--pro-line);
+}
+.pro-row::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 0;
+  height: 1px;
+  width: 100%;
+  background: var(--pro-ink);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 460ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pro-row:hover,
+.pro-row:focus-visible {
+  background-color: rgba(255, 255, 255, 0.55);
+}
+.pro-row:hover::before,
+.pro-row:focus-visible::before {
+  transform: scaleX(1);
+}
+.pro-row-index {
+  transition: color 240ms ease;
+}
+.pro-row:hover .pro-row-index,
+.pro-row:focus-visible .pro-row-index {
+  color: var(--pro-accent);
 }
 
 /* Rotating conic sheen: the main abstract motion, grayscale and soft. */

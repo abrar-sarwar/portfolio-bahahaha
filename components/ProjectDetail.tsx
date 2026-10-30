@@ -46,7 +46,7 @@ export default function ProjectDetail({ project }: Props) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-3 underline-offset-[6px] transition-colors hover:underline focus:outline-none focus-visible:underline"
-                title="Open the repository"
+                title={project.linkLabel === "demo link" ? "Open the live demo" : "Open the repository"}
               >
                 {project.title}
                 <span aria-hidden className="text-2xl" style={{ color: accent.text }}>

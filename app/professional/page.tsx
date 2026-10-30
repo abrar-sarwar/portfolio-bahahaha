@@ -9,7 +9,7 @@ import { SplitText } from "gsap/SplitText";
 import { ScrambleTextPlugin } from "gsap/ScrambleTextPlugin";
 import ProfessionalBackground from "@/components/ProfessionalBackground";
 import { RETURN_TO_KEY } from "@/lib/projects";
-import { ABOUT, LINKS, PROFILE, PROJECTS } from "@/lib/professional";
+import { ABOUT, LINKS, PRESSURE, PROFILE, PROJECTS, WORK } from "@/lib/professional";
 
 const DISPLAY = "font-[family-name:var(--font-pro-display)]";
 const MONO = "font-[family-name:var(--font-pro-mono)]";
@@ -194,7 +194,7 @@ export default function ProfessionalPage() {
 
       // Portrait parallax: it lags gently behind the hero as you scroll away.
       gsap.to(photoRef.current, {
-        yPercent: 12,
+        yPercent: 8,
         ease: "none",
         scrollTrigger: {
           trigger: ".pro-hero",
@@ -256,59 +256,50 @@ export default function ProfessionalPage() {
         repeat: -1,
       });
 
-      // Projects are dealt in like thrown cards: each flies from an alternating
-      // side, spinning, and settles into its slot with a little overshoot.
-      gsap.from(".pro-card", {
+      // Selected work assembles like a ledger being filled in: the featured
+      // build lifts in first, then each row slides up under it in order.
+      gsap.from(".pro-feature", {
         scrollTrigger: {
-          trigger: ".pro-deck",
+          trigger: ".pro-work",
           scroller: rootRef.current,
-          start: "top 80%",
+          start: "top 78%",
         },
-        x: (i: number) => (i % 2 === 0 ? -260 : 260),
-        y: 80,
-        rotation: (i: number) => (i % 2 === 0 ? -24 : 24),
-        scale: 0.7,
+        y: 44,
         autoAlpha: 0,
-        transformOrigin: "center center",
-        duration: 0.95,
-        ease: "back.out(1.3)",
-        stagger: 0.13,
-        // Drop the inline transform when done so the pointer tilt can take over.
+        duration: 0.85,
+        ease: "power3.out",
+        clearProps: "transform",
+      });
+      gsap.from(".pro-row", {
+        scrollTrigger: {
+          trigger: ".pro-ledger",
+          scroller: rootRef.current,
+          start: "top 72%",
+        },
+        y: 26,
+        autoAlpha: 0,
+        duration: 0.6,
+        ease: "power3.out",
+        stagger: 0.09,
         clearProps: "transform",
       });
 
       // ---- Pointer interactions (fine pointers only) ---------------------
       if (finePointer) {
-        // Cards tilt in 3D under the cursor, with an ink sheen that follows it.
+        // The featured build keeps an ink sheen that tracks the cursor and a
+        // small lift. No 3D tilt: on a block this wide it reads as a wobble.
         gsap.utils.toArray<HTMLElement>(".pro-card").forEach((card) => {
-          const rotX = gsap.quickTo(card, "rotationX", {
-            duration: 0.5,
-            ease: "power3.out",
-          });
-          const rotY = gsap.quickTo(card, "rotationY", {
-            duration: 0.5,
-            ease: "power3.out",
-          });
           const lift = gsap.quickTo(card, "y", {
             duration: 0.4,
             ease: "power3.out",
           });
           const onMove = (e: PointerEvent) => {
             const r = card.getBoundingClientRect();
-            const px = (e.clientX - r.left) / r.width;
-            const py = (e.clientY - r.top) / r.height;
-            gsap.set(card, { transformPerspective: 900 });
-            rotY((px - 0.5) * 10);
-            rotX((0.5 - py) * 8);
-            card.style.setProperty("--mx", `${px * 100}%`);
-            card.style.setProperty("--my", `${py * 100}%`);
+            card.style.setProperty("--mx", `${((e.clientX - r.left) / r.width) * 100}%`);
+            card.style.setProperty("--my", `${((e.clientY - r.top) / r.height) * 100}%`);
           };
-          const onEnter = () => lift(-6);
-          const onLeave = () => {
-            rotX(0);
-            rotY(0);
-            lift(0);
-          };
+          const onEnter = () => lift(-5);
+          const onLeave = () => lift(0);
           card.addEventListener("pointermove", onMove);
           card.addEventListener("pointerenter", onEnter);
           card.addEventListener("pointerleave", onLeave);
@@ -387,7 +378,7 @@ export default function ProfessionalPage() {
 
       <div ref={contentRef} className="relative mx-auto w-full max-w-5xl px-6 sm:px-8">
         {/* ---- Hero (GSAP opening) ----------------------------------------- */}
-        <section className="pro-hero relative flex min-h-[100dvh] flex-col justify-center py-20">
+        <section className="pro-hero relative flex min-h-[100dvh] flex-col justify-center overflow-hidden py-20">
           {/* Me, anchored bottom right of the hero on larger screens. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -398,8 +389,10 @@ export default function ProfessionalPage() {
             className="pointer-events-none absolute bottom-0 right-0 hidden h-[56vh] w-auto select-none object-contain object-bottom md:block lg:h-[66vh]"
             style={{
               filter: "drop-shadow(0 24px 50px rgba(11,11,12,0.18))",
-              maskImage: "linear-gradient(to bottom, black 86%, transparent)",
-              WebkitMaskImage: "linear-gradient(to bottom, black 86%, transparent)",
+              // Fades out before the hero clips it, so the parallax drift never
+              // shows a hard cut against the signals band below.
+              maskImage: "linear-gradient(to bottom, black 74%, transparent 94%)",
+              WebkitMaskImage: "linear-gradient(to bottom, black 74%, transparent 94%)",
             }}
           />
 
@@ -447,6 +440,34 @@ export default function ProfessionalPage() {
           />
         </section>
 
+        {/* ---- Signals band -----------------------------------------------
+            Three shipped results, in the first screen after the hero. A
+            recruiter skims for numbers before they read a sentence. */}
+        <section aria-label="At a glance" className="pro-signals">
+          <div
+            className="grid grid-cols-1 border-y sm:grid-cols-3"
+            style={{ borderColor: "var(--pro-line)" }}
+          >
+            {PROFILE.signals.map((signal, i) => (
+              <Reveal key={signal.value} delay={0.06 * i}>
+                <div
+                  className={`h-full px-1 py-7 sm:px-7 ${i > 0 ? "border-t sm:border-l sm:border-t-0" : ""}`}
+                  style={{ borderColor: "var(--pro-line)" }}
+                >
+                  <span
+                    className={`${DISPLAY} block text-[1.85rem] leading-none text-[color:var(--pro-ink)] sm:text-[2.1rem]`}
+                  >
+                    {signal.value}
+                  </span>
+                  <span className="mt-3 block max-w-[22rem] text-[12.5px] leading-snug text-[color:var(--pro-muted)]">
+                    {signal.label}
+                  </span>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </section>
+
         {/* ---- About ------------------------------------------------------- */}
         <section className="py-24 sm:py-32">
           <Reveal>
@@ -460,37 +481,117 @@ export default function ProfessionalPage() {
               {ABOUT.heading}
             </h2>
           </Reveal>
+
+          {/* One statement plus a fact list. The old four card grid said the
+              same thing in four times the room. */}
+          <div className="mt-12 grid grid-cols-1 gap-12 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] md:gap-16">
+            <Reveal delay={0.1}>
+              <p className="text-[15px] leading-relaxed sm:text-lg">{ABOUT.lead}</p>
+              <p className="mt-6 text-[15px] leading-relaxed sm:text-lg">
+                {ABOUT.closer}
+              </p>
+            </Reveal>
+
+            <Reveal delay={0.16}>
+              <dl className="border-t" style={{ borderColor: "var(--pro-line)" }}>
+                {ABOUT.facts.map((fact) => (
+                  <div
+                    key={fact.label}
+                    className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-4 border-b py-4 sm:grid-cols-[6.5rem_minmax(0,1fr)]"
+                    style={{ borderColor: "var(--pro-line)" }}
+                  >
+                    <dt
+                      className={`${MONO} pt-[3px] text-[10px] uppercase tracking-[0.22em] text-[color:var(--pro-muted)] sm:text-[10.5px]`}
+                    >
+                      {fact.label}
+                    </dt>
+                    <dd className="text-[14.5px] leading-relaxed text-[color:var(--pro-ink)]">
+                      {fact.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* ---- Under pressure ----------------------------------------------
+            The part a repo list cannot show: how I behave when the thing is on
+            fire. Every claim carries a receipt from work that shipped, so it
+            reads as evidence instead of self assessment. */}
+        <section className="py-24 sm:py-32">
+          <Reveal>
+            <SectionLabel index="02" title="Under pressure" />
+          </Reveal>
+          <Reveal delay={0.05}>
+            <h2
+              className={`${DISPLAY} max-w-3xl font-light leading-[1.05] tracking-[-0.01em] text-[color:var(--pro-ink)]`}
+              style={{ fontSize: "clamp(2rem, 5vw, 3.25rem)" }}
+            >
+              {PRESSURE.heading}
+            </h2>
+          </Reveal>
           <Reveal delay={0.1}>
             <p className="mt-6 max-w-2xl text-[15px] leading-relaxed sm:text-lg">
-              {ABOUT.lead}
+              {PRESSURE.lead}
             </p>
           </Reveal>
 
-          <div className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {ABOUT.hooks.map((hook, i) => (
-              <Reveal key={hook.title} delay={0.06 * i}>
+          <div className="mt-14">
+            {PRESSURE.principles.map((principle, i) => (
+              <Reveal key={principle.claim} delay={0.06 * i}>
                 <article
-                  className="h-full rounded-lg border p-6 backdrop-blur-md transition-colors duration-300 hover:border-[color:var(--pro-ink)] sm:p-7"
-                  style={{
-                    borderColor: "var(--pro-line)",
-                    backgroundColor: "var(--pro-panel)",
-                  }}
+                  className="grid grid-cols-1 gap-x-10 gap-y-5 border-t py-9 md:grid-cols-[3rem_minmax(0,1fr)_minmax(0,0.85fr)]"
+                  style={{ borderColor: "var(--pro-line)" }}
                 >
                   <span
-                    className={`${MONO} text-[11px] tracking-[0.28em] text-[color:var(--pro-muted)]`}
+                    className={`${DISPLAY} text-[2rem] leading-none text-[color:var(--pro-ink)]`}
+                    style={{ opacity: 0.24 }}
                   >
                     {String(i + 1).padStart(2, "0")}
                   </span>
-                  <h3
-                    className={`${DISPLAY} mt-3 text-2xl text-[color:var(--pro-ink)]`}
+                  <div>
+                    <h3
+                      className={`${DISPLAY} text-[1.5rem] leading-[1.15] text-[color:var(--pro-ink)] sm:text-[1.7rem]`}
+                    >
+                      {principle.claim}
+                    </h3>
+                    <p className="mt-3 text-[14.5px] leading-relaxed">
+                      {principle.body}
+                    </p>
+                  </div>
+                  <div
+                    className="border-t pt-4 md:border-l md:border-t-0 md:pl-7 md:pt-0"
+                    style={{ borderColor: "var(--pro-line)" }}
                   >
-                    {hook.title}
-                  </h3>
-                  <p className="mt-3 text-[14.5px] leading-relaxed">{hook.body}</p>
+                    <span
+                      className={`${MONO} text-[10px] uppercase tracking-[0.26em]`}
+                      style={{ color: "var(--pro-accent)" }}
+                    >
+                      Receipt / {principle.source}
+                    </span>
+                    <p className="mt-3 text-[13.5px] leading-relaxed text-[color:var(--pro-muted)]">
+                      {principle.receipt}
+                    </p>
+                  </div>
                 </article>
               </Reveal>
             ))}
           </div>
+
+          <Reveal delay={0.08}>
+            <blockquote
+              className="mt-14 border-l-2 pl-6 sm:pl-8"
+              style={{ borderColor: "var(--pro-ink)" }}
+            >
+              <p
+                className={`${DISPLAY} max-w-3xl text-pretty text-[1.1rem] italic leading-relaxed text-[color:var(--pro-ink)] sm:text-[1.3rem]`}
+                style={{ opacity: 0.9 }}
+              >
+                {PRESSURE.closer}
+              </p>
+            </blockquote>
+          </Reveal>
         </section>
 
         {/* ---- Toolkit ticker ----------------------------------------------
@@ -531,96 +632,165 @@ export default function ProfessionalPage() {
           </div>
         </section>
 
-        {/* ---- Projects ---------------------------------------------------- */}
-        <section className="py-24 sm:py-32">
+        {/* ---- Selected work -----------------------------------------------
+            Not a card wall. A case study index: the featured build gets the
+            room to explain itself, the rest are ledger rows stating the
+            problem and what the work optimized. Five entries sit in it as
+            comfortably as four or seven, which a two column grid never did. */}
+        <section className="pro-work py-24 sm:py-32">
           <Reveal>
-            <SectionLabel index="02" title="Selected work" />
+            <SectionLabel index="03" title="Selected work" />
           </Reveal>
           <Reveal delay={0.05}>
             <h2
               className={`${DISPLAY} max-w-3xl font-light leading-[1.05] tracking-[-0.01em] text-[color:var(--pro-ink)]`}
               style={{ fontSize: "clamp(2rem, 5vw, 3.25rem)" }}
             >
-              Projects
+              {WORK.heading}
             </h2>
           </Reveal>
+          <Reveal delay={0.1}>
+            <p className="mt-6 max-w-2xl text-[15px] leading-relaxed sm:text-lg">
+              {WORK.lead}
+            </p>
+          </Reveal>
 
-          {/* A dealt hand: each project is a playing card (no images), thrown in
-              by GSAP, then held under the cursor — it tilts in 3D and an ink
-              sheen tracks the pointer. The rank corners lean into the metaphor. */}
-          <div className="pro-deck mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="pro-ledger mt-14">
             {PROJECTS.map((project, i) => {
-              const rank = String(i + 1).padStart(2, "0");
+              const index = String(i + 1).padStart(2, "0");
+              const external = project.href.startsWith("http");
+              const cue = project.href.includes("github.com")
+                ? "View repo"
+                : "Visit site";
+              const linkProps = {
+                href: project.href,
+                target: external ? "_blank" : undefined,
+                rel: external ? "noopener noreferrer" : undefined,
+              };
+
+              if (project.featured) {
+                return (
+                  <a
+                    key={project.title}
+                    {...linkProps}
+                    className="pro-feature pro-card group relative mb-10 block rounded-lg border p-7 backdrop-blur-md transition-colors duration-300 hover:border-[color:var(--pro-ink)] focus:outline-none focus-visible:ring-2 sm:p-10"
+                    style={{
+                      borderColor: "var(--pro-line)",
+                      backgroundColor: "var(--pro-panel)",
+                    }}
+                  >
+                    {/* Ink sheen that follows the cursor (position from JS vars). */}
+                    <span aria-hidden className="pro-card-sheen" />
+
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3">
+                      <div className="flex items-baseline gap-5">
+                        <span
+                          className={`${MONO} text-[11px] tracking-[0.3em] text-[color:var(--pro-muted)]`}
+                        >
+                          {index}
+                        </span>
+                        <h3
+                          className={`${DISPLAY} text-[2.2rem] leading-none text-[color:var(--pro-ink)] sm:text-[2.9rem]`}
+                        >
+                          {project.title}
+                        </h3>
+                      </div>
+                      <span
+                        className={`${MONO} text-[10px] uppercase tracking-[0.26em]`}
+                        style={{ color: "var(--pro-accent)" }}
+                      >
+                        Featured
+                      </span>
+                    </div>
+
+                    <div className="mt-9 grid gap-8 md:grid-cols-2 md:gap-12">
+                      <div>
+                        <span
+                          className={`${MONO} text-[10px] uppercase tracking-[0.26em] text-[color:var(--pro-muted)]`}
+                        >
+                          Problem
+                        </span>
+                        <p className="mt-3 text-[14.5px] leading-relaxed">
+                          {project.problem}
+                        </p>
+                      </div>
+                      <div>
+                        <span
+                          className={`${MONO} text-[10px] uppercase tracking-[0.26em]`}
+                          style={{ color: "var(--pro-accent)" }}
+                        >
+                          Optimized
+                        </span>
+                        <p className="mt-3 text-[14.5px] leading-relaxed text-[color:var(--pro-ink)]">
+                          {project.optimized}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-9 flex flex-wrap items-center justify-between gap-4">
+                      <ul className="flex flex-wrap gap-2">
+                        {project.tags.map((tag) => (
+                          <li
+                            key={tag}
+                            className={`${MONO} rounded-full border px-3 py-1 text-[10.5px] uppercase tracking-[0.16em] text-[color:var(--pro-muted)]`}
+                            style={{ borderColor: "var(--pro-line)" }}
+                          >
+                            {tag}
+                          </li>
+                        ))}
+                      </ul>
+                      <span
+                        className={`${MONO} text-[11px] uppercase tracking-[0.2em] text-[color:var(--pro-ink)] opacity-60 transition-opacity duration-300 group-hover:opacity-100`}
+                      >
+                        {cue} &#8599;
+                      </span>
+                    </div>
+                  </a>
+                );
+              }
+
               return (
                 <a
                   key={project.title}
-                  href={project.href}
-                  target={project.href.startsWith("http") ? "_blank" : undefined}
-                  rel="noopener noreferrer"
-                  className="pro-card group relative flex h-full min-h-[19rem] flex-col rounded-lg border p-7 backdrop-blur-md transition-colors duration-300 will-change-transform hover:border-[color:var(--pro-ink)] focus:outline-none focus-visible:ring-2 sm:p-8"
-                  style={{
-                    borderColor: "var(--pro-line)",
-                    backgroundColor: "var(--pro-panel)",
-                  }}
+                  {...linkProps}
+                  className="pro-row group grid grid-cols-1 gap-x-8 gap-y-3 px-1 py-7 focus:outline-none focus-visible:ring-2 sm:grid-cols-[3rem_minmax(0,0.75fr)_minmax(0,1.6fr)_auto] sm:items-baseline sm:px-4"
                 >
-                  {/* Ink sheen that follows the cursor (position from JS vars). */}
-                  <span aria-hidden className="pro-card-sheen" />
-
-                  {/* Card rank corner. */}
-                  <div className="flex items-start justify-between">
-                    <span
-                      className={`${DISPLAY} text-[2.75rem] leading-none text-[color:var(--pro-ink)]`}
-                    >
-                      {rank}
-                    </span>
-                    <span
-                      className={`${MONO} mt-2 text-[10px] uppercase tracking-[0.26em] text-[color:var(--pro-muted)]`}
-                    >
-                      {project.tags[0]}
-                    </span>
-                  </div>
                   <span
-                    aria-hidden
-                    className="mt-5 block h-px w-10"
-                    style={{ background: "var(--pro-ink)", opacity: 0.45 }}
-                  />
-
-                  <h3
-                    className={`${DISPLAY} mt-6 text-[1.9rem] leading-[1.05] text-[color:var(--pro-ink)]`}
+                    className={`${MONO} pro-row-index text-[11px] tracking-[0.3em] text-[color:var(--pro-muted)]`}
                   >
-                    {project.title}
-                  </h3>
-                  <p className="mt-3 flex-1 text-[14.5px] leading-relaxed">
-                    {project.description}
-                  </p>
+                    {index}
+                  </span>
 
-                  <ul className="mt-6 flex flex-wrap gap-2">
-                    {project.tags.map((tag, ti) => (
-                      <li
-                        key={`${tag}-${ti}`}
-                        className={`${MONO} rounded-full border px-3 py-1 text-[10.5px] uppercase tracking-[0.16em] text-[color:var(--pro-muted)]`}
-                        style={{ borderColor: "var(--pro-line)" }}
-                      >
-                        {tag}
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* Footer: visit cue + a mirrored rank like the bottom of a card. */}
-                  <div className="mt-6 flex items-end justify-between">
-                    <span
-                      className={`${MONO} text-[11px] uppercase tracking-[0.2em] text-[color:var(--pro-ink)] opacity-60 transition-opacity duration-300 group-hover:opacity-100`}
+                  <div>
+                    <h3
+                      className={`${DISPLAY} text-[1.5rem] leading-none text-[color:var(--pro-ink)]`}
                     >
-                      Visit &#8599;
-                    </span>
+                      {project.title}
+                    </h3>
                     <span
-                      aria-hidden
-                      className={`${DISPLAY} rotate-180 text-[2.75rem] leading-none text-[color:var(--pro-ink)]`}
-                      style={{ opacity: 0.1 }}
+                      className={`${MONO} mt-2 block text-[10px] uppercase tracking-[0.2em] text-[color:var(--pro-muted)]`}
                     >
-                      {rank}
+                      {project.tags.slice(0, 2).join("  ·  ")}
                     </span>
                   </div>
+
+                  <div className="max-w-2xl">
+                    <p className="text-[13.5px] leading-relaxed text-[color:var(--pro-muted)]">
+                      {project.problem}
+                    </p>
+                    <p className="mt-2 flex gap-2 text-[14px] leading-relaxed text-[color:var(--pro-ink)]">
+                      <span aria-hidden style={{ color: "var(--pro-accent)" }}>
+                        &rarr;
+                      </span>
+                      <span>{project.optimized}</span>
+                    </p>
+                  </div>
+
+                  <span
+                    className={`${MONO} whitespace-nowrap text-[10.5px] uppercase tracking-[0.2em] text-[color:var(--pro-ink)] opacity-55 transition-opacity duration-300 group-hover:opacity-100`}
+                  >
+                    {cue} &#8599;
+                  </span>
                 </a>
               );
             })}
@@ -630,7 +800,7 @@ export default function ProfessionalPage() {
         {/* ---- Links ------------------------------------------------------- */}
         <section className="py-24 sm:py-32">
           <Reveal>
-            <SectionLabel index="03" title="Elsewhere" />
+            <SectionLabel index="04" title="Elsewhere" />
           </Reveal>
           <Reveal delay={0.05}>
             <h2
