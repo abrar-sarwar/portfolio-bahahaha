@@ -7,7 +7,13 @@ import Starfield from "./Starfield";
 import SpinningGlobe from "./SpinningGlobe";
 import VideoModal from "./VideoModal";
 import MyWorldGlobe, { type GlobeApi } from "./MyWorldGlobe";
-import { locationBySlug } from "@/lib/world";
+import LanyardBadge from "./LanyardBadge";
+import {
+  WORLD_PINS,
+  locationBySlug,
+  panelEntryBySlug,
+  pinBySlug,
+} from "@/lib/world";
 import { RETURN_TO_KEY } from "@/lib/projects";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -20,6 +26,14 @@ const GAROU_VIDEO_SRC = "/assets/videos/garouuu.mp4";
 const SUPERMAN_VIDEO_SRC = "/assets/videos/supermanvideo.mp4";
 // Audio only — the file arrived as a .mov carrying a video track nobody sees.
 const WORLD_MUSIC_SRC = "/assets/videos/myworldmusic.m4a";
+
+// The trip to a pin: a quick hop back to where it starts, then the flight.
+// The panel opens on landing.
+const JOURNEY_HOP_MS = 600;
+const JOURNEY_FLIGHT_MS = 2200;
+// The "on the way" sound. It loops from the moment the world opens, over the
+// music, until the pin it leads to is clicked: arriving switches it off.
+const ON_THE_WAY_SRC = WORLD_PINS.find((p) => p.journey)?.journey?.sound;
 
 export default function MyWorldPage() {
   const router = useRouter();
@@ -37,6 +51,17 @@ export default function MyWorldPage() {
   const [garouVideoOpen, setGarouVideoOpen] = useState(false);
   const [supermanVideoOpen, setSupermanVideoOpen] = useState(false);
 
+  // ----- journey state ---------------------------------------------------
+  // True while the camera is flying from home to a pin. The globe is frozen
+  // and shielded for the ride; the panel opens when it lands.
+  const [traveling, setTraveling] = useState(false);
+  const journeyTimers = useRef<number[]>([]);
+
+  // ----- on the way --------------------------------------------------------
+  // On by default. Clicking the pin it leads to turns it off for the visit.
+  const [onTheWay, setOnTheWay] = useState(true);
+  const onTheWayRef = useRef<HTMLAudioElement | null>(null);
+
   // ----- background music ----------------------------------------------
   // Off until asked for: browsers block autoplay with sound anyway, and
   // music that starts on its own is worse than music you chose. Once on it
@@ -45,8 +70,9 @@ export default function MyWorldPage() {
   const musicRef = useRef<HTMLAudioElement | null>(null);
   const dioAudioRef = useRef<HTMLAudioElement | null>(null);
   const dioActive = dioPhase === "audio" || dioVideoOpen;
-  // Anything with its own soundtrack ducks the music rather than talking over
-  // it; it picks back up afterwards if it was on.
+  // Anything with its own soundtrack ducks the music (and the on-the-way
+  // loop) rather than talking over it; both pick back up afterwards. The two
+  // of them play together: the loop never pauses the music.
   const otherAudioPlaying =
     dioActive || garouVideoOpen || supermanVideoOpen;
 
@@ -89,6 +115,38 @@ export default function MyWorldPage() {
     }
   }, [musicOn, otherAudioPlaying]);
 
+  // The on-the-way loop, driven off state like the music. A cold load has no
+  // user gesture yet, so if the browser refuses to start it the first press
+  // or key anywhere does.
+  useEffect(() => {
+    const el = onTheWayRef.current;
+    if (!el) return;
+    if (!onTheWay || otherAudioPlaying) {
+      el.pause();
+      return;
+    }
+    el.volume = 0.5;
+    // Capture phase, so a press on something that stops propagation (the
+    // home star does, to keep the globe from also handling it) still counts.
+    let armed = false;
+    const disarm = () => {
+      if (!armed) return;
+      armed = false;
+      window.removeEventListener("pointerdown", onGesture, true);
+      window.removeEventListener("keydown", onGesture, true);
+    };
+    const onGesture = () => {
+      disarm();
+      el.play().catch(() => {});
+    };
+    el.play().catch(() => {
+      armed = true;
+      window.addEventListener("pointerdown", onGesture, true);
+      window.addEventListener("keydown", onGesture, true);
+    });
+    return disarm;
+  }, [onTheWay, otherAudioPlaying]);
+
   // When the mp3 ends, roll straight into the video.
   useEffect(() => {
     const audio = dioAudioRef.current;
@@ -104,6 +162,8 @@ export default function MyWorldPage() {
   const handleDioClick = () => {
     // Already in the video — nothing to do (the modal covers dio anyway).
     if (dioVideoOpen) return;
+    // Mid-flight the globe belongs to the journey.
+    if (traveling) return;
 
     // Clicking while the song is playing skips it: stop the audio and cut
     // straight to the video.
@@ -140,12 +200,56 @@ export default function MyWorldPage() {
     globeApi.current?.setFrozen(false);
   };
 
-  const activeLocation = slug ? locationBySlug(slug) : undefined;
+  // A visited place or a pin; the panel renders either the same way.
+  const activeLocation = slug ? panelEntryBySlug(slug) : undefined;
   const panelOpen = Boolean(activeLocation);
 
-  const handleSelectLocation = (s: string) => setSlug(s);
+  const handleSelectLocation = (s: string) => {
+    if (traveling) return;
+    const pin = pinBySlug(s);
+    const from = pin?.journey ? locationBySlug(pin.journey.from) : undefined;
+    // A visited place, or a pin with no trip attached: straight to the panel.
+    if (!pin?.journey || !from) {
+      setSlug(s);
+      return;
+    }
+    // Already there.
+    if (slug === s) return;
+
+    // Arrived: the on-the-way loop stops here and stays off.
+    setOnTheWay(false);
+
+    // The trip. Close whatever is open, freeze the globe, hop back to where
+    // it starts, fly to the pin, then open the panel.
+    setSlug(null);
+    setTraveling(true);
+    const api = globeApi.current;
+    api?.setFrozen(true);
+
+    api?.flyTo(from.lat, from.lng, 1.9, JOURNEY_HOP_MS);
+    const flight = window.setTimeout(() => {
+      globeApi.current?.flyTo(pin.lat, pin.lng, 1.7, JOURNEY_FLIGHT_MS);
+    }, JOURNEY_HOP_MS);
+    const landing = window.setTimeout(() => {
+      journeyTimers.current = [];
+      setTraveling(false);
+      globeApi.current?.setFrozen(false);
+      setSlug(s);
+    }, JOURNEY_HOP_MS + JOURNEY_FLIGHT_MS + 120);
+    journeyTimers.current = [flight, landing];
+  };
   // Close panel / deselect: globe returns to center.
   const handleClose = () => setSlug(null);
+
+  // Leaving the page mid-flight: drop the timers and the loop with it.
+  useEffect(
+    () => () => {
+      journeyTimers.current.forEach((t) => window.clearTimeout(t));
+      journeyTimers.current = [];
+      onTheWayRef.current?.pause();
+    },
+    [],
+  );
 
   // Globe drifts aside to make room for the panel: sideways on desktop, up on
   // mobile. IMPORTANT: translate only, never scale. globe.gl maps clicks using
@@ -388,6 +492,11 @@ export default function MyWorldPage() {
         />
       )}
 
+      {/* Journey shield — the globe is flying; pokes wait until it lands. */}
+      {traveling && (
+        <div aria-hidden className="absolute inset-0 z-[24] cursor-progress" />
+      )}
+
       {/* Glitch flash — remounts on each poke (keyed) to replay the animation. */}
       {glitchKey > 0 && dioActive && (
         <div
@@ -411,7 +520,7 @@ export default function MyWorldPage() {
           these drive the camera instead. Hidden while the panel is open or
           while dio has the globe locked. */}
       <AnimatePresence>
-        {!panelOpen && !dioActive && (
+        {!panelOpen && !dioActive && !traveling && (
           <motion.div
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
@@ -584,6 +693,15 @@ export default function MyWorldPage() {
       {/* Hidden mp3 for the first-run dio sequence. */}
       <audio ref={dioAudioRef} src={DIO_AUDIO_SRC} preload="auto" aria-hidden />
 
+      {/* The on-the-way loop. The effect above owns when it plays. */}
+      <audio
+        ref={onTheWayRef}
+        src={ON_THE_WAY_SRC}
+        loop
+        preload="auto"
+        aria-hidden
+      />
+
       {/* Side note panel. Right sheet on desktop, bottom sheet on mobile. */}
       <AnimatePresence>
         {activeLocation && (
@@ -624,13 +742,52 @@ export default function MyWorldPage() {
               transition={{ duration: 0.3, ease: EASE }}
               className="flex-1 overflow-y-auto px-7 py-16 sm:px-9"
             >
-              <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-white/45">
-                Been here
+              {/* "Been here" for a visited place; a pin says where I'm headed,
+                  with its dot's red so the two read as one thing. */}
+              <p
+                className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.28em]"
+                style={{
+                  color:
+                    activeLocation.kind === "pin"
+                      ? "rgba(252,165,165,0.9)"
+                      : "rgba(255,255,255,0.45)",
+                }}
+              >
+                {activeLocation.kind === "pin" && (
+                  <span aria-hidden className="mw-pin-dot" />
+                )}
+                {activeLocation.kicker}
               </p>
               <h3 className="mt-3 text-2xl font-medium tracking-tight text-white">
                 {activeLocation.label}
               </h3>
-              {activeLocation.image && (
+              {activeLocation.kind === "pin" && activeLocation.badge && (
+                // The badge carries the logo, the role and the start date,
+                // so nothing else renders for this pin below the heading.
+                <div className="mt-6">
+                  <LanyardBadge
+                    logo={activeLocation.image}
+                    name={activeLocation.badge.name}
+                    role={activeLocation.content[0] ?? activeLocation.label}
+                    starts={activeLocation.badge.starts}
+                  />
+                </div>
+              )}
+              {activeLocation.image && activeLocation.kind === "pin" && !activeLocation.badge && (
+                // A pin's picture is a logo, not a photo: no frame, and it
+                // fades in slowly on its own once the panel has settled.
+                <motion.img
+                  key={`${activeLocation.slug}-img`}
+                  src={activeLocation.image}
+                  alt={activeLocation.content[0] ?? activeLocation.label}
+                  draggable={false}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 1.3, ease: EASE, delay: 0.45 }}
+                  className="mt-8 w-full max-w-[300px] select-none"
+                />
+              )}
+              {activeLocation.image && activeLocation.kind === "visited" && (
                 <motion.img
                   key={`${activeLocation.slug}-img`}
                   src={activeLocation.image}
@@ -646,17 +803,45 @@ export default function MyWorldPage() {
                   }`}
                 />
               )}
-              <div className="mt-5 space-y-4">
-                {activeLocation.content.map((para, i) => (
-                  <p
-                    key={i}
-                    className="text-[14.5px] text-white/80"
-                    style={{ lineHeight: 1.7 }}
-                  >
-                    {para}
-                  </p>
-                ))}
-              </div>
+              {activeLocation.kind === "pin" && activeLocation.badge ? null : activeLocation.kind === "pin" ? (
+                // A pin's copy is a tag, not a story: a pill in the dot's red,
+                // arriving after the logo.
+                <div className="mt-6 flex flex-wrap gap-2">
+                  {activeLocation.content.map((tag, i) => (
+                    <motion.span
+                      key={tag}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        duration: 0.6,
+                        ease: EASE,
+                        delay: 1.2 + i * 0.15,
+                      }}
+                      className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-medium uppercase tracking-[0.24em]"
+                      style={{
+                        borderColor: "rgba(252,165,165,0.55)",
+                        background: "rgba(239,68,68,0.14)",
+                        color: "#fecaca",
+                        boxShadow: "0 0 18px rgba(239,68,68,0.25)",
+                      }}
+                    >
+                      {tag}
+                    </motion.span>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-5 space-y-4">
+                  {activeLocation.content.map((para, i) => (
+                    <p
+                      key={i}
+                      className="text-[14.5px] text-white/80"
+                      style={{ lineHeight: 1.7 }}
+                    >
+                      {para}
+                    </p>
+                  ))}
+                </div>
+              )}
             </motion.div>
           </motion.aside>
         )}

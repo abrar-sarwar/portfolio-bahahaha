@@ -3,7 +3,42 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useRef, type MutableRefObject } from "react";
-import { WORLD_LOCATIONS, type WorldLocation } from "@/lib/world";
+import {
+  WORLD_HOME,
+  WORLD_LOCATIONS,
+  WORLD_PINS,
+  locationBySlug,
+  type WorldLocation,
+} from "@/lib/world";
+
+// Pins (places I'm headed) are the one splash of color on a monochrome globe.
+const PIN_RGB = "239,68,68";
+// The home star is the other: gold, so it never reads as a pin.
+const HOME_RGB = "251,191,36";
+
+// The trips drawn on the globe: one arc per pin that has a journey, from the
+// visited place it starts at to the pin itself.
+type Journey = {
+  slug: string;
+  startLat: number;
+  startLng: number;
+  endLat: number;
+  endLng: number;
+};
+const JOURNEYS: Journey[] = WORLD_PINS.flatMap((pin) => {
+  const from = pin.journey ? locationBySlug(pin.journey.from) : undefined;
+  return from
+    ? [
+        {
+          slug: pin.slug,
+          startLat: from.lat,
+          startLng: from.lng,
+          endLat: pin.lat,
+          endLng: pin.lng,
+        },
+      ]
+    : [];
+});
 
 export type GlobeApi = {
   zoomIn: () => void;
@@ -11,6 +46,8 @@ export type GlobeApi = {
   // Freeze the globe entirely while the dio sequence plays: stop the idle
   // auto-spin AND block drag-rotate. Unfreeze when it ends.
   setFrozen: (frozen: boolean) => void;
+  // Move the camera over a place. The page sequences these for a journey.
+  flyTo: (lat: number, lng: number, altitude: number, ms: number) => void;
 };
 
 type Props = {
@@ -33,6 +70,7 @@ export default function MyWorldGlobe({
   const countriesRef = useRef<any[]>([]);
   const statesRef = useRef<any[]>([]);
   const hoveredRef = useRef<string | null>(null);
+  const hoveredPinRef = useRef<string | null>(null);
 
   // Latest props in a ref so click closures never go stale.
   const stateRef = useRef<Props>({
@@ -102,6 +140,19 @@ export default function MyWorldGlobe({
     return overlayState(f) === "idle" ? 0.022 : 0.038;
   };
 
+  // Either kind of hover (shape or pin) means "clickable".
+  const updateCursor = (container: HTMLElement) => {
+    container.style.cursor =
+      hoveredRef.current || hoveredPinRef.current ? "pointer" : "grab";
+  };
+
+  // ----- pin styling -----------------------------------------------------
+  // Red; the selected pin lifts to a paler red so it reads as lit.
+  const pinColor = (p: any) =>
+    p?.slug === stateRef.current.activeSlug
+      ? "rgb(254,202,202)"
+      : `rgb(${PIN_RGB})`;
+
   const applyPolyStyles = () => {
     const world = worldRef.current;
     if (!world) return;
@@ -128,6 +179,7 @@ export default function MyWorldGlobe({
     const base = countriesRef.current.filter((f) => !overlay.includes(f));
     world.polygonsData(base.concat(overlay));
     applyPolyStyles();
+    world.pointColor(pinColor);
   };
 
   // ----- init once -----------------------------------------------------
@@ -170,7 +222,7 @@ export default function MyWorldGlobe({
         })
         .onPolygonHover((f: any) => {
           hoveredRef.current = isOverlay(f) ? f.__mw : null;
-          container.style.cursor = isOverlay(f) ? "pointer" : "grab";
+          updateCursor(container);
           applyPolyStyles();
         })
         .onPolygonClick((f: any) => {
@@ -181,6 +233,86 @@ export default function MyWorldGlobe({
         .onGlobeClick(() => {
           // Clicking the ocean / empty globe closes the panel.
           stateRef.current.onDeselect();
+        })
+        // Pins: places I'm headed. A red stud on the surface plus a pulse
+        // ring so it catches the eye from across the globe. The ring is
+        // decoration only, so it sits out under reduced motion.
+        .pointsData(WORLD_PINS)
+        .pointColor(pinColor)
+        // Low and wide: a disc about a third of Washington across, so it
+        // reads as a dot from the default zoom and is big enough to click.
+        .pointAltitude(0.012)
+        .pointRadius(1.0)
+        .pointResolution(24)
+        .pointLabel(
+          (p: any) => `<div class="mw-tooltip mw-tooltip-pin">${p.label}</div>`,
+        )
+        .onPointHover((p: any) => {
+          hoveredPinRef.current = p ? p.slug : null;
+          updateCursor(container);
+        })
+        .onPointClick((p: any) => stateRef.current.onSelectLocation(p.slug))
+        .ringsData(reduceMotion ? [] : WORLD_PINS)
+        .ringColor(() => (t: number) => `rgba(${PIN_RGB},${1 - t})`)
+        .ringMaxRadius(4)
+        .ringPropagationSpeed(1.8)
+        .ringRepeatPeriod(1300)
+        .ringAltitude(0.013)
+        // The trip: a dashed arc from home to each pin, running towards the
+        // pin so it reads as "on the way". Static under reduced motion.
+        .arcsData(JOURNEYS)
+        .arcStartLat("startLat")
+        .arcStartLng("startLng")
+        .arcEndLat("endLat")
+        .arcEndLng("endLng")
+        .arcColor(() => [`rgba(${HOME_RGB},0.9)`, `rgba(${PIN_RGB},0.95)`])
+        .arcAltitudeAutoScale(0.32)
+        .arcStroke(0.42)
+        .arcDashLength(0.3)
+        .arcDashGap(0.12)
+        .arcDashAnimateTime(reduceMotion ? 0 : 2200)
+        .arcsTransitionDuration(0)
+        .onArcHover((a: any) => {
+          hoveredPinRef.current = a ? a.slug : null;
+          updateCursor(container);
+        })
+        .onArcClick((a: any) => stateRef.current.onSelectLocation(a.slug))
+        // Home: a gold star on where I am right now. A DOM element, so it is
+        // crisp at any zoom; globe.gl keeps it centered on the point and hides
+        // it round the back of the globe.
+        .htmlElementsData([WORLD_HOME])
+        .htmlLat("lat")
+        .htmlLng("lng")
+        .htmlAltitude(0.02)
+        .htmlTransitionDuration(0)
+        .htmlElement((d: any) => {
+          const el = document.createElement("button");
+          el.type = "button";
+          el.className = "mw-home";
+          const place = locationBySlug(d.slug);
+          el.setAttribute(
+            "aria-label",
+            `${d.label}: ${place?.label ?? d.slug}`,
+          );
+          el.innerHTML =
+            `<svg class="mw-home-star" viewBox="0 0 24 24" aria-hidden="true">` +
+            `<path d="M12 1.8l3 6.4 7 .9-5.1 4.8 1.3 6.9L12 17.4l-6.2 3.4 1.3-6.9L2 9.1l7-.9z"/>` +
+            `</svg>` +
+            `<span class="mw-home-label">${d.label}</span>`;
+          // The globe listens for clicks on the whole container, so a click
+          // here would also raycast into the sphere underneath. Swallow it.
+          const swallow = (e: Event) => e.stopPropagation();
+          el.addEventListener("pointerdown", swallow);
+          el.addEventListener("pointerup", swallow);
+          el.addEventListener("click", (e) => {
+            e.stopPropagation();
+            stateRef.current.onSelectLocation(d.slug);
+          });
+          return el;
+        })
+        .htmlElementVisibilityModifier((el: HTMLElement, visible: boolean) => {
+          el.style.opacity = visible ? "1" : "0";
+          el.style.pointerEvents = visible ? "auto" : "none";
         });
 
       // Monochrome dark ocean.
@@ -216,6 +348,8 @@ export default function MyWorldGlobe({
       stateRef.current.apiRef.current = {
         zoomIn: () => zoomBy(0.72),
         zoomOut: () => zoomBy(1 / 0.72),
+        flyTo: (lat, lng, altitude, ms) =>
+          world.pointOfView({ lat, lng, altitude }, ms),
         // Never force rotation back on when the user prefers reduced motion.
         setFrozen: (frozen: boolean) => {
           controls.autoRotate = !frozen && !reduceMotion;
@@ -267,7 +401,9 @@ export default function MyWorldGlobe({
     refresh();
 
     if (activeSlug) {
-      const loc = WORLD_LOCATIONS.find((l) => l.slug === activeSlug);
+      const loc =
+        WORLD_LOCATIONS.find((l) => l.slug === activeSlug) ??
+        WORLD_PINS.find((p) => p.slug === activeSlug);
       if (loc) {
         // Keep some altitude so neighboring places stay in view and clickable.
         world.pointOfView({ lat: loc.lat, lng: loc.lng, altitude: 1.7 }, 900);

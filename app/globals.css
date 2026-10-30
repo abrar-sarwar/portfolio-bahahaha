@@ -391,6 +391,73 @@ body {
   100% { transform: translate3d(0, 0, 0); clip-path: inset(0 0 90% 0); }
 }
 
+/* Pins (places I'm headed): the tooltip and the panel kicker pick up the
+   dot's red so the two read as one thing. */
+.float-tooltip-kap .mw-tooltip-pin {
+  border-color: rgba(252, 165, 165, 0.85);
+  color: #fecaca;
+}
+
+.mw-pin-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: #ef4444;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
+}
+
+/* Home star: where I am right now. globe.gl centers the element on the
+   point, so the button is just the star and the caption hangs underneath. */
+.mw-home {
+  display: block;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: #fbbf24;
+  transition: opacity 0.25s ease;
+}
+.mw-home:focus-visible {
+  outline: 2px solid rgba(253, 230, 138, 0.8);
+  outline-offset: 4px;
+  border-radius: 9999px;
+}
+.mw-home-star {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+  filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.8))
+    drop-shadow(0 0 9px rgba(251, 191, 36, 0.35));
+  animation: mwHomeTwinkle 2.8s ease-in-out infinite;
+  transform-origin: center;
+}
+.mw-home:hover .mw-home-star {
+  color: #fde68a;
+}
+.mw-home-label {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-top: 2px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  text-transform: uppercase;
+  font-size: 7.5px;
+  font-weight: 500;
+  letter-spacing: 0.26em;
+  color: rgba(253, 230, 138, 0.78);
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.95);
+  pointer-events: none;
+}
+@keyframes mwHomeTwinkle {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50%      { transform: scale(1.1); opacity: 1; }
+}
+
 .mw-glitch {
   animation: mwGlitchFlicker 0.5s linear forwards;
 }
@@ -418,6 +485,9 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .mw-home-star {
+    animation: none;
+  }
   .mw-glitch,
   .mw-glitch-bar {
     animation-duration: 1ms;

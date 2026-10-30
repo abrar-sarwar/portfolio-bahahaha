@@ -4,6 +4,10 @@
 // clickable locations inside each region, their coordinates, and the copy
 // shown in the side panel. Add or edit a location by editing one entry in
 // WORLD_LOCATIONS. Nothing else needs to change.
+//
+// Places I'm headed (not been) are WORLD_PINS, further down: a red dot on the
+// globe instead of a glowing landmass, opening the same side panel. Where I
+// am right now is WORLD_HOME: a star on the map.
 
 export type RegionId = "america" | "world";
 
@@ -249,6 +253,133 @@ export function locationsForRegion(region: RegionId): WorldLocation[] {
 
 export function locationBySlug(slug: string): WorldLocation | undefined {
   return WORLD_LOCATIONS.find((l) => l.slug === slug);
+}
+
+/* =========================================================================
+   PINS: places I'm headed, not places I've been.
+
+   A pin draws as a red dot with a pulse ring, no landmass glow. Clicking it
+   opens the same side panel as a visited place, with `kicker` in place of
+   "Been here". Slugs share one namespace with WORLD_LOCATIONS.
+   ========================================================================= */
+
+export type WorldBadge = {
+  name: string;
+  // Start date as it should read on the badge, e.g. "May 17th, 2027".
+  starts: string;
+};
+
+export type WorldPin = {
+  slug: string;
+  // Panel heading + hover tooltip.
+  label: string;
+  // Where the dot sits and where the camera frames on select.
+  lat: number;
+  lng: number;
+  // Small line above the heading, e.g. "Up next".
+  kicker: string;
+  // Panel body. For a pin each string renders as a tag, not a paragraph.
+  content: string[];
+  // Picture that fades in, e.g. the company's logo.
+  image?: string;
+  // A badge on a lanyard, swinging into the panel: who, and when it starts.
+  // `content[0]` is the role line printed on it.
+  badge?: WorldBadge;
+  // The trip there. An arc is drawn from `from` (a visited place's slug) to
+  // the pin, and clicking the pin flies the camera along it before the panel
+  // opens. `sound` is the "on the way" loop: it plays from the moment the
+  // world opens until this pin is clicked, which is arriving.
+  journey?: {
+    from: string;
+    sound: string;
+  };
+};
+
+export const WORLD_PINS: WorldPin[] = [
+  {
+    slug: "washington",
+    label: "Seattle",
+    lat: 47.6062,
+    lng: -122.3321,
+    kicker: "Up next",
+    content: ["Incoming SWE @ Microsoft"],
+    image: "/assets/sprites/microsoft-logo.png",
+    // No badge photo yet, so the card shows a question mark where it goes.
+    badge: { name: "Abrar Sarwar", starts: "May 17th, 2027" },
+    journey: {
+      from: "georgia",
+      // Audio only: the file arrived as a .mov of a "now loading" screen,
+      // which is what it is for, looping until you get there.
+      sound: "/assets/videos/ontheway.m4a",
+    },
+  },
+];
+
+/* =========================================================================
+   HOME: where I am right now.
+
+   Drawn as a star on the globe (a pin is a dot, a visited place glows, the
+   star is the one place I actually am). It sits on a visited place, so
+   clicking it opens that place's panel.
+   ========================================================================= */
+
+export type WorldHome = {
+  // A visited place's slug; clicking the star selects it.
+  slug: string;
+  // Caption under the star.
+  label: string;
+  lat: number;
+  lng: number;
+};
+
+export const WORLD_HOME: WorldHome = {
+  slug: "georgia",
+  label: "Here right now",
+  // Atlanta.
+  lat: 33.749,
+  lng: -84.388,
+};
+
+export function pinBySlug(slug: string): WorldPin | undefined {
+  return WORLD_PINS.find((p) => p.slug === slug);
+}
+
+// What the side panel renders, whichever kind of place was clicked.
+export type WorldPanelEntry = {
+  kind: "visited" | "pin";
+  slug: string;
+  label: string;
+  kicker: string;
+  content: string[];
+  image?: string;
+  badge?: WorldBadge;
+};
+
+export function panelEntryBySlug(slug: string): WorldPanelEntry | undefined {
+  const loc = locationBySlug(slug);
+  if (loc) {
+    return {
+      kind: "visited",
+      slug: loc.slug,
+      label: loc.label,
+      kicker: "Been here",
+      content: loc.content,
+      image: loc.image,
+    };
+  }
+  const pin = pinBySlug(slug);
+  if (pin) {
+    return {
+      kind: "pin",
+      slug: pin.slug,
+      label: pin.label,
+      kicker: pin.kicker,
+      content: pin.content,
+      image: pin.image,
+      badge: pin.badge,
+    };
+  }
+  return undefined;
 }
 
 // ADMIN name -> region, so the globe can brighten a region's countries.
